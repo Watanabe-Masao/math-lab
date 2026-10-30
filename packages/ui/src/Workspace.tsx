@@ -237,7 +237,7 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
   };
 
   // ---- 分布の図：理論＝棒、実験＝点（同じ縦軸）、期待値＝点線。目盛りは確率の切りのよい値 ----
-  const W = 340, TOP = 22, BASE = 138, H = BASE + 26, LEFT = 4, RIGHT = 34;
+  const W = 340, TOP = 18, BASE = 118, H = BASE + 26, LEFT = 4, RIGHT = 34;
   const empMax = rec.values.length ? Math.max(0, ...dist.map((d) => freq.get(d.x) ?? 0)) : 0;
   const rawMax = Math.max(1e-9, ...dist.map((d) => d.y ?? 0), empMax);
   const tick = [0.01, 0.02, 0.05, 0.1, 0.2, 0.25, 0.5, 1].find((t) => rawMax / t <= 4) ?? 1;
@@ -245,7 +245,7 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
   const yPos = (v: number) => BASE - (v / yMax) * (BASE - TOP);
   const bw = (W - LEFT - RIGHT) / Math.max(1, dist.length);
   const xPos = (x: number) => LEFT + (x - range.min + 0.5) * bw;
-  const barW = Math.max(2, bw - Math.max(2, bw * 0.24));
+  const barW = Math.max(2, bw - Math.max(3, bw * 0.38));
   const every = dist.length <= 13 ? 1 : dist.length <= 31 ? 5 : 10;
   const cur = values[over];
   const chooseX = (x: number) => { haptic(); set(over, x); };
@@ -330,7 +330,7 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
             <line x1={xPos(meanValue)} x2={xPos(meanValue)} y1={TOP - 6} y2={BASE} className={s.mean} />
           )}
           {rec.values.length > 0 && dist.map((d) => (
-            <circle key={`e${d.x}`} cx={xPos(d.x)} cy={yPos(freq.get(d.x) ?? 0)} r={d.x === lastDraw ? 5 : 3.75}
+            <circle key={`e${d.x}`} cx={xPos(d.x)} cy={yPos(freq.get(d.x) ?? 0)} r={d.x === lastDraw ? 4 : 3}
               className={d.x === lastDraw ? `${s.emp} ${s.empJust}` : s.emp} data-testid={`ws-emp-${d.x}`} />
           ))}
           {dist.filter((d) => d.x === cur).map((d) => (
@@ -339,7 +339,7 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
           {dist.map((d) => {
             const on = d.x === cur;
             if (!on && ((d.x - range.min) % every !== 0 || Math.abs(d.x - (cur ?? -99)) * bw < 16)) return null;
-            return <text key={`t${d.x}`} x={xPos(d.x)} y={BASE + 17} className={on ? s.xTickOn : s.xTick} textAnchor="middle">{d.x}</text>;
+            return <text key={`t${d.x}`} x={xPos(d.x)} y={BASE + 15} className={on ? s.xTickOn : s.xTick} textAnchor="middle">{d.x}</text>;
           })}
         </svg>
       </figure>
