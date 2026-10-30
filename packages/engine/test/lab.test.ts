@@ -97,6 +97,11 @@ describe("起き方が理論に近づく・ずれる", () => {
     expect(Math.abs(s.mean! - b.mean)).toBeLessThan(0.15);
     expect(s.variance!).toBeGreaterThan(b.variance * 1.5);   // 理論：np(1−p)＋n(n−1)spread² ＝ 2.5＋8.1
   });
+  it("前の結果に引きずられても平均は np のまま（p が高くても 1 に張り付かない）、散らばりは大きい", () => {
+    const s8 = near({ kind: "streak", n: 10, p: 0.8, carry: 0.3 }, 13), b8 = modelMoments({ kind: "binom", n: 10, p: 0.8 });
+    expect(Math.abs(s8.mean! - b8.mean)).toBeLessThan(0.15);
+    expect(s8.variance!).toBeGreaterThan(b8.variance * 1.3);
+  });
   it("前の結果に引きずられると（独立でない）、二項より散らばりが大きい", () => {
     const s = near({ kind: "streak", n: 10, p: 0.5, carry: 0.3 }, 9);
     expect(s.variance!).toBeGreaterThan(modelMoments({ kind: "binom", n: 10, p: 0.5 }).variance * 1.3);

@@ -11,7 +11,8 @@ import {
 } from "@math-lab/engine";
 import { haptic, reduced, useTween } from "./motion";
 import { Sheet } from "./Sheet";
-import type { FormulaData } from "./Formula";
+import { Formula, type FormulaData } from "./Formula";
+import { Workspace, type WorkspaceData } from "./Workspace";
 import s from "./Experiment.module.css";
 
 type Cond = { n: number; p: number };
@@ -44,6 +45,10 @@ type Props = {
   onSendMemo?: (text: string) => void;
   /** 戻る（概念のページへ） */
   onBack?: () => void;
+  /** 概念の式（記号を定義の式で開く。E → Σ k P(X＝k) など） */
+  definitions?: (conceptId: string) => FormulaData[];
+  /** 理由の段に置く式の作業台（概念の workspace と同じもの。今の条件の値で始める） */
+  workspace?: { formula: WorkspaceData; mean?: FormulaData; vary: string[]; over: string };
 };
 
 const STAGES = ["予測", "実験", "観察", "理由", "応用"] as const;
@@ -56,10 +61,10 @@ const peak = (f: number[]) => f.reduce((b, v, i) => (v > f[b]! ? i : b), 0);
 const dirOf = (a: Cond, b: Cond) => { const d = mean(b) - mean(a); return Math.abs(d) < 0.25 ? 1 : d > 0 ? 2 : 0; };
 
 /** 棒（実験の割合）・点（理論）・点線（前の条件）を重ねる図。高さは前の値から動く */
-function Bars({ freq, theory, ghost, hi, height = 150, label }: { freq?: number[]; theory?: number[]; ghost?: number[]; hi?: number; height?: number; label: string }) {
+function Bars({ freq, theory, ghost, guess, hi, mark, height = 150, label }: { freq?: number[]; theory?: number[]; ghost?: number[]; guess?: number[]; hi?: number; mark?: number; height?: number; label: string }) {
   const base = freq ?? theory ?? [];
   const n = base.length - 1, W = 340, B = height - 20, R = 30;
-  const raw = Math.max(1e-9, ...(freq ?? []), ...(theory ?? []), ...(ghost ?? []));
+  const raw = Math.max(1e-9, ...(freq ?? []), ...(theory ?? []), ...(ghost ?? []), ...(guess ?? []));
   const tick = [0.05, 0.1, 0.2, 0.25, 0.5, 1].find((t) => raw / t <= 4) ?? 1;
   const top = Math.ceil(raw / tick - 1e-9) * tick;
   const [topT] = useTween([top]);
@@ -73,17 +78,90 @@ function Bars({ freq, theory, ghost, hi, height = 150, label }: { freq?: number[
         <g key={t}><line x1={0} x2={W - R + 4} y1={y(t)} y2={y(t)} className={s.grid} /><text x={W} y={y(t) + 3.5} textAnchor="end" className={s.tick}>{pct(t)}</text></g>
       ))}
       {ghost && <path d={ghost.map((v, k) => `${k ? "L" : "M"}${x(k)},${y(v)}`).join("")} className={s.ghost} />}
+      {guess && <path d={guess.slice(0, n + 1).map((v, k) => `${k ? "L" : "M"}${x(k)},${y(v)}`).join("")} className={s.guess} data-testid="exp-guess" />}
       {bars.map((v, k) => (v > 0 && B - y(v) > 0.3) && (
         <rect key={k} x={x(k) - bw * 0.32} y={y(v)} width={bw * 0.64} height={B - y(v)} rx={Math.min(3, bw * 0.15)} className={k === hi ? s.barHi : freq ? s.bar : s.barTheory} />
       ))}
       {freq && theory?.map((v, k) => <circle key={k} cx={x(k)} cy={y(v)} r={3} className={s.dot} />)}
       <line x1={0} x2={W - R + 4} y1={B} y2={B} className={s.base} />
+      {mark !== undefined && mark >= 0 && mark <= n && (
+        <g className={s.mark} key={`m${mark}`}>
+          <line x1={x(mark)} x2={x(mark)} y1={12} y2={B} />
+          <text x={Math.min(W - R - 14, Math.max(14, x(mark)))} y={9} textAnchor="middle">予想</text>
+        </g>
+      )}
       {base.map((_, k) => (k % every === 0 || k === hi) && <text key={k} x={x(k)} y={height - 5} textAnchor="middle" className={k === hi ? s.tickOn : s.tick}>{k}</text>)}
     </svg>
   );
 }
 
-export function Experiment({ def, reasonFormula, mainFormula, seed: seed0, onConcept, conceptName, onSendMemo, onBack }: Props) {
+type Counter = NonNullable<ExperimentDef["counterexamples"]>[number];
+const SPREAD = ["狭くなる", "変わらない", "広くなる"] as const;
+
+/** 反例を実験する：起き方だけ変えて、予想 → 実験（並びが出て積み上がる）→ 二項分布の理論と照らす。結果と説明は実験のあとに出す */
+function CounterLab({ cx, cond, theme, onConcept, name }: { cx: Counter; cond: Cond; theme: ExperimentTheme; onConcept?: (id: string) => void; name: (id: string) => string }) {
+  const total = Math.max(cond.n, cx.mechanism.total ?? 40);
+  const m: Mechanism = cx.mechanism.kind === "urn" ? { kind: "urn", n: cond.n, total, success: cx.mechanism.success ?? Math.round(cond.p * total) }
+    : cx.mechanism.kind === "streak" ? { kind: "streak", n: cond.n, p: cond.p, carry: cx.mechanism.carry ?? 0.3 }
+    : { kind: "mix", n: cond.n, p: cond.p, spread: cx.mechanism.spread ?? 0.2 };
+  // 起き方の説明（結果は言わない）
+  const how = m.kind === "urn" ? `${total} 個の箱（${theme.success} ${m.success} 個）から、${cond.n} 個を戻さずに取る`
+    : m.kind === "streak" ? `${theme.success}のあとは確率 ${r2(cond.p + m.carry * (1 - cond.p))}、${theme.failure}のあとは ${r2(cond.p - m.carry * cond.p)}（最初は ${r2(cond.p)}。どの回も平均すると ${r2(cond.p)}）`
+    : `セットごとに確率が ${r2(Math.max(0, cond.p - m.spread))} か ${r2(Math.min(1, cond.p + m.spread))} になる（平均は ${r2(cond.p)}）`;
+  const [guess, setGuess] = useState<number | undefined>();
+  const [seed] = useState(() => Date.now() % 100000);
+  const rng = useRef(createRandom(seed));
+  const [rec, setRec] = useState<SetRecord>(() => emptySetRecord(seed, m));
+  const [fresh, setFresh] = useState(0);
+  const stream = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stop = () => { if (stream.current) { clearInterval(stream.current); stream.current = null; } };
+  useEffect(() => stop, []);
+  const run = (count: number) => {
+    haptic(); stop();
+    if (count === 1 || reduced()) { setRec(runSets(rng.current, rec, count)); setFresh((f) => f + 1); return; }
+    let cur = rec, done = 0;
+    const tick = () => { cur = runSets(rng.current, cur, 20); done += 20; setRec(cur); setFresh((f) => f + 1); if (done >= count) stop(); };
+    tick(); stream.current = setInterval(tick, 60);
+  };
+  const sm = summarize(rec), binom = modelPmf({ kind: "binom", ...cond }), bv = modelMoments({ kind: "binom", ...cond }).variance;
+  const ratio = sm.variance !== undefined && bv > 0 ? sm.variance / bv : undefined;
+  const actual = ratio === undefined ? undefined : ratio < 0.9 ? 0 : ratio > 1.1 ? 2 : 1;
+  const enough = rec.sets >= 100;
+  const k = rec.last?.reduce((a, b) => a + b, 0);
+  return (
+    <div className={s.cx} data-testid="exp-cx">
+      <p className={s.how}><b>起き方</b>{how}</p>
+      <p className={s.h}>二項分布と比べて、山の広がりは？</p>
+      <div className={s.choice} role="radiogroup" aria-label="反例の予想">
+        {SPREAD.map((t, i) => <button key={t} type="button" role="radio" aria-checked={guess === i} onClick={() => { haptic(); setGuess(i); }}>{t}</button>)}
+      </div>
+      {guess !== undefined && <>
+        <div className={s.set} key={fresh}>
+          {(rec.last ?? Array(cond.n).fill(null)).map((v, i) => (
+            <span key={i} className={v === null ? s.slot : v ? s.hit : s.miss} style={{ "--i": i } as CSSProperties}>{v === null ? "" : v ? theme.icon : "・"}</span>
+          ))}
+        </div>
+        {k !== undefined && <p className={s.cxK}>{cond.n} {theme.unit ?? "回"}中 <b>{k}</b> {theme.unit ?? "回"} {theme.success}</p>}
+        <div className={s.legend}><span><i className={s.kBar} />この起き方 {rec.sets} セット</span><span><i className={s.kDot} />二項分布の理論</span></div>
+        <Bars freq={sm.freq} theory={binom} height={130} label={`${cx.name}の実験と二項分布の理論`} />
+        <div className={s.two}>
+          <button type="button" className={s.secondary} onClick={() => run(1)} data-testid="exp-cx-run-1">1セット</button>
+          <button type="button" className={s.primary} onClick={() => run(100)} data-testid="exp-cx-run-100">▶ 100セット</button>
+        </div>
+        {!enough ? <p className={s.muted}>あと {100 - rec.sets} セットで、二項分布と照らす</p> : <>
+          <div className={guess === actual ? s.ok : s.ng} data-testid="exp-cx-verdict">
+            <b>{guess === actual ? "✓ 予想どおり" : "✗ 予想と違った"}</b>　山は二項分布より{actual !== undefined ? SPREAD[actual] : "—"}（散らばり {r2(sm.variance)}、二項分布なら {r2(bv)}）
+          </div>
+          <p className={s.breaks}>崩した条件：{cx.breaks}</p>
+          <p className={s.note}>{cx.text}</p>
+          {cx.concept && onConcept && <button type="button" className={s.link} onClick={() => onConcept(cx.concept!)}>{name(cx.concept)} を見る</button>}
+        </>}
+      </>}
+    </div>
+  );
+}
+
+export function Experiment({ def, reasonFormula, mainFormula, seed: seed0, onConcept, conceptName, onSendMemo, onBack, definitions, workspace }: Props) {
   const [stage, setStage] = useState(0);
   const [reached, setReached] = useState(0);
   const go = (i: number) => { haptic(); setStage(i); setReached((r) => Math.max(r, i)); top.current?.scrollIntoView?.({ block: "start", behavior: reduced() ? "auto" : "smooth" }); };
@@ -116,21 +194,28 @@ export function Experiment({ def, reasonFormula, mainFormula, seed: seed0, onCon
   };
   const sum = summarize(rec);
   const theoryNow = useMemo(() => modelPmf({ kind: "binom", ...cond }), [cond.n, cond.p]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const theoryStart = useMemo(() => modelPmf({ kind: "binom", ...round.start }), [round]);
+  // 前の条件の山。次の条件で n が増えるときは、横軸を次の n まで伸ばす（予想の頂点を同じ図に置けるように）
+  const theoryStart = useMemo(() => { const f = modelPmf({ kind: "binom", ...round.start }); return [...f, ...Array(Math.max(0, round.next.n - round.start.n)).fill(0)]; }, [round]);
+  // 予想は1つの答えにそろえる：向きと山の頂点は連動する（右へ＝頂点が今の頂点より右）。どちらを触っても、もう一方が合わせて動く
+  const base = peak(modelPmf({ kind: "binom", ...round.start }));
+  const dirOfPeak = (k: number) => (k > base ? 2 : k < base ? 0 : 1);
+  const chooseDir = (i: number) => setPred((p) => {
+    const ok = dirOfPeak(p.peak) === i;
+    const pk = ok ? p.peak : i === 1 ? base : i === 2 ? Math.min(round.next.n, base + 1) : Math.max(0, base - 1);
+    return { dir: i, peak: pk };
+  });
+  const choosePeak = (k: number) => setPred({ dir: dirOfPeak(k), peak: k });
+  // あなたの予想の山：前の山の形のまま、頂点を予想の位置へずらす（形は変わらないと仮定した予想）。観察で理論と重ね、形の変化に気づく
+  const guess = useMemo(() => {
+    const f = modelPmf({ kind: "binom", ...round.start }), d = pred.peak - base;
+    const g = Array.from({ length: round.next.n + 1 }, (_, k) => f[k - d] ?? 0), t = g.reduce((a, b) => a + b, 0) || 1;
+    return g.map((v) => v / t);
+  }, [round, pred.peak, base]);
+  const spread = (f: number[]) => { const m = f.reduce((a, v, k) => a + k * v, 0); return f.reduce((a, v, k) => a + (k - m) ** 2 * v, 0); };
   const k = rec.last ? rec.last.reduce((a, b) => a + b, 0) : undefined;
 
   // 反例を実験する：同じ n・p で、成り立つ条件を1つ崩した起き方にして、二項の理論と比べる
-  const [bnd, setBnd] = useState<{ id: string; rec: SetRecord } | null>(null);
-  const runBoundary = (id: string) => {
-    const b = def.counterexamples?.find((x) => x.id === id); if (!b) return;
-    const m: Mechanism = b.mechanism.kind === "urn"
-      ? { kind: "urn", n: cond.n, total: Math.max(cond.n, b.mechanism.total ?? 40), success: b.mechanism.success ?? Math.round(cond.p * Math.max(cond.n, b.mechanism.total ?? 40)) }
-      : b.mechanism.kind === "streak" ? { kind: "streak", n: cond.n, p: cond.p, carry: b.mechanism.carry ?? 0.3 }
-      : { kind: "mix", n: cond.n, p: cond.p, spread: b.mechanism.spread ?? 0.2 };
-    haptic();
-    const sd = Date.now() % 100000;
-    setBnd({ id, rec: runSets(createRandom(sd), emptySetRecord(sd, m), 1000) });
-  };
+  const [cxId, setCxId] = useState<string | null>(null);
 
   // 発見メモ → ChatGPT
   const [memo, setMemo] = useState("");
@@ -166,16 +251,17 @@ export function Experiment({ def, reasonFormula, mainFormula, seed: seed0, onCon
     body = <>
       <section className={s.card}>
         <p className={s.h}>{`p＝${pct(round.start.p)}・n＝${round.start.n} のときの山`}<span>前の条件</span></p>
-        <Bars theory={theoryStart} hi={peak(theoryStart)} height={130} label="前の条件の理論の分布" />
+        <Bars theory={theoryStart} hi={base} guess={pred.dir !== undefined ? guess : undefined} mark={pred.dir !== undefined ? pred.peak : undefined} height={130} label="前の条件の理論の分布と予想の山" />
+        {pred.dir !== undefined && <div className={s.legend}><span><i className={s.kBar} />前の条件</span><span><i className={s.kGuess} />あなたの予想の山</span></div>}
       </section>
       <section className={s.card}>
         <p className={s.h}>{`${round.next.p !== round.start.p ? `p＝${pct(round.next.p)}` : `n＝${round.next.n}`} にすると、山は…`}</p>
         <div className={s.choice} role="radiogroup" aria-label="予想">
-          {DIRS.map((d, i) => <button key={d} type="button" role="radio" aria-checked={pred.dir === i} onClick={() => { haptic(); setPred((p) => ({ ...p, dir: i })); }}>{d}</button>)}
+          {DIRS.map((d, i) => <button key={d} type="button" role="radio" aria-checked={pred.dir === i} disabled={(i === 0 && base === 0) || (i === 2 && base >= round.next.n)} onClick={() => { haptic(); chooseDir(i); }}>{d}</button>)}
         </div>
         <label className={s.peak}>
-          <span>山のいちばん高い所は？</span><b>k＝{pred.peak}</b>
-          <input type="range" min={0} max={round.next.n} step={1} value={pred.peak} onChange={(e) => setPred((p) => ({ ...p, peak: Number(e.target.value) }))}
+          <span>山のいちばん高い所は？<small className={s.muted}>　今は k＝{base}</small></span><b>k＝{pred.peak}</b>
+          <input type="range" min={0} max={round.next.n} step={1} value={pred.peak} onChange={(e) => choosePeak(Number(e.target.value))}
             style={{ "--fill": `${(pred.peak / round.next.n) * 100}%` } as CSSProperties} aria-label="予想する山の頂点" />
         </label>
       </section>
@@ -216,10 +302,15 @@ export function Experiment({ def, reasonFormula, mainFormula, seed: seed0, onCon
     body = <>
       <div className={ok ? s.ok : s.ng} data-testid="exp-verdict">
         <b>{ok ? "✓ 予想どおり" : "✗ 予想と違った"}</b>　山は{DIRS[actual]}（いちばん高いのは k＝{pk}。予想は k＝{pred.peak}）
+        {(() => {   // 形の違い：予想は前の形のままずらした山。理論の散らばりと比べる
+          const r = spread(theoryNow) / Math.max(1e-9, spread(guess));
+          return r < 0.85 ? <span className={s.shape}>形にも注目：山は予想より<b>細く高く</b>なった（散らばり {r2(spread(theoryNow))}、前は {r2(spread(guess))}）</span>
+            : r > 1.15 ? <span className={s.shape}>形にも注目：山は予想より<b>広く低く</b>なった（散らばり {r2(spread(theoryNow))}、前は {r2(spread(guess))}）</span> : null;
+        })()}
       </div>
       <section className={s.card}>
-        <div className={s.legend}><span><i className={s.kBar} />実験 {rec.sets} セット</span><span><i className={s.kDot} />理論</span><span><i className={s.kGhost} />前の条件</span></div>
-        <Bars freq={sum.freq} theory={theoryNow} ghost={theoryStart} hi={pk} height={170} label="実験と理論と前の条件" />
+        <div className={s.legend}><span><i className={s.kBar} />実験 {rec.sets} セット</span><span><i className={s.kDot} />理論</span><span><i className={s.kGhost} />前の条件</span><span><i className={s.kGuess} />あなたの予想</span></div>
+        <Bars freq={sum.freq} theory={theoryNow} ghost={theoryStart.slice(0, cond.n + 1)} guess={guess} hi={pk} height={170} label="実験と理論と前の条件とあなたの予想" />
       </section>
       <div className={s.tiles}>
         <div>平均（実験）<b>{r2(sum.mean)}</b><i>前の条件では {r2(mean(round.start))}</i></div>
@@ -232,6 +323,12 @@ export function Experiment({ def, reasonFormula, mainFormula, seed: seed0, onCon
       <section className={s.card}>
         <p className={s.h}>{def.reason?.title ?? "式で確かめる"}</p>
         {reasonTex && <div className={s.math} dangerouslySetInnerHTML={{ __html: tex(reasonTex) }} />}
+        {reasonFormula?.tree && (
+          // 式を展開する：記号を押すと意味と今の値、「開く」で定義の式へ（E → 値×確率の和）。今の条件の値で1段ずつ計算する
+          <div className={s.formula} data-testid="exp-reason-formula">
+            <Formula formula={reasonFormula} values={{ n: cond.n, p: cond.p }} definitions={definitions} onConcept={onConcept} conceptName={conceptName} />
+          </div>
+        )}
       </section>
       {def.reason?.steps.length ? (
         <section className={s.card}>
@@ -239,15 +336,22 @@ export function Experiment({ def, reasonFormula, mainFormula, seed: seed0, onCon
           <ol className={s.steps}>{def.reason.steps.map((t) => <li key={t}>{t}</li>)}</ol>
         </section>
       ) : null}
-      {def.reason?.concept && onConcept && (
+      {workspace ? (
+        // 式を動かして確かめる：概念のページと同じ作業台を、今の条件（n・p）と予想の頂点（k）で始める。実験はこの実験室でしたので作業台の実験は出さない
+        <section className={s.ws} data-testid="exp-workspace">
+          <p className={s.h}>式を動かして確かめる<span>かたまりを押す・分解する・p を動かす</span></p>
+          <Workspace key={`${cond.n}-${cond.p}`} formula={workspace.formula} mean={workspace.mean} vary={workspace.vary} over={workspace.over}
+            initial={{ n: cond.n, p: cond.p, [workspace.over]: peak(theoryNow) }} definitions={definitions} onConcept={onConcept} conceptName={conceptName} experiment={false} />
+        </section>
+      ) : def.reason?.concept && onConcept ? (
         <button type="button" className={s.cardLink} onClick={() => onConcept(def.reason!.concept!)}>
           <b>式を動かして確かめる</b><span>{name(def.reason.concept)} の作業台：かたまりを押すと意味と値、p を動かすと山が動く</span>
         </button>
-      )}
+      ) : null}
     </>;
     cta = <button type="button" className={s.primary} onClick={() => go(4)}>別の条件で試す</button>;
   } else {
-    const b = bnd && def.counterexamples?.find((x) => x.id === bnd.id);
+    const cx = cxId ? def.counterexamples?.find((x) => x.id === cxId) : undefined;
     body = <>
       {def.next?.length ? (
         <section className={s.card}>
@@ -255,7 +359,7 @@ export function Experiment({ def, reasonFormula, mainFormula, seed: seed0, onCon
           {def.next.map((nx) => (
             <button key={nx.question} type="button" className={s.rowBtn} onClick={() => {
               const st = { ...cond }, nt = { ...cond, ...nx.set };
-              setRound({ question: nx.question, start: st, next: nt }); setPred({ peak: Math.round(mean(st)) }); setBnd(null); go(0);
+              setRound({ question: nx.question, start: st, next: nt }); setPred({ peak: Math.round(mean(st)) }); setCxId(null); go(0);
             }}>{nx.question}</button>
           ))}
         </section>
@@ -263,17 +367,8 @@ export function Experiment({ def, reasonFormula, mainFormula, seed: seed0, onCon
       {def.counterexamples?.length ? (
         <section className={s.card}>
           <p className={s.h}>反例を実験する<span>成り立つ条件を1つ崩す</span></p>
-          <div className={s.chips}>{def.counterexamples.map((x) => <button key={x.id} type="button" className={`${s.chip}${bnd?.id === x.id ? ` ${s.on}` : ""}`} onClick={() => runBoundary(x.id)} data-testid={`exp-bnd-${x.id}`}>{x.name}</button>)}</div>
-          {b && bnd && <>
-            <Bars freq={summarize(bnd.rec).freq} theory={theoryNow} height={130} label={`${b.name}の実験と二項分布の理論`} />
-            <p className={s.breaks}>崩した条件：{b.breaks}</p>
-            <p className={s.note}>{b.text}</p>
-            <div className={s.tiles}>
-              <div>散らばり（実験）<b>{r2(summarize(bnd.rec).variance)}</b><i>1000 セット</i></div>
-              <div>二項分布なら<b>{r2(modelMoments({ kind: "binom", ...cond }).variance)}</b><i>np(1−p)</i></div>
-            </div>
-            {b.concept && onConcept && <button type="button" className={s.link} onClick={() => onConcept(b.concept!)}>{name(b.concept)} を見る</button>}
-          </>}
+          <div className={s.chips}>{def.counterexamples.map((x) => <button key={x.id} type="button" className={`${s.chip}${cxId === x.id ? ` ${s.on}` : ""}`} onClick={() => { haptic(); setCxId(x.id); }} data-testid={`exp-bnd-${x.id}`}>{x.name}</button>)}</div>
+          {cx && <CounterLab key={`${cx.id}-${cond.n}-${cond.p}`} cx={cx} cond={cond} theme={theme} onConcept={onConcept} name={name} />}
         </section>
       ) : null}
       <section className={s.card}>
