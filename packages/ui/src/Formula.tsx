@@ -85,7 +85,7 @@ export function Formula({ formula: original, values, editable = false, onConcept
   }, [on, f.tree, sel0, definitions, symbols]);
   // 今の式の中に開いた所が残っている記号（σ を閉じると、その中で開いた V も見えなくなる）
   const openKeys = [...new Set(opened ? [...opened.marks.values()] : [])];
-  const open = (d: Definition) => change(box.current, () => { setOpens((o) => [...o, { key: on!, def: d }]); setStep(0); });
+  const open = (d: Definition) => change(box.current, () => { setOpens((o) => [...o, { key: on!, def: d }]); setStep(0); setOn(null); });   // 開いた記号は式から消えるので、カードも閉じる
   // 閉じる：その記号の開きを外し、外したことで開く所がなくなった手順も落とす（σ を閉じたら、その中の V の開きも消える）
   const close = (k: string) => change(box.current, () => setOpens((o) => {
     if (!original.tree) return [];
