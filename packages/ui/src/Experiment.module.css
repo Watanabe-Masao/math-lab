@@ -148,7 +148,7 @@
 .marks .play:disabled { opacity: .5; cursor: default; }
 .replayStat { margin: 0; font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .replayStat b { color: var(--ink); }
-.band { fill: var(--data-1-soft); }
+.band { fill: var(--data-1); fill-opacity: .14; }
 .meanLine { stroke: var(--ink-3); stroke-dasharray: 4 3; }
 .runLine { fill: none; stroke: var(--data-1); stroke-width: 2; stroke-linejoin: round; }
 .runDot { fill: var(--accent); stroke: var(--raised); stroke-width: 2; transition: cx var(--dur) var(--ease), cy var(--dur) var(--ease); }

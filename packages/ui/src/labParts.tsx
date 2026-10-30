@@ -10,6 +10,8 @@ export const STAGES = ["予測", "実験", "観察", "理由", "応用"] as cons
 export const tex = (t: string) => { try { return katex.renderToString(t, { throwOnError: false, output: "html" }); } catch { return t; } };
 export const pct = (v: number) => `${Math.round(v * 100)}%`;
 export const r2 = (v: number | undefined) => (v === undefined || !Number.isFinite(v) ? "—" : String(Number(v.toFixed(2))));
+/** 図の目盛りの数：大きい数は有効数字3桁で区切る（3515.5 → 3,520） */
+export const num3 = (v: number | undefined) => (v === undefined || !Number.isFinite(v) ? "—" : Math.abs(v) >= 1000 ? Number(v.toPrecision(3)).toLocaleString("ja-JP") : r2(v));
 export const peak = (f: number[]) => f.reduce((b, v, i) => (v > f[b]! ? i : b), 0);
 /** 分布の平均と分散（support の値と確率） */
 export const momentsOf = (f: number[], support: number[]) => {
@@ -138,12 +140,12 @@ export function Replay({ rec, theory, labels, unit = "" }: { rec: SetRecord; the
         {marks.map((m, i) => <button key={m} type="button" role="radio" aria-checked={i === t} onClick={() => { haptic(); setT(i); }}>{i === marks.length - 1 ? `${m}（全部）` : m}</button>)}
         <button type="button" className={s.play} onClick={play} disabled={playing} aria-label="1セット目から再生">{playing ? "再生中" : "▶ 再生"}</button>
       </div>
-      <p className={s.replayStat} data-testid="exp-replay-stat"><b>{upto}</b> セットまで：平均 <b>{r2(cur?.m)}{unit}</b>（理論 {r2(th.mean)}{unit}・ずれ {r2(cur ? Math.abs(cur.m - th.mean) : undefined)}）</p>
+      <p className={s.replayStat} data-testid="exp-replay-stat"><b>{upto}</b> セットまで：平均 <b>{num3(cur?.m)}{unit}</b>（理論 {num3(th.mean)}{unit}・ずれ {num3(cur ? Math.abs(cur.m - th.mean) : undefined)}）</p>
       <Bars freq={freq} theory={theory} labels={labels} height={120} label={`${upto} セットまでの割合と理論`} />
       <svg viewBox={`0 0 ${W} ${H}`} className={s.svg} role="img" aria-label="平均の移り変わり">
         <path d={`M${band.map(([x, a]) => `${x},${a}`).join("L")}L${[...band].reverse().map(([x, , b]) => `${x},${b}`).join("L")}Z`} className={s.band} />
         <line x1={L} x2={W - Rm + 4} y1={ly(th.mean)} y2={ly(th.mean)} className={s.meanLine} />
-        <text x={W} y={ly(th.mean) + 3.5} textAnchor="end" className={s.tick}>{r2(th.mean)}</text>
+        <text x={W} y={ly(th.mean) + 3.5} textAnchor="end" className={s.tick}>{num3(th.mean)}</text>
         <path d={pts.map((p, i) => `${i ? "L" : "M"}${lx(p.i)},${ly(p.m)}`).join("")} className={s.runLine} />
         {cur && <circle cx={lx(cur.i)} cy={ly(cur.m)} r={4} className={s.runDot} />}
         <line x1={L} x2={W - Rm + 4} y1={B} y2={B} className={s.base} />

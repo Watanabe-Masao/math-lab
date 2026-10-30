@@ -9,7 +9,7 @@ import { createRandom, emptySetRecord, expand, modelMoments, modelPmf, runSets, 
 import { haptic, reduced, useTween } from "./motion";
 import { Sheet } from "./Sheet";
 import type { FormulaData } from "./Formula";
-import { Bars, LabShell, Replay, r2, tex, useStages } from "./labParts";
+import { Bars, LabShell, Replay, num3, r2, tex, useStages } from "./labParts";
 import type { Props } from "./Experiment";
 import s from "./Experiment.module.css";
 
@@ -92,7 +92,7 @@ function TableCounter({ cx, unit, onConcept, name }: { cx: NonNullable<TableDef[
         {rec.sets > 1 && <Replay rec={rec} theory={theory} labels={labelsFor(cx, support, unit)} unit={unit} />}
         {!enough ? <p className={s.muted}>あと {300 - rec.sets} 回で、表と照らす</p> : <>
           <div className={guess === answer ? s.ok : s.ng} data-testid="exp-cx-verdict">
-            <b>{guess === answer ? "✓ 予想どおり" : "✗ 予想と違った"}</b>　平均は{SETTLE[answer]}（期待値 {r2(mm.mean)}{unit}・標準偏差 {r2(Math.sqrt(mm.variance))}{unit}）
+            <b>{guess === answer ? "✓ 予想どおり" : "✗ 予想と違った"}</b>　平均は{SETTLE[answer]}（期待値 {num3(mm.mean)}{unit}・標準偏差 {num3(Math.sqrt(mm.variance))}{unit}）
           </div>
           <p className={s.breaks}>崩した条件：{cx.breaks}</p>
           <p className={s.note}>{cx.text}</p>
