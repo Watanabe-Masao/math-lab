@@ -57,3 +57,4 @@
 .calcTex { overflow-x: auto; overflow-y: hidden; font-size: 1.02em; }
 .calcNav { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; justify-content: flex-end; }
 .tool:disabled { opacity: .4; cursor: default; }
+.stripEmpty { min-height: 0; }

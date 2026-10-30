@@ -7,7 +7,7 @@
 import katex from "katex";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
-  applyOpens, definitionsFor, describeDomain, distribution, evaluate, expand, lhsOf, nodeAt, openSymbol, rhsOf, sliderRange, substitute, symbolsIn, toTex,
+  applyOpens, definitionsFor, describeDomain, distribution, evaluate, expand, formatNum, lhsOf, nodeAt, openSymbol, rhsOf, sliderRange, substitute, symbolsIn, toTex,
   type Definition, type Formula as EngineFormula, type FormulaNode, type FormulaPart, type FormulaSymbol,
 } from "@math-lab/engine";
 import { flash, haptic, reduced } from "./motion";
@@ -37,6 +37,7 @@ const render = (tex: string, display = true) => {
   catch { return tex; }
 };
 const fmt = (v: number | undefined, d = 4) => (v === undefined || !Number.isFinite(v) ? "—" : String(Number(v.toFixed(d))));
+const short = (v: number) => formatNum(Number(v.toPrecision(5)));   // 計算過程の数は5桁まで
 const toEngine = (fs: FormulaData[]): EngineFormula[] => fs.filter((x) => !!x.tree).map((x) => ({ symbols: x.symbols ?? [], tree: x.tree! }));
 const FALLBACK = { min: 0, max: 30, step: 0.01 };
 
@@ -208,7 +209,7 @@ export function Workspace({ formula: original, mean, vary, over, initial, defini
         </div>
       );
     }
-    return <div className={s.strip} data-testid="ws-strip"><p className={s.hint}>式のかたまりを押すと、意味と今の値がここに出る。</p></div>;
+    return <div className={`${s.strip} ${s.stripEmpty}`} data-testid="ws-strip"><p className={s.hint}>式のかたまり（ₙCₖ・pᵏ など）を押すと、意味と今の値がここに出る。</p></div>;
   };
 
   // ---- 分布の図 ----
@@ -237,7 +238,7 @@ export function Workspace({ formula: original, mean, vary, over, initial, defini
       {steps.length > 1 && (
         <div className={s.calc} data-testid="ws-calc">
           <span className={s.muted}>計算過程</span>
-          <div className={s.calcTex} dangerouslySetInnerHTML={{ __html: render(`${toTex(steps[shownStep]!, { symbols })}${shownStep < steps.length - 1 ? `=${toTex(steps[steps.length - 1]!, { symbols })}` : ""}`, false) }} />
+          <div className={s.calcTex} dangerouslySetInnerHTML={{ __html: render(`${toTex(steps[shownStep]!, { symbols, num: short })}${shownStep < steps.length - 1 ? `=${toTex(steps[steps.length - 1]!, { symbols, num: short })}` : ""}`, false) }} />
           <div className={s.calcNav}>
             <button type="button" className={s.tool} onClick={() => setStep(Math.max(1, shownStep - 1))} disabled={shownStep <= 1} aria-label="前の段">◀</button>
             <span className={s.muted}>{shownStep}／{steps.length - 1}</span>
