@@ -11,7 +11,10 @@
 .stage [data-sym] { cursor: pointer; border-radius: 4px; transition: color var(--dur) var(--ease); }
 .stage [data-sym][data-on] { color: var(--accent); background: var(--accent-soft); }
 .strip { background: var(--surface-2); border-radius: var(--r-m); padding: var(--sp-2) var(--sp-3); min-height: 72px; display: grid; gap: 6px; align-content: start; animation: swap var(--dur) var(--ease); }
-.stripRow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; }
+.stripRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "tex val" "text text"; gap: 2px 12px; align-items: center; }
+.stripRow > :nth-child(1) { grid-area: tex; }
+.stripRow > :nth-child(2) { grid-area: text; }
+.stripRow > :nth-child(3) { grid-area: val; }
 .stripTex { font-size: 1.1em; color: var(--accent); }
 .stripBig { font-size: 28px; line-height: 1; color: var(--accent); min-width: 1em; text-align: center; font-style: italic; }
 .stripText b { font-size: var(--fs-head); }
