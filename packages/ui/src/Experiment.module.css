@@ -1,0 +1,119 @@
+/* 実験室：上（段と問い）・中（1つの段の中身）・下（押す所）。押す所は画面の下に止める（親指の届く所） */
+.root { display: flex; flex-direction: column; min-height: 100%; background: var(--bg); }
+.top { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: var(--sp-2) 0 var(--sp-2); display: grid; gap: 6px; }
+.titleRow { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; }
+.titleRow > b:first-child { grid-column: 1 / 3; }
+.titleRow b { font-size: var(--fs-head); }
+.info { all: unset; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); box-shadow: 0 0 0 1px var(--line); color: var(--ink-2); cursor: pointer; position: relative; }
+.info::before { content: ""; position: absolute; inset: -4px; }
+.info:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 段の列：済んだ段は ✓、今の段は強い色。行ったことのある段へは戻れる */
+.stepper { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); position: relative; }
+.stepper::before { content: ""; position: absolute; left: 10%; right: 10%; top: 11px; height: 2px; background: var(--line-strong); }
+.stepper button { all: unset; position: relative; display: grid; justify-items: center; gap: 2px; width: 100%; font-size: 11px; color: var(--ink-3); cursor: pointer; min-height: 40px; }
+.stepper button:disabled { cursor: default; }
+.stepper i { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 11px; font-weight: 700;
+  background: var(--bg); border: 2px solid var(--line-strong); transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease); }
+.stepper .done i { background: var(--good); border-color: var(--good); color: var(--accent-ink); }
+.stepper [aria-current] { color: var(--ink); font-weight: 700; }
+.stepper [aria-current] i { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); box-shadow: 0 0 0 4px var(--accent-soft); }
+.stepper button:focus-visible i { outline: 2px solid var(--accent); outline-offset: 2px; }
+.q { margin: 0; padding: 8px 12px; border-radius: var(--r-m); background: var(--surface-2); font-size: 15px; font-weight: 700; line-height: 1.5; }
+.q span { display: block; font-size: var(--fs-tag); font-weight: 400; color: var(--ink-3); }
+/* 段の中身：段を替えると少し下から出る */
+.body { flex: 1; display: grid; gap: 10px; align-content: start; padding: var(--sp-2) 0 calc(150px + env(safe-area-inset-bottom)); animation: enter var(--dur-sheet) var(--ease-sheet); }
+@keyframes enter { from { opacity: 0; transform: translateY(8px); } }
+.card { background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-l); padding: 12px; display: grid; gap: 8px; }
+.h { margin: 0; font-size: 13.5px; font-weight: 700; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.h span { font-weight: 400; font-size: var(--fs-tag); color: var(--ink-3); text-align: right; }
+.muted { color: var(--ink-3); font-size: var(--fs-small); font-weight: 400; }
+/* 予想 */
+.choice { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.choice button { all: unset; box-sizing: border-box; min-height: 56px; border-radius: var(--r-m); border: 1.5px solid var(--line-strong); background: var(--surface); display: grid; place-items: center; text-align: center;
+  font-weight: 600; font-size: 13.5px; cursor: pointer; transition: transform var(--dur-press) var(--ease), background var(--dur) var(--ease), border-color var(--dur) var(--ease); }
+.choice button[aria-checked="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.choice button:active, .themes button:active, .chip:active, .primary:active, .secondary:active { transform: scale(var(--press-scale)); }
+.choice button:focus-visible, .themes button:focus-visible, .chip:focus-visible, .primary:focus-visible, .secondary:focus-visible, .next:focus-visible, .rowBtn:focus-visible, .cardLink:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.peak { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; align-items: baseline; font-size: 13px; }
+.peak b { font-size: 15px; }
+.peak input { grid-column: 1 / -1; width: 100%; height: 30px; margin: 0; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; }
+.peak input::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: linear-gradient(to right, var(--accent) var(--fill), var(--line-strong) var(--fill)); }
+.peak input::-moz-range-track { height: 3px; border-radius: 2px; background: linear-gradient(to right, var(--accent) var(--fill), var(--line-strong) var(--fill)); }
+.peak input::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; margin-top: -8.5px; border-radius: 50%; background: var(--raised); border: 1.5px solid var(--accent); box-shadow: 0 1px 3px var(--scrim); }
+.peak input::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--raised); border: 1.5px solid var(--accent); }
+/* テーマ：横に送れる札 */
+.themes { display: flex; gap: 6px; overflow-x: auto; padding: 2px 1px 4px; scrollbar-width: none; }
+.themes::-webkit-scrollbar { display: none; }
+.themes button { all: unset; flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border-radius: var(--r-pill); font-size: 13px; cursor: pointer;
+  background: var(--surface-2); box-shadow: 0 0 0 1px var(--line); color: var(--ink-2); transition: transform var(--dur-press) var(--ease), background var(--dur) var(--ease); }
+.themes button[aria-checked="true"] { background: var(--accent-soft); box-shadow: 0 0 0 1.5px var(--accent); color: var(--accent); font-weight: 700; }
+/* 1セットの並び：出るたびに左から順に現れる */
+.set { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; }
+.set > span { aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; font-size: 15px; line-height: 1;
+  animation: pop var(--dur-sheet) var(--ease-sheet) both; animation-delay: calc(var(--i) * var(--dur-press) / 3); }
+.hit { background: var(--accent-soft); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.miss { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--ink-3); }
+.slot { box-shadow: inset 0 0 0 1px var(--line); animation: none; }
+@keyframes pop { from { opacity: 0; transform: scale(.4) rotateY(90deg); } }
+.big { margin: 4px 0 0; text-align: center; font-size: 20px; font-weight: 700; }
+.big em { font-style: normal; color: var(--accent); font-size: 26px; }
+.conds, .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip { all: unset; display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border-radius: var(--r-pill); font-size: 12.5px; color: var(--ink-2); cursor: pointer;
+  background: var(--surface-2); box-shadow: 0 0 0 1px var(--line); position: relative; transition: transform var(--dur-press) var(--ease); }
+.chip::before { content: ""; position: absolute; inset: -6px 0; }
+.on { background: var(--accent-soft); box-shadow: 0 0 0 1.5px var(--accent); color: var(--accent); font-weight: 700; }
+/* 図 */
+.svg { width: 100%; height: auto; display: block; }
+.grid { stroke: var(--line); }
+.base { stroke: var(--ink-3); }
+.tick { font-size: 10px; fill: var(--ink-3); }
+.tickOn { font-size: 10.5px; font-weight: 700; fill: var(--ink); }
+.bar { fill: var(--data-1); fill-opacity: .6; }
+.barTheory { fill: var(--data-1); fill-opacity: .45; }
+.barHi { fill: var(--data-hi); }
+.dot { fill: var(--ink); stroke: var(--raised); stroke-width: 1.5; }
+.ghost { fill: none; stroke: var(--data-2); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11.5px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.kBar { width: 9px; height: 10px; border-radius: 2px 2px 0 0; background: var(--data-1); opacity: .6; }
+.kDot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink); }
+.kGhost { width: 14px; height: 0; border-top: 2px dashed var(--data-2); }
+.ok, .ng { border-radius: var(--r-m); padding: 10px 12px; font-size: 13.5px; line-height: 1.55; animation: enter var(--dur-sheet) var(--ease-sheet); }
+.ok { border-left: 3px solid var(--good); background: var(--surface-2); }
+.ok b { color: var(--good); }
+.ng { border-left: 3px solid var(--bad); background: var(--surface-2); }
+.ng b { color: var(--bad); }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tiles > div { background: var(--surface-2); border-radius: var(--r-m); padding: 8px 10px; font-size: 12px; color: var(--ink-2); }
+.tiles b { display: block; font-size: 20px; color: var(--ink); }
+.tiles i { font-style: normal; color: var(--ink-3); font-size: 11.5px; }
+.math { text-align: center; font-size: 1.1em; overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+.steps { margin: 0; padding-left: 1.4em; display: grid; gap: 4px; font-size: 13.5px; }
+.cardLink, .rowBtn { all: unset; box-sizing: border-box; display: grid; gap: 2px; padding: 12px; border-radius: var(--r-l); background: var(--raised); border: 1px solid var(--accent-line); cursor: pointer; }
+.cardLink span { font-size: var(--fs-small); color: var(--ink-3); }
+.cardLink b { color: var(--accent); }
+.rowBtn { border-color: var(--line); font-size: 14px; min-height: var(--tap); }
+.rowBtn::after { content: "予想から始める"; font-size: var(--fs-tag); color: var(--accent); }
+.note { margin: 0; font-size: 13px; color: var(--ink-2); line-height: 1.6; }
+.link { all: unset; color: var(--accent); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; min-height: 32px; }
+.memo { width: 100%; box-sizing: border-box; min-height: 84px; border-radius: var(--r-m); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); padding: 8px 10px; font: inherit; font-size: 14px; resize: vertical; }
+.memo:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* 下に止まる押す所 */
+.bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; display: grid; gap: 6px; padding: 10px var(--sp-4) calc(12px + env(safe-area-inset-bottom));
+  background: var(--raised); border-top: 1px solid var(--line); box-shadow: var(--shadow-raised); }
+@media (min-width: 760px) { .bar { left: calc(50% - 380px); right: calc(50% - 380px); border-radius: var(--r-l) var(--r-l) 0 0; } }
+.two { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
+.primary, .secondary { all: unset; box-sizing: border-box; min-height: 48px; border-radius: var(--r-m); display: grid; place-items: center; font-weight: 700; font-size: 15px; cursor: pointer;
+  transition: transform var(--dur-press) var(--ease), opacity var(--dur) var(--ease); }
+.primary { background: var(--accent); color: var(--accent-ink); }
+.primary:disabled { opacity: .45; cursor: default; }
+.secondary { background: var(--surface); border: 1px solid var(--line-strong); }
+.next { all: unset; text-align: center; font-size: 13px; color: var(--accent); min-height: 32px; cursor: pointer; font-weight: 600; }
+.next:disabled { color: var(--ink-3); font-weight: 400; cursor: default; }
+.kv { margin: 0; display: grid; gap: 4px; }
+.kv div { display: grid; grid-template-columns: 2em 1fr; gap: 8px; font-size: 13px; }
+.kv dt { font-family: KaTeX_Math, "Times New Roman", serif; font-style: italic; font-size: 15px; }
+.kv dd { margin: 0; color: var(--ink-2); }
+.points { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; font-size: 13px; }
+.breaks { margin: 0; font-size: var(--fs-small); font-weight: 700; color: var(--bad); }
+.story { margin: -4px 0 0; font-size: var(--fs-small); color: var(--ink-3); }
