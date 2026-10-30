@@ -5,12 +5,12 @@
 // - 分布の棒を押すと横軸の記号（k）が選ばれ、式の値と帯の値がその k になる
 // 手本：渡辺さんの「FormulaNode 計算ツリー」（式の真下の帯・その場で展開・結果の二重線）。ここに実験（#102）と予想を足していく。
 import katex from "katex";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
-  applyOpens, definitionsFor, describeDomain, distribution, evaluate, lhsOf, nodeAt, openSymbol, rhsOf, sliderRange, substitute, symbolsIn, toTex,
+  applyOpens, createRandom, definitionsFor, describeDomain, distribution, emptyRecord, evaluate, expand, formatNum, frequencies, lhsOf, nodeAt, runTrials, openSymbol, rhsOf, sliderRange, substitute, symbolsIn, toTex,
   type Definition, type Formula as EngineFormula, type FormulaNode, type FormulaPart, type FormulaSymbol,
 } from "@math-lab/engine";
-import { change, flash, haptic } from "./motion";
+import { flash, haptic, reduced } from "./motion";
 import type { FormulaData } from "./Formula";
 import s from "./Workspace.module.css";
 
@@ -27,6 +27,8 @@ type Props = {
   over: string;
   /** 最初の値（なければ定義域の中ほど） */
   initial?: Record<string, number>;
+  /** 実験の種（なければ時刻から。画面に出し、同じ種なら同じ結果） */
+  seed?: number;
   definitions?: (conceptId: string) => FormulaData[];
   onConcept?: (id: string) => void;
   conceptName?: (id: string) => string;
@@ -37,12 +39,13 @@ const render = (tex: string, display = true) => {
   catch { return tex; }
 };
 const fmt = (v: number | undefined, d = 4) => (v === undefined || !Number.isFinite(v) ? "—" : String(Number(v.toFixed(d))));
+const short = (v: number) => formatNum(Number(v.toPrecision(5)));   // 計算過程の数は5桁まで
 const toEngine = (fs: FormulaData[]): EngineFormula[] => fs.filter((x) => !!x.tree).map((x) => ({ symbols: x.symbols ?? [], tree: x.tree! }));
 const FALLBACK = { min: 0, max: 30, step: 0.01 };
 
 type Sel = { kind: "part"; index: number } | { kind: "sym"; key: string } | null;
 
-export function Workspace({ formula: original, mean, vary, over, initial, definitions, onConcept, conceptName }: Props) {
+export function Workspace({ formula: original, mean, vary, over, initial, seed: seed0, definitions, onConcept, conceptName }: Props) {
   const baseSymbols = original.symbols ?? [];
   const symOf = (k: string, list = baseSymbols) => list.find((x) => x.key === k);
 
@@ -95,8 +98,36 @@ export function Workspace({ formula: original, mean, vary, over, initial, defini
     root.querySelectorAll<HTMLElement>("[data-part]").forEach((el) => el.toggleAttribute("data-on", sel?.kind === "part" && el.dataset.part === String(sel.index)));
     root.querySelectorAll<HTMLElement>("[data-sym]").forEach((el) => el.toggleAttribute("data-on", sel?.kind === "sym" && el.dataset.sym === sel.key));
   }, [html, sel]);
-  const last = opens[opens.length - 1]?.key;
-  useEffect(() => { if (last) stage.current?.querySelectorAll(`[data-open="${last}"]`).forEach((el) => flash(el)); }, [opens.length, last]);
+  // ---- その場で展開する動き（FLIP。手本：FormulaNode 計算ツリー） ----
+  // 開く・閉じる前に記号の位置を覚え、描き直したあと、残った記号は前の位置から滑らせ、新しく出た所は開いた記号の位置から広げる
+  const before = useRef<{ rects: Map<string, DOMRect>; origin?: DOMRect; key?: string } | null>(null);
+  const snapshot = (originKey?: string) => {
+    const rects = new Map<string, DOMRect>(), count = new Map<string, number>();
+    let origin: DOMRect | undefined;
+    stage.current?.querySelectorAll<HTMLElement>("[data-sym]").forEach((el) => {
+      const k = el.dataset.sym!, i = count.get(k) ?? 0; count.set(k, i + 1);
+      const r = el.getBoundingClientRect(); rects.set(`${k}#${i}`, r);
+      if (k === originKey && !origin) origin = r;
+    });
+    before.current = { rects, origin, key: originKey };
+  };
+  useLayoutEffect(() => {
+    const b = before.current; before.current = null;
+    if (!b || !stage.current || reduced()) return;
+    const count = new Map<string, number>();
+    stage.current.querySelectorAll<HTMLElement>("[data-sym]").forEach((el) => {
+      const k = el.dataset.sym!, i = count.get(k) ?? 0; count.set(k, i + 1);
+      const o = b.rects.get(`${k}#${i}`), r = el.getBoundingClientRect();
+      const fresh = el.closest(`[data-open="${b.key}"]`);
+      if (fresh && b.origin) {
+        el.animate([{ transform: `translate(${b.origin.left - r.left}px, ${b.origin.top - r.top}px) scale(.4)`, opacity: 0 }, { transform: "none", opacity: 1 }],
+          { duration: 360, easing: "cubic-bezier(.2,.8,.2,1)" });
+      } else if (o && (Math.abs(o.left - r.left) > .5 || Math.abs(o.top - r.top) > .5)) {
+        el.animate([{ transform: `translate(${o.left - r.left}px, ${o.top - r.top}px)` }, { transform: "none" }], { duration: 320, easing: "cubic-bezier(.2,.8,.2,1)" });
+      }
+    });
+    if (b.key) stage.current.querySelectorAll(`[data-open="${b.key}"]`).forEach((el) => flash(el));
+  }, [html]);
 
   const onStage = (e: React.MouseEvent) => {
     const t = e.target as HTMLElement;
@@ -115,6 +146,27 @@ export function Workspace({ formula: original, mean, vary, over, initial, defini
   const range = overSym ? sliderRange(overSym, values, FALLBACK) : { min: 0, max: 0, step: 1 };
   const dist = useMemo(() => distribution(original.tree!, over, range.min, range.max, env), [original.tree, over, range.min, range.max, JSON.stringify(values)]);   // eslint-disable-line react-hooks/exhaustive-deps
   const meanValue = mean?.tree ? evaluate(rhsOf(mean.tree), env) : undefined;
+  // ---- 実験（#102）：理論の分布から種つき乱数で1回ずつ引き、結果を同じ図に積み上げる。条件（n・p）を変えたら記録を分ける ----
+  const [seed, setSeed] = useState(() => seed0 ?? (Date.now() % 100000));
+  const rng = useRef(createRandom(seed));
+  const [rec, setRec] = useState(emptyRecord);
+  const [lastDraw, setLastDraw] = useState<number | null>(null);
+  const cond = JSON.stringify(vary.map((k) => values[k]));
+  useEffect(() => { setRec(emptyRecord()); setLastDraw(null); }, [cond]);
+  const run = (count: number) => {
+    haptic();
+    const r = runTrials(rng.current, dist, count, rec);
+    setRec(r); setLastDraw(count === 1 ? r.values[r.values.length - 1]! : null);
+  };
+  const clearRec = () => { const s2 = Date.now() % 100000; setSeed(s2); rng.current = createRandom(s2); setRec(emptyRecord()); setLastDraw(null); };
+  const freq = frequencies(rec);
+
+  // 計算過程：右辺に今の値を入れて1段ずつ（252 × 0.5⁵ × 0.5⁵ ＝ 0.2461）。最初は「値を入れた式」の段
+  const steps = useMemo(() => expand(original.tree!, env), [original.tree, JSON.stringify(values)]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const [step, setStep] = useState(1);
+  const shownStep = Math.min(step, steps.length - 1);
+  const isProb = lhs && "op" in lhs && lhs.op === "fn" && lhs.name === "P";
+  const reset = () => { snapshot(); setValues(start); setOpens([]); setSel(null); setStep(1); setRec(emptyRecord()); setLastDraw(null); };
 
   // ---- 開き方（選んだ記号） ----
   const selSym = sel?.kind === "sym" ? symOf(sel.key, symbols) : undefined;
@@ -122,13 +174,13 @@ export function Workspace({ formula: original, mean, vary, over, initial, defini
     if (!selSym?.concept || !definitions) return [];
     return definitionsFor(selSym.key, toEngine(definitions(selSym.concept))).filter((d) => openSymbol(tree, symbols, selSym.key, d, new Map(), { resolve }).count > 0);
   }, [selSym, definitions, tree, symbols, resolve]);
-  const open = (d: Definition) => change(stage.current, () => { setOpens((o) => [...o, { key: selSym!.key, def: d }]); setSel(null); });
+  const open = (d: Definition) => { snapshot(selSym!.key); setOpens((o) => [...o, { key: selSym!.key, def: d }]); setSel(null); };
   const openKeys = [...new Set(opened.marks.values())];
-  const close = (k: string) => change(stage.current, () => setOpens((o) => {
+  const close = (k: string) => { snapshot(); setOpens((o) => {
     const kept: typeof o = []; let cur = { tree: original.tree!, symbols: baseSymbols };
     for (const x of o.filter((x) => x.key !== k)) { const r = openSymbol(cur.tree, cur.symbols, x.key, x.def, new Map(), { resolve }); if (r.count) { kept.push(x); cur = r; } }
     return kept;
-  }));
+  }); };
 
   // ---- 帯 ----
   const strip = () => {
@@ -174,7 +226,7 @@ export function Workspace({ formula: original, mean, vary, over, initial, defini
         </div>
       );
     }
-    return <div className={s.strip} data-testid="ws-strip"><p className={s.hint}>式のかたまりを押すと、意味と今の値がここに出る。</p></div>;
+    return <div className={`${s.strip} ${s.stripEmpty}`} data-testid="ws-strip"><p className={s.hint}>式のかたまり（ₙCₖ・pᵏ など）を押すと、意味と今の値がここに出る。</p></div>;
   };
 
   // ---- 分布の図 ----
@@ -186,21 +238,33 @@ export function Workspace({ formula: original, mean, vary, over, initial, defini
 
   return (
     <section className={s.ws} data-testid="workspace" aria-label="式の作業台">
-      <div className={s.head}><span className={s.eyebrow}>作業台</span>{original.label && <b>{original.label}</b>}</div>
+      <div className={s.head}><span className={s.eyebrow}>作業台</span>{original.label && <b>{original.label}</b>}
+        <button type="button" className={s.reset} onClick={reset} data-testid="ws-reset">初期値に戻す</button></div>
       <div ref={stage} className={s.stage} onClick={onStage} dangerouslySetInnerHTML={{ __html: html }} data-testid="ws-formula" />
       {strip()}
       {openKeys.length > 0 && (
         <div className={s.tools}>
           {openKeys.map((k) => <button key={k} type="button" className={s.tool} onClick={() => close(k)} data-testid={`ws-close-${k}`}>{symOf(k, symbols)?.symbol ?? k} をたたむ</button>)}
-          {opens.length > 1 && <button type="button" className={s.tool} onClick={() => change(stage.current, () => setOpens([]))}>元の式に戻す</button>}
+          {opens.length > 1 && <button type="button" className={s.tool} onClick={() => { snapshot(); setOpens([]); }}>元の式に戻す</button>}
         </div>
       )}
       <div className={s.result} data-testid="ws-result">
         <span dangerouslySetInnerHTML={{ __html: lhs ? render(toTex(substitute(lhs, { values: { [over]: values[over]! } }), { symbols }), false) : "" }} />
-        <span className={s.resultVal}>{fmt(result)}</span>
+        <span className={s.resultVal}>{isProb && result !== undefined ? `${(result * 100).toFixed(2)}%` : fmt(result)}{isProb && <small className={s.resultSub}>{fmt(result, 5)}</small>}</span>
       </div>
+      {steps.length > 1 && (
+        <div className={s.calc} data-testid="ws-calc">
+          <span className={s.muted}>計算過程</span>
+          <div className={s.calcTex} dangerouslySetInnerHTML={{ __html: render(`${toTex(steps[shownStep]!, { symbols, num: short })}${shownStep < steps.length - 1 ? `=${toTex(steps[steps.length - 1]!, { symbols, num: short })}` : ""}`, false) }} />
+          <div className={s.calcNav}>
+            <button type="button" className={s.tool} onClick={() => setStep(Math.max(1, shownStep - 1))} disabled={shownStep <= 1} aria-label="前の段">◀</button>
+            <span className={s.muted}>{shownStep}／{steps.length - 1}</span>
+            <button type="button" className={s.tool} onClick={() => setStep(Math.min(steps.length - 1, shownStep + 1))} disabled={shownStep >= steps.length - 1} aria-label="次の段">▶</button>
+          </div>
+        </div>
+      )}
       <div className={s.sliders}>
-        {vary.map((k) => {
+        {[...vary, over].map((k) => {
           const sym = symOf(k); if (!sym) return null;
           const r = sliderRange(sym, values, FALLBACK);
           return (
@@ -227,6 +291,11 @@ export function Workspace({ formula: original, mean, vary, over, initial, defini
               </g>
             );
           })}
+          {rec.values.length > 0 && dist.map((d) => {
+            const f = freq.get(d.x) ?? 0, y = H - Math.min(1, f / maxY) * (H - 12);
+            return <line key={`e${d.x}`} x1={xPos(d.x) - bw * 0.46} x2={xPos(d.x) + bw * 0.46} y1={y} y2={y}
+              className={d.x === lastDraw ? `${s.emp} ${s.empJust}` : s.emp} data-testid={`ws-emp-${d.x}`} />;
+          })}
           {meanValue !== undefined && meanValue >= range.min && meanValue <= range.max && (
             <path d={`M ${xPos(meanValue)} ${H + 2} l -5 8 h 10 z`} className={s.mean} />
           )}
@@ -235,6 +304,23 @@ export function Workspace({ formula: original, mean, vary, over, initial, defini
         </svg>
         <p className={s.hint}>棒を押すと {overSym?.symbol ?? over} が選ばれ、式の値がその確率になる。スライダーを動かすと形が変わる。</p>
       </figure>
+      <div className={s.exp} data-testid="ws-exp">
+        <div className={s.expHead}>
+          <b>実験する</b>
+          <span className={s.muted}>棒＝理論　━＝実験の割合</span>
+        </div>
+        <div className={s.expBtns}>
+          <button type="button" className={s.expBtn} onClick={() => run(1)} data-testid="ws-run-1">1回</button>
+          <button type="button" className={`${s.expBtn} ${s.expMain}`} onClick={() => run(100)} data-testid="ws-run-100">100回</button>
+          <button type="button" className={s.tool} onClick={clearRec} disabled={!rec.values.length}>記録を消す</button>
+        </div>
+        <p className={s.expStat} data-testid="ws-exp-stat" aria-live="polite">
+          {rec.values.length
+            ? <>実験 <b>{rec.values.length}</b> 回{lastDraw !== null && <>（今回 {overSym?.symbol ?? over}＝<b>{lastDraw}</b>）</>}・平均 <b>{fmt(rec.mean, 2)}</b>{meanValue !== undefined && <>（理論 {fmt(meanValue, 2)}）</>}</>
+            : <>まだ実験していない。回数を増やすと、━ が棒の高さに近づいていくかを見る。</>}
+          <span className={s.seed}>種 {seed}</span>
+        </p>
+      </div>
     </section>
   );
 }

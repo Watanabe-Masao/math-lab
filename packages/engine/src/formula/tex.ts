@@ -43,7 +43,7 @@ export function formatNum(v: number): string {
 }
 
 // 強さ：比べる・等しい 0 ＜ 足す・引く 1 ＜ 掛ける・割る・符号 2 ＜ 累乗 3 ＜ 1つのかたまり 4
-type Out = { t: string; p: number; num?: boolean; neg?: boolean; fn?: boolean };
+type Out = { t: string; p: number; num?: boolean; neg?: boolean; fn?: boolean; numeric?: boolean };   // numeric：記号を含まない（数だけの式）
 
 const ATOM = 4;
 // 括弧：中身が高い（分数・Σ・∫・根号）ときだけ \left( \right) で伸ばす。ふつうは ( ) のまま（E\left(X\right) は E と ( の間が空いて見える）
@@ -51,12 +51,15 @@ const TALL = /\\(dfrac|sum|prod|int|sqrt)/;
 const wrapParen = (t: string) => (TALL.test(t) ? `\\left(${t}\\right)` : `(${t})`);
 const paren = (o: Out, need: boolean) => (need ? wrapParen(o.t) : o.t);
 
+const numericTree = (n: FormulaNode): boolean => isNum(n) || (!isSym(n) && n.args.every(numericTree));
+
 export function toTex(node: FormulaNode, opt: TexOptions = {}): string {
   const fmt = opt.num ?? formatNum;
   const sym = (k: string) => { const t = symbolTex(k, opt.symbols); return opt.wrap ? opt.wrap(k, t) : t; };
 
   const go = (n: FormulaNode): Out => {
     const o: Out = isSym(n) ? { t: sym(n.sym), p: ATOM } : isNum(n) ? (n.num < 0 ? { t: fmt(n.num), p: 2, num: true, neg: true } : { t: fmt(n.num), p: ATOM, num: true }) : opNode(n);
+    o.numeric = isNum(n) || (!isSym(n) && n.args.every((a) => isNum(a) || (!isSym(a) && numericTree(a))));
     const m = opt.mark?.(n), d = opt.data?.(n);
     let t = m ? `\\htmlData{open=${m}}{${o.t}}` : o.t;
     if (d) t = `\\htmlData{${d}}{${t}}`;
@@ -76,7 +79,8 @@ export function toTex(node: FormulaNode, opt: TexOptions = {}): string {
           if (i > 0) {
             const prev = a[i - 1]!;
             // 数のあとの数・括弧・分数、数字どうしが続く所は × を書く（2X・np はそのまま）
-            const times = x.num || /\d$/.test(t) && /^[\d.]/.test(part) || (prev.num && /^(\\left|\\dfrac|\()/.test(part));
+            // 数のあとの数・括弧・分数、数字どうし、数だけの式どうし（₁₀C₃ × 0.3³ × (1−0.3)⁷）は × を書く（2X・np(1−p) はそのまま）
+            const times = x.num || /^[\d.]/.test(part) || (prev.numeric && x.numeric) || (prev.num && /^(\\left|\\dfrac|\()/.test(part));
             t += times ? "\\times " : prev.fn && x.fn ? "\\," : /\\[A-Za-z]+$/.test(t) && /^[A-Za-z]/.test(part) ? " " : "";   // \lambda e が \lambdae にならないように
           }
           t += part;
