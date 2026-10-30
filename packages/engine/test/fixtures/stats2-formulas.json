@@ -1,0 +1,2709 @@
+[
+ {
+  "concept": "TERM-var",
+  "index": 0,
+  "tex": "V(X)=E\\big[(X-\\mu)^2\\big]=E(X^2)-\\{E(X)\\}^2",
+  "symbols": [
+   {
+    "symbol": "V( )",
+    "meaning": "分散（ずれの2乗の期待値）",
+    "key": "V",
+    "concept": "TERM-var"
+   },
+   {
+    "symbol": "E( )",
+    "meaning": "期待値（値×確率を足す）",
+    "key": "E",
+    "concept": "TERM-expect"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "μ",
+    "meaning": "X の期待値 E(X)",
+    "key": "mu",
+    "concept": "TERM-expect",
+    "kind": "param"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "X"
+      }
+     ],
+     "name": "V"
+    },
+    {
+     "op": "fn",
+     "args": [
+      {
+       "op": "pow",
+       "args": [
+        {
+         "op": "sub",
+         "args": [
+          {
+           "sym": "X"
+          },
+          {
+           "sym": "mu"
+          }
+         ]
+        },
+        {
+         "num": 2
+        }
+       ]
+      }
+     ],
+     "name": "E"
+    },
+    {
+     "op": "sub",
+     "args": [
+      {
+       "op": "fn",
+       "args": [
+        {
+         "op": "pow",
+         "args": [
+          {
+           "sym": "X"
+          },
+          {
+           "num": 2
+          }
+         ]
+        }
+       ],
+       "name": "E"
+      },
+      {
+       "op": "pow",
+       "args": [
+        {
+         "op": "fn",
+         "args": [
+          {
+           "sym": "X"
+          }
+         ],
+         "name": "E"
+        },
+        {
+         "num": 2
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-var",
+  "index": 1,
+  "tex": "V(aX+b)=a^2V(X)",
+  "symbols": [
+   {
+    "symbol": "V( )",
+    "meaning": "分散（ずれの2乗の期待値）",
+    "key": "V",
+    "concept": "TERM-var"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "a",
+    "meaning": "掛ける定数（2乗で効く）",
+    "key": "a",
+    "kind": "const"
+   },
+   {
+    "symbol": "b",
+    "meaning": "足す定数（散らばりは変えない）",
+    "key": "b",
+    "kind": "const"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "op": "add",
+       "args": [
+        {
+         "op": "mul",
+         "args": [
+          {
+           "sym": "a"
+          },
+          {
+           "sym": "X"
+          }
+         ]
+        },
+        {
+         "sym": "b"
+        }
+       ]
+      }
+     ],
+     "name": "V"
+    },
+    {
+     "op": "mul",
+     "args": [
+      {
+       "op": "pow",
+       "args": [
+        {
+         "sym": "a"
+        },
+        {
+         "num": 2
+        }
+       ]
+      },
+      {
+       "op": "fn",
+       "args": [
+        {
+         "sym": "X"
+        }
+       ],
+       "name": "V"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-sd",
+  "index": 0,
+  "tex": "\\sigma=\\sqrt{V(X)}",
+  "symbols": [
+   {
+    "symbol": "σ",
+    "meaning": "標準偏差",
+    "range": "0以上",
+    "key": "sigma",
+    "kind": "param"
+   },
+   {
+    "symbol": "V( )",
+    "meaning": "分散（ずれの2乗の期待値）",
+    "key": "V",
+    "concept": "TERM-var"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "sym": "sigma"
+    },
+    {
+     "op": "sqrt",
+     "args": [
+      {
+       "op": "fn",
+       "args": [
+        {
+         "sym": "X"
+        }
+       ],
+       "name": "V"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-std",
+  "index": 0,
+  "tex": "Z=\\dfrac{X-\\mu}{\\sigma}",
+  "symbols": [
+   {
+    "symbol": "Z",
+    "meaning": "標準化した値（平均から標準偏差いくつ分か）",
+    "key": "Z",
+    "kind": "rv"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "μ",
+    "meaning": "X の期待値 E(X)",
+    "key": "mu",
+    "concept": "TERM-expect",
+    "kind": "param"
+   },
+   {
+    "symbol": "σ",
+    "meaning": "X の標準偏差",
+    "range": "0より大きい",
+    "key": "sigma",
+    "concept": "TERM-sd",
+    "kind": "param"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "sym": "Z"
+    },
+    {
+     "op": "div",
+     "args": [
+      {
+       "op": "sub",
+       "args": [
+        {
+         "sym": "X"
+        },
+        {
+         "sym": "mu"
+        }
+       ]
+      },
+      {
+       "sym": "sigma"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-std",
+  "index": 1,
+  "tex": "E(Z)=0",
+  "symbols": [
+   {
+    "symbol": "E( )",
+    "meaning": "期待値（値×確率を足す）",
+    "key": "E",
+    "concept": "TERM-expect"
+   },
+   {
+    "symbol": "Z",
+    "meaning": "標準化した値（平均から標準偏差いくつ分か）",
+    "key": "Z",
+    "kind": "rv"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "Z"
+      }
+     ],
+     "name": "E"
+    },
+    {
+     "num": 0
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-std",
+  "index": 2,
+  "tex": "V(Z)=1",
+  "symbols": [
+   {
+    "symbol": "V( )",
+    "meaning": "分散（ずれの2乗の期待値）",
+    "key": "V",
+    "concept": "TERM-var"
+   },
+   {
+    "symbol": "Z",
+    "meaning": "標準化した値（平均から標準偏差いくつ分か）",
+    "key": "Z",
+    "kind": "rv"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "Z"
+      }
+     ],
+     "name": "V"
+    },
+    {
+     "num": 1
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-normal",
+  "index": 0,
+  "tex": "f(x)=\\dfrac{1}{\\sqrt{2\\pi}\\,\\sigma}\\exp\\!\\Big(-\\dfrac{(x-\\mu)^2}{2\\sigma^2}\\Big)",
+  "symbols": [
+   {
+    "symbol": "f(x)",
+    "meaning": "確率密度（高さ。面積が確率）",
+    "key": "f",
+    "concept": "TERM-pdf"
+   },
+   {
+    "symbol": "x",
+    "meaning": "値",
+    "key": "x",
+    "kind": "value"
+   },
+   {
+    "symbol": "μ",
+    "meaning": "平均（山の中心）",
+    "key": "mu",
+    "concept": "TERM-expect",
+    "kind": "param"
+   },
+   {
+    "symbol": "σ",
+    "meaning": "標準偏差（山の広がり）",
+    "range": "0より大きい",
+    "key": "sigma",
+    "concept": "TERM-sd",
+    "kind": "param"
+   },
+   {
+    "symbol": "π",
+    "meaning": "円周率",
+    "key": "pi",
+    "kind": "const"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "x"
+      }
+     ],
+     "name": "f"
+    },
+    {
+     "op": "mul",
+     "args": [
+      {
+       "op": "div",
+       "args": [
+        {
+         "num": 1
+        },
+        {
+         "op": "mul",
+         "args": [
+          {
+           "op": "sqrt",
+           "args": [
+            {
+             "op": "mul",
+             "args": [
+              {
+               "num": 2
+              },
+              {
+               "sym": "pi"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "sym": "sigma"
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "op": "fn",
+       "args": [
+        {
+         "op": "neg",
+         "args": [
+          {
+           "op": "div",
+           "args": [
+            {
+             "op": "pow",
+             "args": [
+              {
+               "op": "sub",
+               "args": [
+                {
+                 "sym": "x"
+                },
+                {
+                 "sym": "mu"
+                }
+               ]
+              },
+              {
+               "num": 2
+              }
+             ]
+            },
+            {
+             "op": "mul",
+             "args": [
+              {
+               "num": 2
+              },
+              {
+               "op": "pow",
+               "args": [
+                {
+                 "sym": "sigma"
+                },
+                {
+                 "num": 2
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ],
+       "name": "exp"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-expect",
+  "index": 0,
+  "tex": "E(X)=\\sum_x x\\,p(x)",
+  "symbols": [
+   {
+    "symbol": "E( )",
+    "meaning": "期待値（値×確率を足す）",
+    "key": "E",
+    "concept": "TERM-expect"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "x",
+    "meaning": "X がとりうる値",
+    "key": "x",
+    "kind": "index"
+   },
+   {
+    "symbol": "p(x)",
+    "meaning": "X が x になる確率（重み）",
+    "range": "0以上1以下・合計1",
+    "key": "p",
+    "concept": "TERM-dist"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "X"
+      }
+     ],
+     "name": "E"
+    },
+    {
+     "op": "sum",
+     "args": [
+      {
+       "op": "mul",
+       "args": [
+        {
+         "sym": "x"
+        },
+        {
+         "op": "fn",
+         "args": [
+          {
+           "sym": "x"
+          }
+         ],
+         "name": "p"
+        }
+       ]
+      }
+     ],
+     "var": "x"
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-expect",
+  "index": 1,
+  "tex": "E(aX+b)=aE(X)+b",
+  "symbols": [
+   {
+    "symbol": "E( )",
+    "meaning": "期待値（値×確率を足す）",
+    "key": "E",
+    "concept": "TERM-expect"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "a",
+    "meaning": "掛ける定数（単位の換算）",
+    "key": "a",
+    "kind": "const"
+   },
+   {
+    "symbol": "b",
+    "meaning": "足す定数（一律の上乗せ）",
+    "key": "b",
+    "kind": "const"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "op": "add",
+       "args": [
+        {
+         "op": "mul",
+         "args": [
+          {
+           "sym": "a"
+          },
+          {
+           "sym": "X"
+          }
+         ]
+        },
+        {
+         "sym": "b"
+        }
+       ]
+      }
+     ],
+     "name": "E"
+    },
+    {
+     "op": "add",
+     "args": [
+      {
+       "op": "mul",
+       "args": [
+        {
+         "sym": "a"
+        },
+        {
+         "op": "fn",
+         "args": [
+          {
+           "sym": "X"
+          }
+         ],
+         "name": "E"
+        }
+       ]
+      },
+      {
+       "sym": "b"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-indep",
+  "index": 0,
+  "tex": "P(A\\cap B)=P(A)\\,P(B)",
+  "symbols": [
+   {
+    "symbol": "P( )",
+    "meaning": "確率",
+    "key": "P",
+    "concept": "TERM-dist"
+   },
+   {
+    "symbol": "A",
+    "meaning": "事象",
+    "key": "A",
+    "kind": "value"
+   },
+   {
+    "symbol": "B",
+    "meaning": "事象",
+    "key": "B",
+    "kind": "value"
+   },
+   {
+    "symbol": "A∩B",
+    "meaning": "A と B が両方起きる",
+    "key": "AB",
+    "kind": "value"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "AB"
+      }
+     ],
+     "name": "P"
+    },
+    {
+     "op": "mul",
+     "args": [
+      {
+       "op": "fn",
+       "args": [
+        {
+         "sym": "A"
+        }
+       ],
+       "name": "P"
+      },
+      {
+       "op": "fn",
+       "args": [
+        {
+         "sym": "B"
+        }
+       ],
+       "name": "P"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-rv",
+  "index": 0,
+  "tex": "P(X=x)=p(x)",
+  "symbols": [
+   {
+    "symbol": "P( )",
+    "meaning": "確率",
+    "key": "P",
+    "concept": "TERM-dist"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "x",
+    "meaning": "X がとる値",
+    "key": "x",
+    "kind": "value"
+   },
+   {
+    "symbol": "p(x)",
+    "meaning": "X が x になる確率",
+    "range": "0以上1以下",
+    "key": "p",
+    "concept": "TERM-dist"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "op": "eq",
+       "args": [
+        {
+         "sym": "X"
+        },
+        {
+         "sym": "x"
+        }
+       ]
+      }
+     ],
+     "name": "P"
+    },
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "x"
+      }
+     ],
+     "name": "p"
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-rv",
+  "index": 1,
+  "tex": "\\sum_x p(x)=1",
+  "symbols": [
+   {
+    "symbol": "p(x)",
+    "meaning": "X が x になる確率",
+    "key": "p",
+    "concept": "TERM-dist"
+   },
+   {
+    "symbol": "x",
+    "meaning": "X がとる値",
+    "key": "x",
+    "kind": "index"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "sum",
+     "args": [
+      {
+       "op": "fn",
+       "args": [
+        {
+         "sym": "x"
+        }
+       ],
+       "name": "p"
+      }
+     ],
+     "var": "x"
+    },
+    {
+     "num": 1
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-dist",
+  "index": 0,
+  "tex": "\\sum_x p(x)=1",
+  "symbols": [
+   {
+    "symbol": "p(x)",
+    "meaning": "X が x になる確率",
+    "range": "0以上1以下",
+    "key": "p"
+   },
+   {
+    "symbol": "x",
+    "meaning": "X がとる値",
+    "key": "x",
+    "kind": "index"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "sum",
+     "args": [
+      {
+       "op": "fn",
+       "args": [
+        {
+         "sym": "x"
+        }
+       ],
+       "name": "p"
+      }
+     ],
+     "var": "x"
+    },
+    {
+     "num": 1
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-cov",
+  "index": 0,
+  "tex": "\\mathrm{Cov}(X,Y)=E\\big[(X-\\mu_X)(Y-\\mu_Y)\\big]=E(XY)-E(X)E(Y)",
+  "symbols": [
+   {
+    "symbol": "Cov(X, Y)",
+    "meaning": "X と Y の共分散",
+    "key": "Cov"
+   },
+   {
+    "symbol": "E( )",
+    "meaning": "期待値（値×確率を足す）",
+    "key": "E",
+    "concept": "TERM-expect"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "Y",
+    "meaning": "確率変数",
+    "key": "Y",
+    "kind": "rv"
+   },
+   {
+    "symbol": "μ_X",
+    "meaning": "X の期待値",
+    "key": "muX",
+    "concept": "TERM-expect",
+    "kind": "param"
+   },
+   {
+    "symbol": "μ_Y",
+    "meaning": "Y の期待値",
+    "key": "muY",
+    "concept": "TERM-expect",
+    "kind": "param"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "X"
+      },
+      {
+       "sym": "Y"
+      }
+     ],
+     "name": "Cov"
+    },
+    {
+     "op": "fn",
+     "args": [
+      {
+       "op": "mul",
+       "args": [
+        {
+         "op": "sub",
+         "args": [
+          {
+           "sym": "X"
+          },
+          {
+           "sym": "muX"
+          }
+         ]
+        },
+        {
+         "op": "sub",
+         "args": [
+          {
+           "sym": "Y"
+          },
+          {
+           "sym": "muY"
+          }
+         ]
+        }
+       ]
+      }
+     ],
+     "name": "E"
+    },
+    {
+     "op": "sub",
+     "args": [
+      {
+       "op": "fn",
+       "args": [
+        {
+         "op": "mul",
+         "args": [
+          {
+           "sym": "X"
+          },
+          {
+           "sym": "Y"
+          }
+         ]
+        }
+       ],
+       "name": "E"
+      },
+      {
+       "op": "mul",
+       "args": [
+        {
+         "op": "fn",
+         "args": [
+          {
+           "sym": "X"
+          }
+         ],
+         "name": "E"
+        },
+        {
+         "op": "fn",
+         "args": [
+          {
+           "sym": "Y"
+          }
+         ],
+         "name": "E"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-cov",
+  "index": 1,
+  "tex": "V(X+Y)=V(X)+V(Y)+2\\,\\mathrm{Cov}(X,Y)",
+  "symbols": [
+   {
+    "symbol": "V( )",
+    "meaning": "分散（ずれの2乗の期待値）",
+    "key": "V",
+    "concept": "TERM-var"
+   },
+   {
+    "symbol": "Cov( )",
+    "meaning": "共分散（ずれの積の期待値）",
+    "key": "Cov",
+    "concept": "TERM-cov"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "Y",
+    "meaning": "確率変数",
+    "key": "Y",
+    "kind": "rv"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "op": "add",
+       "args": [
+        {
+         "sym": "X"
+        },
+        {
+         "sym": "Y"
+        }
+       ]
+      }
+     ],
+     "name": "V"
+    },
+    {
+     "op": "add",
+     "args": [
+      {
+       "op": "fn",
+       "args": [
+        {
+         "sym": "X"
+        }
+       ],
+       "name": "V"
+      },
+      {
+       "op": "fn",
+       "args": [
+        {
+         "sym": "Y"
+        }
+       ],
+       "name": "V"
+      },
+      {
+       "op": "mul",
+       "args": [
+        {
+         "num": 2
+        },
+        {
+         "op": "fn",
+         "args": [
+          {
+           "sym": "X"
+          },
+          {
+           "sym": "Y"
+          }
+         ],
+         "name": "Cov"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-binom",
+  "index": 0,
+  "tex": "P(X=k)={}_nC_k\\,p^k(1-p)^{n-k}",
+  "symbols": [
+   {
+    "symbol": "P( )",
+    "meaning": "確率",
+    "key": "P",
+    "concept": "TERM-dist"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "n",
+    "meaning": "試行の回数",
+    "range": "1以上の整数",
+    "key": "n",
+    "kind": "param"
+   },
+   {
+    "symbol": "k",
+    "meaning": "成功の回数",
+    "range": "0以上 n 以下の整数",
+    "key": "k",
+    "kind": "value"
+   },
+   {
+    "symbol": "p",
+    "meaning": "1回の成功確率",
+    "range": "0以上1以下",
+    "key": "p",
+    "kind": "param"
+   },
+   {
+    "symbol": "ₙCₖ",
+    "meaning": "n 回から成功の k 回を選ぶ組合せの数",
+    "key": "comb",
+    "concept": "TERM-comb"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "op": "eq",
+       "args": [
+        {
+         "sym": "X"
+        },
+        {
+         "sym": "k"
+        }
+       ]
+      }
+     ],
+     "name": "P"
+    },
+    {
+     "op": "mul",
+     "args": [
+      {
+       "op": "fn",
+       "args": [
+        {
+         "sym": "n"
+        },
+        {
+         "sym": "k"
+        }
+       ],
+       "name": "comb"
+      },
+      {
+       "op": "pow",
+       "args": [
+        {
+         "sym": "p"
+        },
+        {
+         "sym": "k"
+        }
+       ]
+      },
+      {
+       "op": "pow",
+       "args": [
+        {
+         "op": "sub",
+         "args": [
+          {
+           "num": 1
+          },
+          {
+           "sym": "p"
+          }
+         ]
+        },
+        {
+         "op": "sub",
+         "args": [
+          {
+           "sym": "n"
+          },
+          {
+           "sym": "k"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-binom",
+  "index": 1,
+  "tex": "E(X)=np",
+  "symbols": [
+   {
+    "symbol": "E( )",
+    "meaning": "期待値（値×確率を足す）",
+    "key": "E",
+    "concept": "TERM-expect"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "n",
+    "meaning": "試行の回数",
+    "range": "1以上の整数",
+    "key": "n",
+    "kind": "param"
+   },
+   {
+    "symbol": "p",
+    "meaning": "1回の成功確率",
+    "range": "0以上1以下",
+    "key": "p",
+    "kind": "param"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "X"
+      }
+     ],
+     "name": "E"
+    },
+    {
+     "op": "mul",
+     "args": [
+      {
+       "sym": "n"
+      },
+      {
+       "sym": "p"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-binom",
+  "index": 2,
+  "tex": "V(X)=np(1-p)",
+  "symbols": [
+   {
+    "symbol": "V( )",
+    "meaning": "分散（ずれの2乗の期待値）",
+    "key": "V",
+    "concept": "TERM-var"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "n",
+    "meaning": "試行の回数",
+    "range": "1以上の整数",
+    "key": "n",
+    "kind": "param"
+   },
+   {
+    "symbol": "p",
+    "meaning": "1回の成功確率",
+    "range": "0以上1以下",
+    "key": "p",
+    "kind": "param"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "X"
+      }
+     ],
+     "name": "V"
+    },
+    {
+     "op": "mul",
+     "args": [
+      {
+       "sym": "n"
+      },
+      {
+       "sym": "p"
+      },
+      {
+       "op": "sub",
+       "args": [
+        {
+         "num": 1
+        },
+        {
+         "sym": "p"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-poisson",
+  "index": 0,
+  "tex": "P(X=k)=\\dfrac{e^{-\\lambda}\\lambda^k}{k!}",
+  "symbols": [
+   {
+    "symbol": "P( )",
+    "meaning": "確率",
+    "key": "P",
+    "concept": "TERM-dist"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "λ",
+    "meaning": "一定の範囲あたりの平均件数",
+    "range": "0より大きい",
+    "key": "lambda",
+    "kind": "param"
+   },
+   {
+    "symbol": "k",
+    "meaning": "起きた件数",
+    "range": "0以上の整数",
+    "key": "k",
+    "kind": "value"
+   },
+   {
+    "symbol": "e",
+    "meaning": "自然対数の底（約2.718）",
+    "key": "e",
+    "kind": "const"
+   },
+   {
+    "symbol": "k!",
+    "meaning": "k の階乗",
+    "key": "fact",
+    "concept": "TERM-fact"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "op": "eq",
+       "args": [
+        {
+         "sym": "X"
+        },
+        {
+         "sym": "k"
+        }
+       ]
+      }
+     ],
+     "name": "P"
+    },
+    {
+     "op": "div",
+     "args": [
+      {
+       "op": "mul",
+       "args": [
+        {
+         "op": "pow",
+         "args": [
+          {
+           "sym": "e"
+          },
+          {
+           "op": "neg",
+           "args": [
+            {
+             "sym": "lambda"
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "op": "pow",
+         "args": [
+          {
+           "sym": "lambda"
+          },
+          {
+           "sym": "k"
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "op": "fn",
+       "args": [
+        {
+         "sym": "k"
+        }
+       ],
+       "name": "fact"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-poisson",
+  "index": 1,
+  "tex": "E(X)=V(X)=\\lambda",
+  "symbols": [
+   {
+    "symbol": "E( )",
+    "meaning": "期待値（値×確率を足す）",
+    "key": "E",
+    "concept": "TERM-expect"
+   },
+   {
+    "symbol": "V( )",
+    "meaning": "分散（ずれの2乗の期待値）",
+    "key": "V",
+    "concept": "TERM-var"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "λ",
+    "meaning": "一定の範囲あたりの平均件数",
+    "range": "0より大きい",
+    "key": "lambda",
+    "kind": "param"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "X"
+      }
+     ],
+     "name": "E"
+    },
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "X"
+      }
+     ],
+     "name": "V"
+    },
+    {
+     "sym": "lambda"
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-geom",
+  "index": 0,
+  "tex": "P(X=k)=(1-p)^{k-1}p\\quad(k=1,2,\\dots)",
+  "symbols": [
+   {
+    "symbol": "P( )",
+    "meaning": "確率",
+    "key": "P",
+    "concept": "TERM-dist"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "k",
+    "meaning": "初めて成功した回（成功した回も数える）",
+    "range": "1以上の整数",
+    "key": "k",
+    "kind": "value"
+   },
+   {
+    "symbol": "p",
+    "meaning": "1回の成功確率",
+    "range": "0より大きく1以下",
+    "key": "p",
+    "kind": "param"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "op": "eq",
+       "args": [
+        {
+         "sym": "X"
+        },
+        {
+         "sym": "k"
+        }
+       ]
+      }
+     ],
+     "name": "P"
+    },
+    {
+     "op": "mul",
+     "args": [
+      {
+       "op": "pow",
+       "args": [
+        {
+         "op": "sub",
+         "args": [
+          {
+           "num": 1
+          },
+          {
+           "sym": "p"
+          }
+         ]
+        },
+        {
+         "op": "sub",
+         "args": [
+          {
+           "sym": "k"
+          },
+          {
+           "num": 1
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "sym": "p"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-geom",
+  "index": 1,
+  "tex": "E(X)=\\frac{1}{p}",
+  "symbols": [
+   {
+    "symbol": "E( )",
+    "meaning": "期待値（値×確率を足す）",
+    "key": "E",
+    "concept": "TERM-expect"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "p",
+    "meaning": "1回の成功確率",
+    "range": "0より大きく1以下",
+    "key": "p",
+    "kind": "param"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "X"
+      }
+     ],
+     "name": "E"
+    },
+    {
+     "op": "div",
+     "args": [
+      {
+       "num": 1
+      },
+      {
+       "sym": "p"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-geom",
+  "index": 2,
+  "tex": "V(X)=\\frac{1-p}{p^2}",
+  "symbols": [
+   {
+    "symbol": "V( )",
+    "meaning": "分散（ずれの2乗の期待値）",
+    "key": "V",
+    "concept": "TERM-var"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "p",
+    "meaning": "1回の成功確率",
+    "range": "0より大きく1以下",
+    "key": "p",
+    "kind": "param"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "X"
+      }
+     ],
+     "name": "V"
+    },
+    {
+     "op": "div",
+     "args": [
+      {
+       "op": "sub",
+       "args": [
+        {
+         "num": 1
+        },
+        {
+         "sym": "p"
+        }
+       ]
+      },
+      {
+       "op": "pow",
+       "args": [
+        {
+         "sym": "p"
+        },
+        {
+         "num": 2
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-negbinom",
+  "index": 0,
+  "tex": "P(X=k)={}_{k-1}C_{r-1}\\,p^r(1-p)^{k-r}\\quad(k=r,r+1,\\dots)",
+  "symbols": [
+   {
+    "symbol": "P( )",
+    "meaning": "確率",
+    "key": "P",
+    "concept": "TERM-dist"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "k",
+    "meaning": "r 回目の成功が起きた回（成功した回も数える）",
+    "key": "k",
+    "kind": "value",
+    "range": "r 以上の整数"
+   },
+   {
+    "symbol": "r",
+    "meaning": "待つ成功の回数",
+    "key": "r",
+    "kind": "param",
+    "range": "1以上の整数"
+   },
+   {
+    "symbol": "p",
+    "meaning": "1回の成功確率",
+    "key": "p",
+    "kind": "param",
+    "range": "0より大きく1以下"
+   },
+   {
+    "symbol": "ₖ₋₁C_{r−1}",
+    "meaning": "前の k−1 回から成功の r−1 回を選ぶ組合せの数",
+    "key": "comb",
+    "concept": "TERM-comb"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "op": "eq",
+       "args": [
+        {
+         "sym": "X"
+        },
+        {
+         "sym": "k"
+        }
+       ]
+      }
+     ],
+     "name": "P"
+    },
+    {
+     "op": "mul",
+     "args": [
+      {
+       "op": "fn",
+       "args": [
+        {
+         "op": "sub",
+         "args": [
+          {
+           "sym": "k"
+          },
+          {
+           "num": 1
+          }
+         ]
+        },
+        {
+         "op": "sub",
+         "args": [
+          {
+           "sym": "r"
+          },
+          {
+           "num": 1
+          }
+         ]
+        }
+       ],
+       "name": "comb"
+      },
+      {
+       "op": "pow",
+       "args": [
+        {
+         "sym": "p"
+        },
+        {
+         "sym": "r"
+        }
+       ]
+      },
+      {
+       "op": "pow",
+       "args": [
+        {
+         "op": "sub",
+         "args": [
+          {
+           "num": 1
+          },
+          {
+           "sym": "p"
+          }
+         ]
+        },
+        {
+         "op": "sub",
+         "args": [
+          {
+           "sym": "k"
+          },
+          {
+           "sym": "r"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-hyper",
+  "index": 0,
+  "tex": "P(X=k)=\\frac{\\binom{M}{k}\\binom{N-M}{n-k}}{\\binom{N}{n}}",
+  "symbols": [
+   {
+    "symbol": "P( )",
+    "meaning": "確率",
+    "key": "P",
+    "concept": "TERM-dist"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "N",
+    "meaning": "集団の個数",
+    "key": "N",
+    "kind": "param"
+   },
+   {
+    "symbol": "M",
+    "meaning": "集団の中の当たりの個数",
+    "key": "M",
+    "kind": "param"
+   },
+   {
+    "symbol": "n",
+    "meaning": "取り出す個数",
+    "key": "n",
+    "kind": "param"
+   },
+   {
+    "symbol": "k",
+    "meaning": "取り出した中の当たりの個数",
+    "key": "k",
+    "kind": "value"
+   },
+   {
+    "symbol": "C( , )",
+    "meaning": "組合せの数",
+    "key": "comb",
+    "concept": "TERM-comb"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "op": "eq",
+       "args": [
+        {
+         "sym": "X"
+        },
+        {
+         "sym": "k"
+        }
+       ]
+      }
+     ],
+     "name": "P"
+    },
+    {
+     "op": "div",
+     "args": [
+      {
+       "op": "mul",
+       "args": [
+        {
+         "op": "fn",
+         "args": [
+          {
+           "sym": "M"
+          },
+          {
+           "sym": "k"
+          }
+         ],
+         "name": "comb"
+        },
+        {
+         "op": "fn",
+         "args": [
+          {
+           "op": "sub",
+           "args": [
+            {
+             "sym": "N"
+            },
+            {
+             "sym": "M"
+            }
+           ]
+          },
+          {
+           "op": "sub",
+           "args": [
+            {
+             "sym": "n"
+            },
+            {
+             "sym": "k"
+            }
+           ]
+          }
+         ],
+         "name": "comb"
+        }
+       ]
+      },
+      {
+       "op": "fn",
+       "args": [
+        {
+         "sym": "N"
+        },
+        {
+         "sym": "n"
+        }
+       ],
+       "name": "comb"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-hyper",
+  "index": 1,
+  "tex": "E(X)=n\\frac{M}{N}",
+  "symbols": [
+   {
+    "symbol": "E( )",
+    "meaning": "期待値（値×確率を足す）",
+    "key": "E",
+    "concept": "TERM-expect"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "n",
+    "meaning": "取り出す個数",
+    "key": "n",
+    "kind": "param"
+   },
+   {
+    "symbol": "M",
+    "meaning": "集団の中の当たりの個数",
+    "key": "M",
+    "kind": "param"
+   },
+   {
+    "symbol": "N",
+    "meaning": "集団の個数",
+    "key": "N",
+    "kind": "param"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "X"
+      }
+     ],
+     "name": "E"
+    },
+    {
+     "op": "mul",
+     "args": [
+      {
+       "sym": "n"
+      },
+      {
+       "op": "div",
+       "args": [
+        {
+         "sym": "M"
+        },
+        {
+         "sym": "N"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-expo",
+  "index": 0,
+  "tex": "f(x)=\\lambda e^{-\\lambda x}\\quad(x\\ge 0)",
+  "symbols": [
+   {
+    "symbol": "f(x)",
+    "meaning": "確率密度（高さ。面積が確率）",
+    "key": "f",
+    "concept": "TERM-pdf"
+   },
+   {
+    "symbol": "λ",
+    "meaning": "単位時間あたりに起きる平均の回数",
+    "range": "0より大きい",
+    "key": "lambda",
+    "kind": "param"
+   },
+   {
+    "symbol": "x",
+    "meaning": "待ち時間",
+    "range": "0以上",
+    "key": "x",
+    "kind": "value"
+   },
+   {
+    "symbol": "e",
+    "meaning": "自然対数の底（約2.718）",
+    "key": "e",
+    "kind": "const"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "x"
+      }
+     ],
+     "name": "f"
+    },
+    {
+     "op": "mul",
+     "args": [
+      {
+       "sym": "lambda"
+      },
+      {
+       "op": "pow",
+       "args": [
+        {
+         "sym": "e"
+        },
+        {
+         "op": "neg",
+         "args": [
+          {
+           "op": "mul",
+           "args": [
+            {
+             "sym": "lambda"
+            },
+            {
+             "sym": "x"
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-expo",
+  "index": 1,
+  "tex": "P(X>x)=e^{-\\lambda x}",
+  "symbols": [
+   {
+    "symbol": "P( )",
+    "meaning": "確率",
+    "key": "P",
+    "concept": "TERM-dist"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "λ",
+    "meaning": "単位時間あたりに起きる平均の回数",
+    "range": "0より大きい",
+    "key": "lambda",
+    "kind": "param"
+   },
+   {
+    "symbol": "x",
+    "meaning": "待ち時間",
+    "range": "0以上",
+    "key": "x",
+    "kind": "value"
+   },
+   {
+    "symbol": "e",
+    "meaning": "自然対数の底（約2.718）",
+    "key": "e",
+    "kind": "const"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "op": "fn",
+       "args": [
+        {
+         "sym": "X"
+        },
+        {
+         "sym": "x"
+        }
+       ],
+       "name": "gt"
+      }
+     ],
+     "name": "P"
+    },
+    {
+     "op": "pow",
+     "args": [
+      {
+       "sym": "e"
+      },
+      {
+       "op": "neg",
+       "args": [
+        {
+         "op": "mul",
+         "args": [
+          {
+           "sym": "lambda"
+          },
+          {
+           "sym": "x"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-expo",
+  "index": 2,
+  "tex": "E(X)=\\frac{1}{\\lambda}",
+  "symbols": [
+   {
+    "symbol": "E( )",
+    "meaning": "期待値（値×確率を足す）",
+    "key": "E",
+    "concept": "TERM-expect"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "λ",
+    "meaning": "単位時間あたりに起きる平均の回数",
+    "range": "0より大きい",
+    "key": "lambda",
+    "kind": "param"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "X"
+      }
+     ],
+     "name": "E"
+    },
+    {
+     "op": "div",
+     "args": [
+      {
+       "num": 1
+      },
+      {
+       "sym": "lambda"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-expo",
+  "index": 3,
+  "tex": "V(X)=\\frac{1}{\\lambda^2}",
+  "symbols": [
+   {
+    "symbol": "V( )",
+    "meaning": "分散（ずれの2乗の期待値）",
+    "key": "V",
+    "concept": "TERM-var"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "λ",
+    "meaning": "単位時間あたりに起きる平均の回数",
+    "range": "0より大きい",
+    "key": "lambda",
+    "kind": "param"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "X"
+      }
+     ],
+     "name": "V"
+    },
+    {
+     "op": "div",
+     "args": [
+      {
+       "num": 1
+      },
+      {
+       "op": "pow",
+       "args": [
+        {
+         "sym": "lambda"
+        },
+        {
+         "num": 2
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-pdf",
+  "index": 0,
+  "tex": "P(a\\le X\\le b)=\\int_a^b f(x)\\,dx",
+  "symbols": [
+   {
+    "symbol": "P( )",
+    "meaning": "確率",
+    "key": "P",
+    "concept": "TERM-dist"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "f(x)",
+    "meaning": "確率密度（高さ）",
+    "range": "0以上（1を超えてもよい）",
+    "key": "f"
+   },
+   {
+    "symbol": "x",
+    "meaning": "積分で動かす値",
+    "key": "x",
+    "kind": "index"
+   },
+   {
+    "symbol": "a",
+    "meaning": "区間の左端",
+    "key": "a",
+    "kind": "value"
+   },
+   {
+    "symbol": "b",
+    "meaning": "区間の右端",
+    "key": "b",
+    "kind": "value"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "op": "fn",
+       "args": [
+        {
+         "sym": "a"
+        },
+        {
+         "sym": "X"
+        },
+        {
+         "sym": "b"
+        }
+       ],
+       "name": "between"
+      }
+     ],
+     "name": "P"
+    },
+    {
+     "op": "int",
+     "args": [
+      {
+       "op": "fn",
+       "args": [
+        {
+         "sym": "x"
+        }
+       ],
+       "name": "f"
+      }
+     ],
+     "var": "x",
+     "lower": {
+      "sym": "a"
+     },
+     "upper": {
+      "sym": "b"
+     }
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-pdf",
+  "index": 1,
+  "tex": "\\int_{-\\infty}^{\\infty} f(x)\\,dx=1",
+  "symbols": [
+   {
+    "symbol": "f(x)",
+    "meaning": "確率密度（高さ）",
+    "key": "f"
+   },
+   {
+    "symbol": "x",
+    "meaning": "積分で動かす値",
+    "key": "x",
+    "kind": "index"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "int",
+     "args": [
+      {
+       "op": "fn",
+       "args": [
+        {
+         "sym": "x"
+        }
+       ],
+       "name": "f"
+      }
+     ],
+     "var": "x"
+    },
+    {
+     "num": 1
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-uniform",
+  "index": 0,
+  "tex": "f(x)=\\frac{1}{b-a}\\quad(a\\le x\\le b)",
+  "symbols": [
+   {
+    "symbol": "f(x)",
+    "meaning": "確率密度（高さ。面積が確率）",
+    "key": "f",
+    "concept": "TERM-pdf"
+   },
+   {
+    "symbol": "x",
+    "meaning": "値",
+    "key": "x",
+    "kind": "value"
+   },
+   {
+    "symbol": "a",
+    "meaning": "値のとりうる範囲の左端",
+    "key": "a",
+    "kind": "param"
+   },
+   {
+    "symbol": "b",
+    "meaning": "値のとりうる範囲の右端",
+    "range": "a より大きい",
+    "key": "b",
+    "kind": "param"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "x"
+      }
+     ],
+     "name": "f"
+    },
+    {
+     "op": "div",
+     "args": [
+      {
+       "num": 1
+      },
+      {
+       "op": "sub",
+       "args": [
+        {
+         "sym": "b"
+        },
+        {
+         "sym": "a"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-uniform",
+  "index": 1,
+  "tex": "E(X)=\\frac{a+b}{2}",
+  "symbols": [
+   {
+    "symbol": "E( )",
+    "meaning": "期待値（値×確率を足す）",
+    "key": "E",
+    "concept": "TERM-expect"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "a",
+    "meaning": "値のとりうる範囲の左端",
+    "key": "a",
+    "kind": "param"
+   },
+   {
+    "symbol": "b",
+    "meaning": "値のとりうる範囲の右端",
+    "range": "a より大きい",
+    "key": "b",
+    "kind": "param"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "X"
+      }
+     ],
+     "name": "E"
+    },
+    {
+     "op": "div",
+     "args": [
+      {
+       "op": "add",
+       "args": [
+        {
+         "sym": "a"
+        },
+        {
+         "sym": "b"
+        }
+       ]
+      },
+      {
+       "num": 2
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "concept": "TERM-uniform",
+  "index": 2,
+  "tex": "V(X)=\\frac{(b-a)^2}{12}",
+  "symbols": [
+   {
+    "symbol": "V( )",
+    "meaning": "分散（ずれの2乗の期待値）",
+    "key": "V",
+    "concept": "TERM-var"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "a",
+    "meaning": "値のとりうる範囲の左端",
+    "key": "a",
+    "kind": "param"
+   },
+   {
+    "symbol": "b",
+    "meaning": "値のとりうる範囲の右端",
+    "range": "a より大きい",
+    "key": "b",
+    "kind": "param"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "sym": "X"
+      }
+     ],
+     "name": "V"
+    },
+    {
+     "op": "div",
+     "args": [
+      {
+       "op": "pow",
+       "args": [
+        {
+         "op": "sub",
+         "args": [
+          {
+           "sym": "b"
+          },
+          {
+           "sym": "a"
+          }
+         ]
+        },
+        {
+         "num": 2
+        }
+       ]
+      },
+      {
+       "num": 12
+      }
+     ]
+    }
+   ]
+  }
+ }
+]
