@@ -136,3 +136,26 @@
 .how b { display: inline-block; margin-right: 8px; font-size: var(--fs-tag); color: var(--ink-3); }
 .cxK { margin: 0; text-align: center; font-size: 15px; font-weight: 600; }
 .cxK b { color: var(--accent); font-size: 18px; }
+/* 期待値の ▲（重心）。値の表の実験室と、積み上がりの再生（#119） */
+.marker { fill: var(--accent); }
+.marks { display: flex; flex-wrap: wrap; gap: 6px; }
+.marks button { all: unset; box-sizing: border-box; min-height: 36px; min-width: 44px; padding: 0 10px; border-radius: var(--r-pill); display: inline-grid; place-items: center;
+  font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--ink-2); background: var(--surface-2); box-shadow: 0 0 0 1px var(--line); cursor: pointer; transition: transform var(--dur-press) var(--ease); }
+.marks button[aria-checked="true"] { background: var(--accent-soft); box-shadow: 0 0 0 1.5px var(--accent); color: var(--accent); font-weight: 700; }
+.marks button:active { transform: scale(var(--press-scale)); }
+.marks button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.marks .play { margin-left: auto; color: var(--accent); font-weight: 700; box-shadow: 0 0 0 1px var(--accent-line); background: var(--raised); }
+.marks .play:disabled { opacity: .5; cursor: default; }
+.replayStat { margin: 0; font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.replayStat b { color: var(--ink); }
+.band { fill: var(--data-1); fill-opacity: .14; }
+.meanLine { stroke: var(--ink-3); stroke-dasharray: 4 3; }
+.runLine { fill: none; stroke: var(--data-1); stroke-width: 2; stroke-linejoin: round; }
+.runDot { fill: var(--accent); stroke: var(--raised); stroke-width: 2; transition: cx var(--dur) var(--ease), cy var(--dur) var(--ease); }
+/* 引いた値の並び（新しいものが右端に光る） */
+.draws { display: flex; flex-wrap: wrap; gap: 6px; min-height: 36px; align-items: center; justify-content: center; }
+.draw, .drawNew { display: inline-grid; place-items: center; min-width: 36px; height: 32px; padding: 0 8px; border-radius: var(--r-s); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums;
+  background: var(--surface-2); color: var(--ink-2); }
+.drawNew { background: var(--accent-soft); color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent); animation: drawIn var(--dur) var(--ease); }
+@keyframes drawIn { from { transform: scale(.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .drawNew { animation: none; } .runDot { transition: none; } }
