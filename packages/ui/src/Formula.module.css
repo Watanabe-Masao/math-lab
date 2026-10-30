@@ -16,6 +16,7 @@
 .kind { font-size: var(--fs-tag); color: var(--ink-3); border: 1px solid var(--line-strong); border-radius: var(--r-pill); padding: 2px 8px; }
 .meaning { margin: var(--sp-1) 0 0; color: var(--ink); }
 .sub { margin: 2px 0 0; font-size: var(--fs-small); color: var(--ink-2); }
+.try { margin-top: var(--sp-1); padding-left: 0; color: var(--accent); }
 .inputs { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
 .input { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; }
 .input input { width: 6em; min-height: var(--tap); font-size: 16px; padding: 0 10px; border-radius: var(--r-m); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }

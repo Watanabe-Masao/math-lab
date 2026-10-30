@@ -42,7 +42,10 @@ export function formatNum(v: number): string {
 type Out = { t: string; p: number; num?: boolean; neg?: boolean; fn?: boolean };
 
 const ATOM = 4;
-const paren = (o: Out, need: boolean) => (need ? `\\left(${o.t}\\right)` : o.t);
+// 括弧：中身が高い（分数・Σ・∫・根号）ときだけ \left( \right) で伸ばす。ふつうは ( ) のまま（E\left(X\right) は E と ( の間が空いて見える）
+const TALL = /\\(dfrac|sum|prod|int|sqrt)/;
+const wrapParen = (t: string) => (TALL.test(t) ? `\\left(${t}\\right)` : `(${t})`);
+const paren = (o: Out, need: boolean) => (need ? wrapParen(o.t) : o.t);
 
 export function toTex(node: FormulaNode, opt: TexOptions = {}): string {
   const fmt = opt.num ?? formatNum;
@@ -67,7 +70,7 @@ export function toTex(node: FormulaNode, opt: TexOptions = {}): string {
           if (i > 0) {
             const prev = a[i - 1]!;
             // 数のあとの数・括弧・分数、数字どうしが続く所は × を書く（2X・np はそのまま）
-            const times = x.num || /\d$/.test(t) && /^[\d.]/.test(part) || (prev.num && /^\\(left|dfrac)/.test(part));
+            const times = x.num || /\d$/.test(t) && /^[\d.]/.test(part) || (prev.num && /^(\\left|\\dfrac|\()/.test(part));
             t += times ? "\\times " : prev.fn && x.fn ? "\\," : /\\[A-Za-z]+$/.test(t) && /^[A-Za-z]/.test(part) ? " " : "";   // \lambda e が \lambdae にならないように
           }
           t += part;
@@ -104,10 +107,10 @@ export function toTex(node: FormulaNode, opt: TexOptions = {}): string {
       case "lt": return { t: `${a[0]!.t}<${a[1]!.t}`, p: 0 };
       case "le": return { t: `${a[0]!.t}\\le ${a[1]!.t}`, p: 0 };
       case "between": return { t: `${a[0]!.t}\\le ${a[1]!.t}\\le ${a[2]!.t}`, p: 0 };
-      case "exp": case "log": return { t: `\\${name}\\left(${list}\\right)`, p: ATOM, fn: true };
+      case "exp": case "log": return { t: `\\${name}${wrapParen(list)}`, p: ATOM, fn: true };
       default: {
         const head = name.length > 1 ? `\\mathrm{${name}}` : name;
-        return { t: `${opt.wrap ? opt.wrap(name, head) : head}\\left(${list}\\right)`, p: ATOM, fn: true };
+        return { t: `${opt.wrap ? opt.wrap(name, head) : head}${wrapParen(list)}`, p: ATOM, fn: true };
       }
     }
   };

@@ -22,12 +22,12 @@ describe("教材の式（stats2-course の35式）", () => {
   it("代表の式の形", () => {
     const t = (id: string, i: number) => toTex(find(id, i).tree, { symbols: find(id, i).symbols });
     expect(t("TERM-std", 0)).toBe("Z=\\dfrac{X-\\mu}{\\sigma}");
-    expect(t("TERM-binom", 1)).toBe("E\\left(X\\right)=np");
-    expect(t("TERM-binom", 2)).toBe("V\\left(X\\right)=np\\left(1-p\\right)");
-    expect(t("TERM-binom", 0)).toBe("P\\left(X=k\\right)={}_{n}\\mathrm{C}_{k}p^{k}\\left(1-p\\right)^{n-k}");
-    expect(t("TERM-uniform", 2)).toBe("V\\left(X\\right)=\\dfrac{\\left(b-a\\right)^{2}}{12}");
-    expect(t("TERM-expo", 1)).toBe("P\\left(X>x\\right)=e^{-\\lambda x}");
-    expect(t("TERM-cov", 1)).toBe("V\\left(X+Y\\right)=V\\left(X\\right)+V\\left(Y\\right)+2\\mathrm{Cov}\\left(X,\\,Y\\right)");
+    expect(t("TERM-binom", 1)).toBe("E(X)=np");
+    expect(t("TERM-binom", 2)).toBe("V(X)=np(1-p)");
+    expect(t("TERM-binom", 0)).toBe("P(X=k)={}_{n}\\mathrm{C}_{k}p^{k}(1-p)^{n-k}");
+    expect(t("TERM-uniform", 2)).toBe("V(X)=\\dfrac{(b-a)^{2}}{12}");
+    expect(t("TERM-expo", 1)).toBe("P(X>x)=e^{-\\lambda x}");
+    expect(t("TERM-cov", 1)).toBe("V(X+Y)=V(X)+V(Y)+2\\mathrm{Cov}(X,\\,Y)");
   });
 });
 
@@ -38,7 +38,7 @@ describe("1段ずつ展開する", () => {
   });
   it("V(X)＝np(1−p)：内側から1段ずつ", () => {
     expect(expand(find("TERM-binom", 2).tree, { values: { n: 10, p: 0.3 } }).map(tex)).toEqual([
-      "np\\left(1-p\\right)", "10\\times 0.3\\times \\left(1-0.3\\right)", "10\\times 0.3\\times 0.7", "2.1",
+      "np(1-p)", "10\\times 0.3\\times (1-0.3)", "10\\times 0.3\\times 0.7", "2.1",
     ]);
   });
   it("ポアソン P(X＝2)（λ＝3）の最後の値は e⁻³3²/2!", () => {
@@ -68,6 +68,7 @@ function readTex(src: string, vals: Record<string, number>): number {
     if (peek("\\dfrac")) { i += 6; const a = group(); return a / group(); }
     if (peek("\\sqrt")) { i += 5; return Math.sqrt(group()); }
     if (peek("\\left(")) { i += 6; const v = expr(); eat("\\right)"); return v; }
+    if (peek("(")) { i += 1; const v = expr(); eat(")"); return v; }
     if (peek("\\left|")) { i += 6; const v = expr(); eat("\\right|"); return Math.abs(v); }
     const m = /^\d+(\.\d+)?/.exec(src.slice(i));
     if (m) { i += m[0].length; return Number(m[0]); }
@@ -77,7 +78,7 @@ function readTex(src: string, vals: Record<string, number>): number {
   };
   const power = (): number => { const b = atom(); if (peek("^")) { i++; return b ** group(); } return b; };
   const unary = (): number => (peek("-") ? (i++, -unary()) : power());
-  const starts = () => i < src.length && !peek("+") && !peek("-") && !peek("}") && !peek("\\right");
+  const starts = () => i < src.length && !peek("+") && !peek("-") && !peek("}") && !peek(")") && !peek("\\right");
   const term = (): number => {
     let v = unary();
     for (;;) {

@@ -1,6 +1,6 @@
 // 式を触る部品（#72）：式は覚えるものではなく、触って確かめるもの。
 // - 式の記号（μ・σ・E など）を押すと、意味・範囲・今の値・概念が出る。記号は小さいので、下に同じ記号を押せる札でも並べる（44px）
-// - 値を入れると（実験の値・自分で入れた値）、右辺を1段ずつ計算して見せる（E(X)＝np → 10×0.3 → 3）
+// - 値を入れると（実験の値・自分で入れた値。自分で入れる欄は「値を入れて計算する」を押したときだけ出す）、右辺を1段ずつ計算して見せる（E(X)＝np → 10×0.3 → 3）
 // - 記号が概念を指していれば、その概念へ開ける（地図とつながる）
 // 式は木（tree）から作る。木がない式は、元の TeX をそのまま出す（押せない）。
 import katex from "katex";
@@ -36,6 +36,7 @@ export function Formula({ formula: f, values, editable = false, onConcept, conce
   const [on, setOn] = useState<string | null>(null);
   const [own, setOwn] = useState<Record<string, number>>({});
   const [step, setStep] = useState(0);
+  const [try_, setTry] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const steps = useRef<HTMLDivElement>(null);
 
@@ -89,7 +90,10 @@ export function Formula({ formula: f, values, editable = false, onConcept, conce
           {sel.concept && onConcept && <Button variant="link" onClick={() => onConcept(sel.concept!)}>{conceptName?.(sel.concept) ?? sel.concept} を開く →</Button>}
         </div>
       )}
-      {editable && !values && inputs.length > 0 && (
+      {editable && !values && inputs.length > 0 && !try_ && (
+        <Button variant="quiet" className={s.try} onClick={() => setTry(true)}>値を入れて計算する</Button>
+      )}
+      {editable && !values && inputs.length > 0 && try_ && (
         <div className={s.inputs}>
           {inputs.map((x) => (
             <label key={x.key} className={s.input}>
