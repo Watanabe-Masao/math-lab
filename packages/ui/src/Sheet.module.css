@@ -1,0 +1,23 @@
+/* 下から開く面。高さは Sheet.tsx が段（半分・全体）と指の位置から決める */
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 11; display: flex; flex-direction: column;
+  background: var(--raised); border-top: 1px solid var(--line); border-radius: 22px 22px 0 0; box-shadow: var(--shadow-raised);
+  transition: height var(--dur-sheet) var(--ease-sheet), transform var(--dur-sheet) var(--ease-sheet);
+  animation: rise var(--dur-sheet) var(--ease-sheet); touch-action: none; }
+@media (min-width: 760px) { .sheet { left: calc(50% - 380px); right: calc(50% - 380px); } }
+@keyframes rise { from { transform: translateY(100%); } }
+.head { flex: none; padding: 6px var(--sp-4) var(--sp-2); cursor: grab; user-select: none; -webkit-user-select: none; }
+.grab { all: unset; display: block; margin: 0 auto; width: 64px; height: 18px; cursor: grab; position: relative; }
+.grab::before { content: ""; position: absolute; left: 50%; top: 6px; width: 40px; height: 5px; margin-left: -20px; border-radius: 3px; background: var(--line-strong); }
+.bar { display: grid; grid-template-columns: var(--tap) 1fr var(--tap); align-items: center; gap: var(--sp-2); }
+.close { all: unset; width: var(--tap); height: var(--tap); border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+  background: var(--surface-2); color: var(--ink-2); font-size: 17px; box-shadow: 0 0 0 1px var(--line);
+  transition: transform var(--dur-press) var(--ease); }
+.close:active { transform: scale(var(--press-scale)); }
+.close:focus-visible, .grab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.title { text-align: center; font-weight: 700; font-size: var(--fs-head); color: var(--ink); min-width: 0; }
+.spacer { width: var(--tap); }
+.body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
+  padding: 0 var(--sp-4) calc(14px + env(safe-area-inset-bottom)); }
+/* 全体に広げたときだけ後ろを暗くする（半分のときは後ろの図も触れる） */
+.scrim { position: fixed; inset: 0; z-index: 10; background: var(--scrim); opacity: 0; pointer-events: none; transition: opacity var(--dur-sheet) var(--ease-sheet); }
+.scrim.on { opacity: 1; pointer-events: auto; }

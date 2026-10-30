@@ -1,0 +1,11 @@
+.root { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; padding: 3px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-m); }
+/* 選んだ印：項目の後ろで横に滑る1枚の面 */
+.mark { position: absolute; left: 0; top: 0; border-radius: 8px; background: var(--raised); box-shadow: 0 0 0 1px var(--line-strong);
+  pointer-events: none; transition: transform var(--dur) var(--ease), width var(--dur) var(--ease), opacity var(--dur); }
+.item { all: unset; position: relative; box-sizing: border-box; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 4px;
+  font-size: 13.5px; font-weight: 600; color: var(--ink-2); border-radius: 8px; cursor: pointer;
+  transition: color var(--dur), transform var(--dur-press) var(--ease); }
+.item:active { transform: scale(var(--press-scale)); }
+.item[data-state="on"] { color: var(--ink); }
+.item:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

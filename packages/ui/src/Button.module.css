@@ -1,0 +1,14 @@
+.btn { min-height: var(--tap); padding: var(--sp-2) 14px; border-radius: var(--r-m); border: 1px solid var(--line-strong);
+  background: var(--surface); color: var(--ink); font-size: 14px; font-weight: 500; cursor: pointer;
+  transition: background var(--dur), border-color var(--dur), color var(--dur), transform var(--dur-press) var(--ease); }
+.btn:active:not(:disabled) { transform: scale(var(--press-scale)); }   /* 押した返事：少し沈む */
+.btn:hover:not(:disabled) { background: var(--surface-2); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.06); }
+.quiet { border-color: transparent; background: transparent; color: var(--ink-2); }
+.link { min-height: 32px; padding: 2px 0; border: none; background: none; color: var(--accent); text-align: left; }
+.link:hover:not(:disabled) { background: none; text-decoration: underline; }
+.block { width: 100%; text-align: left; }
+.icon { min-width: var(--tap); padding: 0; font-size: 20px; line-height: 1; }

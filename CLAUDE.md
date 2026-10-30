@@ -12,9 +12,9 @@
 | 場所 | 中身 | 守ること |
 | --- | --- | --- |
 | packages/engine | 画面を持たない計算（純粋関数） | DOM・React を使わない（tsconfig の lib に DOM を入れない）。Math.random を使わず、種つき乱数（createRandom）だけ |
-| packages/ui | 画面の部品と手触りの値（React） | 計算は engine を呼ぶだけ。色・動きの値は手触りの値（tokens）から |
+| packages/ui | 画面の部品（Button・Card などの並べ方・Segmented・Sheet・motion）と手触りの値（tokens.json → src/tokens.css） | 計算は engine を呼ぶだけ。色の値は tokens.json にだけ書き、動きの長さは変数で（npm run design が止める）。tokens.json を変えたら `npm run tokens` で src/tokens.css を作り直し、改訂（x-revision）を上げて CHANGELOG に書く |
 
-使う側：knowledge-net（入口・地図・実験室のサイト）。教材（stats2-course）は手触りの値の写しを持つ。
+使う側：knowledge-net（入口・地図・実験室のサイト）は packages の写しを持ち、math-lab の決まった版と同じかを確かめる。教材（stats2-course）は tokens.json の写しを持つ（ずれたら check_all が止まる）。
 
 ## 守ること
 
@@ -26,4 +26,4 @@
 
 ## 確かめる
 
-`npm run check`（型の検査 → 単体テスト）。部品を移したら画面のテスト（Playwright）も足す。
+`npm run check`（デザインの決まり → 型の検査 → 単体テスト）。部品の画面のテスト（Playwright）は今は使う側（knowledge-net）にある。

@@ -1,0 +1,108 @@
+/* 生成物：packages/ui/tokens.json から packages/ui/scripts/tokens.mjs が作る（npm run tokens）。ここを直さない。
+   動きは「何が変わったか」を伝えるためだけ。1つの操作に動きは1つ。動きを減らす設定では全部止める（base.css）。 */
+:root {
+  --bg: #f7f7f8;  /* 地 */
+  --surface: #ffffff;  /* カード */
+  --surface-2: #f2f3f5;  /* くぼみ（切り替えの台など） */
+  --raised: #ffffff;  /* 浮いた面（下から開く面・選んだ切り替え） */
+  --ink: #1b1d21;  /* 文字（主） */
+  --ink-2: #4b5059;  /* 文字（従） */
+  --ink-3: #7a808a;  /* 文字（補足） */
+  --line: #e3e5e8;  /* 区切りの線 */
+  --line-strong: #cfd3d8;  /* 枠 */
+  --accent: #c2410c;  /* 強い色（選んだもの・主ボタンだけ） */
+  --accent-ink: #ffffff;  /* 強い色の上の文字 */
+  --accent-soft: rgba(194, 65, 12, .08);  /* 強い色の淡い地 */
+  --scrim: rgba(0, 0, 0, .28);  /* シートを全体に広げたときの後ろの暗さ */
+  --flash: rgba(194, 65, 12, .18);  /* 変わった所を一度だけ光らせる色 */
+  --good: #15803d;  /* 予想が合った */
+  --bad: #cf222e;  /* 予想が外れた・成り立たない */
+  --accent-line: rgba(194, 65, 12, .35);  /* 強い色の淡い枠（課題カード・解説の枠） */
+  --focus: #e0a100;  /* 解説で今見る所を囲む */
+  --mark: rgba(255, 196, 0, .45);  /* 文の強調（蛍光ペン） */
+  --data-1: #2a78d6;  /* データ：主の系列（棒・点・線）。ラボと静止図で同じ */
+  --data-hi: #c2410c;  /* データ：注目する値・求める確率 */
+  --data-2: #6250d6;  /* データ：2つ目の系列（比べる分布） */
+  --data-3: #0f9d74;  /* データ：3つ目の系列 */
+  --data-1-soft: #8fb3e3;  /* データ：主の系列の注目しない棒 */
+  --data-bg: #eaf1fb;  /* データ：範囲の地（区間・面積） */
+  --data-hi-bg: #fdf0e9;  /* データ：注目する範囲の地 */
+  --figure-bg: #ffffff;  /* 図の地（静止図がダークに対応するまで白のまま） */
+  --k-pre: #6b7280;  /* 関係：前提 */
+  --k-der: #2563eb;  /* 関係：導出 */
+  --k-gen: #15803d;  /* 関係：一般化・特殊化 */
+  --k-conv: #c2410c;  /* 関係：変換 */
+  --k-con: #7c3aed;  /* 関係：対比 */
+  --k-int: #0f766e;  /* 関係：統合 */
+  --k-app: #a16207;  /* 関係：応用 */
+  --font: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --font-mono: ui-monospace, Menlo, monospace;
+  --fs-display: 20px;
+  --fs-title: 19px;
+  --fs-head: 15px;
+  --fs-body: 14.5px;
+  --fs-small: 12.5px;
+  --fs-label: 12.5px;
+  --fs-tag: 11.5px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 22px;
+  --r-s: 6px;
+  --r-m: 10px;
+  --r-l: 14px;
+  --r-pill: 999px;
+  --tap: 44px;  /* 押す所の最小の大きさ */
+  --dur-press: 90ms;  /* 押した瞬間の返事（沈む） */
+  --dur: 200ms;  /* 変わった所が動く（滑る・伸びる・数が変わる） */
+  --dur-flash: 700ms;  /* 結果が出た所を一度だけ淡く光らせる */
+  --dur-sheet: 320ms;  /* シートが段に止まる・開く・閉じる */
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);  /* シートの曲線（iPhone のシートに近い、勢いよく出てやわらかく止まる） */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);  /* 動きの曲線（すっと止まる） */
+  --press-scale: 0.97;  /* 押したときの縮み */
+  --shadow-raised: 0 -8px 28px rgba(0, 0, 0, .14);
+  /* 古い名前（ほかの画面がまだ使っている） */
+  --card: var(--surface); --mute: var(--ink-3);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d0e10;
+    --surface: #16171a;
+    --surface-2: #1d1f23;
+    --raised: #1f2125;
+    --ink: #e9eaec;
+    --ink-2: #b4b8bf;
+    --ink-3: #868b94;
+    --line: #26282d;
+    --line-strong: #34373d;
+    --accent: #f97316;
+    --accent-ink: #111214;
+    --accent-soft: rgba(249, 115, 22, .10);
+    --scrim: rgba(0, 0, 0, .55);
+    --flash: rgba(249, 115, 22, .24);
+    --good: #4ade80;
+    --bad: #f85149;
+    --accent-line: rgba(249, 115, 22, .40);
+    --focus: #f0b400;
+    --mark: rgba(255, 196, 0, .35);
+    --data-1: #3b82f6;
+    --data-hi: #e05a14;
+    --data-2: #8b74f0;
+    --data-3: #0fa595;
+    --data-1-soft: #2c4a73;
+    --data-bg: #1b2636;
+    --data-hi-bg: #3a2418;
+    --figure-bg: #ffffff;
+    --k-pre: #9ca3af;
+    --k-der: #60a5fa;
+    --k-gen: #4ade80;
+    --k-conv: #fb923c;
+    --k-con: #a78bfa;
+    --k-int: #2dd4bf;
+    --k-app: #facc15;
+    --shadow-raised: 0 -8px 28px rgba(0, 0, 0, .5);
+    color-scheme: dark;
+  }
+}

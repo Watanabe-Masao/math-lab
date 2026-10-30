@@ -3,14 +3,23 @@
   "private": true,
   "type": "module",
   "description": "統計を発見する環境の土台：計算（種つき乱数・実験エンジン・式の木）と画面の部品",
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "typecheck": "tsc -p packages/engine --noEmit",
+    "tokens": "node packages/ui/scripts/tokens.mjs",
+    "design": "node scripts/check-design.mjs",
+    "typecheck": "tsc -p packages/engine --noEmit && tsc -p packages/ui --noEmit",
     "test": "vitest run",
-    "check": "npm run typecheck && npm run test"
+    "check": "npm run design && npm run typecheck && npm run test"
   },
   "devDependencies": {
+    "@radix-ui/react-toggle-group": "1.2.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "fast-check": "4.10.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "typescript": "5.9.3",
     "vitest": "5.0.5"
   }

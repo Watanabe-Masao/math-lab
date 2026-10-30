@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "画面の部品と手触りの値（knowledge-net の src/ui と design/tokens.json をここへ移す。#107）",
-  "main": "src/index.ts"
+  "description": "画面の部品と手触りの値（React）。値の元は tokens.json、CSS の変数は src/tokens.css（生成）",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts", "./tokens.json": "./tokens.json", "./tokens.css": "./src/tokens.css" },
+  "peerDependencies": {
+    "@radix-ui/react-toggle-group": "1.2.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  }
 }
