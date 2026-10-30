@@ -218,3 +218,32 @@ it("Σ・Π のあとに掛けるものが続くと括弧で包む（∏k i ∏m
   const t = toTex({ op: "mul", args: [p("k"), p("m")] });
   expect(t).toBe("\\left(\\prod_{i=1}^{k}i\\right)\\prod_{i=1}^{m}i");
 });
+
+// 端のない Σ_x（値の表の分布。#119）：x がとる値の一覧（domains）と p(x)（fns）から計算し、1段で項に開く
+describe("値の表の Σ", () => {
+  const ex = find("TERM-expect", 0);   // E(X)＝Σ_x x p(x)
+  const table = fc.array(fc.tuple(fc.integer({ min: -20, max: 50 }), fc.integer({ min: 0, max: 9 })), { minLength: 1, maxLength: 8 })
+    .map((rows) => { const m = new Map<number, number>(); for (const [x, w] of rows) m.set(x, (m.get(x) ?? 0) + w); return [...m]; })
+    .filter((rows) => rows.some(([, w]) => w > 0));
+  it("性質：どの表でも、値は定義（値×確率の和）と同じ。展開は項に開いてから同じ値で終わる", () => {
+    fc.assert(fc.property(table, (rows) => {
+      const tot = rows.reduce((s, [, w]) => s + w, 0), xs = rows.map(([x]) => x), pr = new Map(rows.map(([x, w]) => [x, w / tot]));
+      const env = { domains: { x: xs }, fns: { p: (x: number) => pr.get(x) ?? 0 } };
+      const want = rows.reduce((s, [x, w]) => s + x * (w / tot), 0);
+      const rhs = (ex.tree as { args: FormulaNode[] }).args[1]!;
+      expect(evaluate(rhs, env)).toBeCloseTo(want, 9);
+      const steps = expand(ex.tree, env);
+      const opened = steps[1] as { op?: string; args?: unknown[] };
+      if (xs.length > 1) expect(opened.op === "add" && opened.args!.length === xs.length).toBe(true);
+      const last = steps[steps.length - 1]!;
+      expect("num" in last && Math.abs((last as { num: number }).num - want) < 1e-9).toBe(true);
+    }), { numRuns: 60 });
+  });
+  it("値の一覧がなければ計算しない（Σ_x の x がとる値がわからない）", () => {
+    expect(evaluate((ex.tree as { args: FormulaNode[] }).args[1]!, { fns: { p: () => 0.5 } })).toBeUndefined();
+  });
+  it("内側で同じ記号を縛る Σ には入れない", () => {
+    const t: FormulaNode = { op: "sum", var: "x", args: [{ op: "sum", var: "x", lower: { num: 1 }, upper: { num: 2 }, args: [{ sym: "x" }] }] };
+    expect(evaluate(t, { domains: { x: [10, 20] } })).toBe(6);   // 外の x は使われず、内側の 1＋2 を2回
+  });
+});

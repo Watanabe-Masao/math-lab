@@ -3,7 +3,12 @@
 import { isNum, isOp, isSym, type FormulaNode, type OpNode } from "./types";
 
 /** 記号の値（数）と、関数の中身（E・V など、その場で決める関数）。e・π は入れなくても使える */
-export type Env = { values?: Record<string, number>; fns?: Record<string, (...args: number[]) => number> };
+export type Env = {
+  values?: Record<string, number>;
+  fns?: Record<string, (...args: number[]) => number>;
+  /** Σ・Π の動かす記号がとる値の一覧（端のない Σ_x：x がとりうる値。値の表の分布など。#119） */
+  domains?: Record<string, number[]>;
+};
 
 const CONST: Record<string, number> = { e: Math.E, pi: Math.PI };
 
@@ -50,17 +55,37 @@ function symValue(k: string, env: Env): number | undefined {
 const MAX_TERMS = 10000;
 
 /** Σ・Π：下端・上端が整数の値になれば、動かす記号に1つずつ入れて足す・掛ける（空なら 0・1）。∫ は値にしない */
-function bigOp(node: OpNode, env: Env): number | undefined {
-  if ((node.op !== "sum" && node.op !== "prod") || !node.var || !node.lower || !node.upper) return undefined;
+/** Σ・Π の動かす記号がとる値：端が整数ならその範囲、端がなければ domains の一覧（どちらもなければ undefined） */
+function rangeOf(node: OpNode, env: Env): number[] | undefined {
+  if (!node.var) return undefined;
+  if (!node.lower && !node.upper) { const d = env.domains?.[node.var]; return d && d.length <= MAX_TERMS ? d : undefined; }
+  if (!node.lower || !node.upper) return undefined;
   const lo = evaluate(node.lower, env), hi = evaluate(node.upper, env);
   if (lo === undefined || hi === undefined || !Number.isInteger(lo) || !Number.isInteger(hi) || hi - lo + 1 > MAX_TERMS) return undefined;
+  return Array.from({ length: Math.max(0, hi - lo + 1) }, (_, i) => lo + i);
+}
+
+function bigOp(node: OpNode, env: Env): number | undefined {
+  if (node.op !== "sum" && node.op !== "prod") return undefined;
+  const xs = rangeOf(node, env); if (!xs) return undefined;
   let r = node.op === "sum" ? 0 : 1;
-  for (let i = lo; i <= hi; i++) {
-    const x = evaluate(node.args[0]!, { ...env, values: { ...env.values, [node.var]: i } });
+  for (const i of xs) {
+    const x = evaluate(node.args[0]!, { ...env, values: { ...env.values, [node.var!]: i } });
     if (x === undefined) return undefined;
     r = node.op === "sum" ? r + x : r * x;
   }
   return r;
+}
+
+/** 動かす記号 v（Σ の中だけで使う記号）に値を入れる（内側で同じ記号を縛る Σ の中は入れない） */
+function substituteVar(node: FormulaNode, v: string, x: number): FormulaNode {
+  if (isSym(node)) return node.sym === v ? { num: x } : node;
+  if (isNum(node)) return node;
+  const inner = node.var === v;
+  const out: OpNode = { ...node, args: inner ? node.args : node.args.map((a) => substituteVar(a, v, x)) };
+  if (node.lower) out.lower = substituteVar(node.lower, v, x);
+  if (node.upper) out.upper = substituteVar(node.upper, v, x);
+  return out;
 }
 
 /** 値を求める（記号の値・関数がそろわない、または eq・∫ を含むときは undefined。Σ・Π は範囲が決まれば求める） */
@@ -86,9 +111,14 @@ export function substitute(node: FormulaNode, env: Env): FormulaNode {
 /** 引数がすべて数になった演算を、1段だけ計算する（同じ深さのものはいっしょに）。変わらなければ同じ木を返す */
 function stepOnce(node: FormulaNode, env: Env): FormulaNode {
   if (!isOp(node)) return node;
+  // 端のない Σ_x（x が値の一覧をとる）は、1段で項に開く：Σ_x x·p(x) → 1·p(1)＋2·p(2)＋…（どの値を足すかが見える。項が多すぎれば開かない）
+  if (node.op === "sum" && node.var && !node.lower && !node.upper && env.domains?.[node.var] && env.domains[node.var]!.length <= 12) {
+    const terms = env.domains[node.var]!.map((x) => substituteVar(node.args[0]!, node.var!, x));
+    return terms.length === 0 ? { num: 0 } : terms.length === 1 ? terms[0]! : { op: "add", args: terms };
+  }
   // Σ・Π は、端が数になっていれば1段で値にする（中の動かす記号は外から入れない）
-  if ((node.op === "sum" || node.op === "prod") && node.lower && node.upper && isNum(node.lower) && isNum(node.upper)) {
-    const r = bigOp(node, { fns: env.fns });
+  if ((node.op === "sum" || node.op === "prod") && ((node.lower && node.upper && isNum(node.lower) && isNum(node.upper)) || (!node.lower && !node.upper && node.var && env.domains?.[node.var]))) {
+    const r = bigOp(node, { fns: env.fns, domains: env.domains });
     if (r !== undefined && Number.isFinite(r)) return { num: r };
   }
   const ready = node.args.every((a) => isNum(a) || (isSym(a) && CONST[a.sym] !== undefined && node.op !== "eq"));
