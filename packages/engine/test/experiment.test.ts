@@ -28,7 +28,8 @@ describe("実験エンジン", () => {
       const mu = evaluate(rhsOf(mean.tree), { values: { n, p } })!, sd = Math.sqrt(n * p * (1 - p));
       expect(Math.abs(rec.mean! - mu)).toBeLessThan(5 * sd / Math.sqrt(N) + 1e-9);
       const f = frequencies(rec);
-      for (const { x, y } of d) expect(Math.abs((f.get(x) ?? 0) - y!)).toBeLessThan(5 * Math.sqrt(y! * (1 - y!) / N) + 1e-9);
+      // とても小さい確率（Ny が 1 に届かない値）は正規近似が使えないので、分散の下限を 1/N にする（5回までの偶然は許す）
+      for (const { x, y } of d) expect(Math.abs((f.get(x) ?? 0) - y!)).toBeLessThan(5 * Math.sqrt(Math.max(y! * (1 - y!), 1 / N) / N) + 1e-9);
     }), { numRuns: 40 });
   });
   it("確率が0の値は出ない・すべて0の分布は止める", () => {
