@@ -11,7 +11,11 @@ export type FormulaNode = SymNode | NumNode | OpNode;
 /** 記号の種類：value（1つの値）・data（データの一覧）・rv（確率変数）・param（母数）・index（添え字）・const（定数）。関数の記号（E・V・comb など）は持たない */
 export type SymbolKind = "value" | "data" | "rv" | "param" | "index" | "const";
 
-export type FormulaSymbol = { symbol: string; meaning: string; key: string; kind?: SymbolKind; concept?: string; range?: string };
+/** 定義域：min・max（数か、同じ式の記号の key。k ≦ n なら max: "n"）と端を含むか（既定は含む）、整数か、0でないか（#109） */
+export type Domain = { min?: number | string; max?: number | string; minOpen?: boolean; maxOpen?: boolean; integer?: boolean; nonzero?: boolean };
+
+/** 式の記号。of はどの確率変数の記号か（μ は X の期待値なら X。#109） */
+export type FormulaSymbol = { symbol: string; meaning: string; key: string; kind?: SymbolKind; concept?: string; range?: string; of?: string; domain?: Domain };
 
 export type Formula = { tex?: string; symbols: FormulaSymbol[]; tree: FormulaNode };
 
