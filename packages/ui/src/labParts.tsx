@@ -128,8 +128,11 @@ export function Replay({ rec, theory, labels, unit = "" }: { rec: SetRecord; the
     return out;
   }, [rec, N]);
   const lx = (i: number) => L + (Math.log10(i) / Math.max(1e-9, Math.log10(Math.max(10, N)))) * (W - L - Rm);
-  const lo = Math.min(th.mean - 2.2 * sd, ...pts.map((p) => p.m)), hi = Math.max(th.mean + 2.2 * sd, ...pts.map((p) => p.m));
-  const ly = (v: number) => B - ((v - lo) / Math.max(1e-9, hi - lo)) * (B - T);
+  // 縦の幅は、実際の平均の動きと、10セット目の帯（±2σ/√10）に合わせる。散らばりの大きい表（反例）でも平均の揺れが見えるように、帯ははみ出た分を切る
+  const w10 = (2 * sd) / Math.sqrt(10);
+  const lo0 = Math.min(th.mean - w10, ...pts.map((p) => p.m)), hi0 = Math.max(th.mean + w10, ...pts.map((p) => p.m)), pad = (hi0 - lo0) * 0.06;
+  const lo = lo0 - pad, hi = hi0 + pad;
+  const ly = (v: number) => B - ((Math.min(hi, Math.max(lo, v)) - lo) / Math.max(1e-9, hi - lo)) * (B - T);
   const cur = pts.filter((p) => p.i <= upto).at(-1);
   const band = pts.map((p) => [lx(p.i), ly(th.mean + (2 * sd) / Math.sqrt(p.i)), ly(th.mean - (2 * sd) / Math.sqrt(p.i))] as const);
   if (N < 2) return null;
@@ -137,7 +140,7 @@ export function Replay({ rec, theory, labels, unit = "" }: { rec: SetRecord; the
     <section className={s.card} data-testid="exp-replay">
       <p className={s.h}>積み上がりを見直す<span>倍々の目盛りで</span></p>
       <div className={s.marks} role="radiogroup" aria-label="何セット目まで">
-        {marks.map((m, i) => <button key={m} type="button" role="radio" aria-checked={i === t} onClick={() => { haptic(); setT(i); }}>{i === marks.length - 1 ? `${m}（全部）` : m}</button>)}
+        {marks.map((m, i) => <button key={m} type="button" role="radio" aria-checked={i === t} onClick={() => { haptic(); setT(i); }}>{i === marks.length - 1 ? `全 ${m}` : m}</button>)}
         <button type="button" className={s.play} onClick={play} disabled={playing} aria-label="1セット目から再生">{playing ? "再生中" : "▶ 再生"}</button>
       </div>
       <p className={s.replayStat} data-testid="exp-replay-stat"><b>{upto}</b> セットまで：平均 <b>{num3(cur?.m)}{unit}</b>（理論 {num3(th.mean)}{unit}・ずれ {num3(cur ? Math.abs(cur.m - th.mean) : undefined)}）</p>
