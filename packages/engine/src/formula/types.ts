@@ -17,7 +17,10 @@ export type Domain = { min?: number | string; max?: number | string; minOpen?: b
 /** 式の記号。of はどの確率変数の記号か（μ は X の期待値なら X。#109） */
 export type FormulaSymbol = { symbol: string; meaning: string; key: string; kind?: SymbolKind; concept?: string; range?: string; of?: string; domain?: Domain };
 
-export type Formula = { tex?: string; symbols: FormulaSymbol[]; tree: FormulaNode };
+/** 式の意味のかたまり（作業台で押せる部分式。path は根からの args の番号。#110） */
+export type FormulaPart = { path: number[]; name: string; meaning: string };
+
+export type Formula = { tex?: string; symbols: FormulaSymbol[]; tree: FormulaNode; parts?: FormulaPart[] };
 
 export const isSym = (n: FormulaNode): n is SymNode => "sym" in n;
 export const isNum = (n: FormulaNode): n is NumNode => "num" in n;

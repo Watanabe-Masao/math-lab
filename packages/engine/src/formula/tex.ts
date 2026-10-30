@@ -9,6 +9,8 @@ export type TexOptions = {
   wrap?: (key: string, tex: string) => string;
   /** 節に印を付ける（開いた所など。返した名前で \\htmlData{open=名前}{…} に包む） */
   mark?: (node: FormulaNode) => string | undefined;
+  /** 節に任意の印（\\htmlData{…} の中身。例 "part=0"）。作業台で意味のかたまりを押せるように（#110） */
+  data?: (node: FormulaNode) => string | undefined;
   /** 数の書き方（既定：小数10桁までで丸め、末尾の0を落とす） */
   num?: (v: number) => string;
 };
@@ -55,8 +57,10 @@ export function toTex(node: FormulaNode, opt: TexOptions = {}): string {
 
   const go = (n: FormulaNode): Out => {
     const o: Out = isSym(n) ? { t: sym(n.sym), p: ATOM } : isNum(n) ? (n.num < 0 ? { t: fmt(n.num), p: 2, num: true, neg: true } : { t: fmt(n.num), p: ATOM, num: true }) : opNode(n);
-    const m = opt.mark?.(n);
-    return m ? { ...o, t: `\\htmlData{open=${m}}{${o.t}}` } : o;
+    const m = opt.mark?.(n), d = opt.data?.(n);
+    let t = m ? `\\htmlData{open=${m}}{${o.t}}` : o.t;
+    if (d) t = `\\htmlData{${d}}{${t}}`;
+    return t === o.t ? o : { ...o, t };
   };
 
   const opNode = (n: OpNode): Out => {
