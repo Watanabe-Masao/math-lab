@@ -237,7 +237,7 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
   };
 
   // ---- 分布の図：理論＝棒、実験＝点（同じ縦軸）、期待値＝点線。目盛りは確率の切りのよい値 ----
-  const W = 340, TOP = 18, BASE = 118, H = BASE + 26, LEFT = 4, RIGHT = 34;
+  const W = 340, TOP = 18, BASE = 118, H = BASE + 26, LEFT = 0, RIGHT = 34;
   const empMax = rec.values.length ? Math.max(0, ...dist.map((d) => freq.get(d.x) ?? 0)) : 0;
   const rawMax = Math.max(1e-9, ...dist.map((d) => d.y ?? 0), empMax);
   const tick = [0.01, 0.02, 0.05, 0.1, 0.2, 0.25, 0.5, 1].find((t) => rawMax / t <= 4) ?? 1;
