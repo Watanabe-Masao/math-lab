@@ -43,7 +43,7 @@ const short = (v: number) => formatNum(Number(v.toPrecision(5)));   // 計算過
 const toEngine = (fs: FormulaData[]): EngineFormula[] => fs.filter((x) => !!x.tree).map((x) => ({ symbols: x.symbols ?? [], tree: x.tree! }));
 const FALLBACK = { min: 0, max: 30, step: 0.01 };
 
-type Sel = { kind: "part"; index: number } | { kind: "sym"; key: string } | null;
+type Sel = { part?: number; sym?: string } | null;
 
 export function Workspace({ formula: original, mean, vary, over, initial, seed: seed0, definitions, onConcept, conceptName }: Props) {
   const baseSymbols = original.symbols ?? [];
@@ -80,7 +80,7 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
   const opened = useMemo(() => applyOpens({ symbols: baseSymbols, tree: original.tree! }, opens, { resolve }), [original, opens, resolve]);   // eslint-disable-line react-hooks/exhaustive-deps
   const tree = opened.tree, symbols = opened.symbols;
 
-  // ---- 選択 ----
+  // ---- 選択：かたまり（part）と記号（sym）を同時に持つ。かたまりの中の記号を選んでも、かたまりは選んだまま（どこにいるかを見失わない） ----
   const [sel, setSel] = useState<Sel>(null);
   const parts = original.parts ?? [];
   const partNodes = useMemo(() => new Map(parts.map((p, i) => [nodeAt(tree, p.path), i] as const).filter(([n]) => !!n) as [FormulaNode, number][]), [tree, parts]);
@@ -95,8 +95,13 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
   const stage = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const root = stage.current; if (!root) return;
-    root.querySelectorAll<HTMLElement>("[data-part]").forEach((el) => el.toggleAttribute("data-on", sel?.kind === "part" && el.dataset.part === String(sel.index)));
-    root.querySelectorAll<HTMLElement>("[data-sym]").forEach((el) => el.toggleAttribute("data-on", sel?.kind === "sym" && el.dataset.sym === sel.key));
+    root.querySelectorAll<HTMLElement>("[data-part]").forEach((el) => el.toggleAttribute("data-on", sel?.part !== undefined && el.dataset.part === String(sel.part)));
+    // 選んだ記号は式の中の全部の場所を強調する（同じ p が2つのかたまりにある）。選んだかたまりの中は強く
+    root.querySelectorAll<HTMLElement>("[data-sym]").forEach((el) => {
+      const on = !!sel?.sym && el.dataset.sym === sel.sym;
+      el.toggleAttribute("data-on", on);
+      el.toggleAttribute("data-here", on && (sel?.part === undefined || el.closest(`[data-part="${sel.part}"]`) !== null));
+    });
   }, [html, sel]);
   // ---- その場で展開する動き（FLIP。手本：FormulaNode 計算ツリー） ----
   // 開く・閉じる前に記号の位置を覚え、描き直したあと、残った記号は前の位置から滑らせ、新しく出た所は開いた記号の位置から広げる
@@ -132,9 +137,10 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
   const onStage = (e: React.MouseEvent) => {
     const t = e.target as HTMLElement;
     const part = t.closest<HTMLElement>("[data-part]"), sym = t.closest<HTMLElement>("[data-sym]");
-    // かたまりの中なら、まずかたまりを選ぶ。選んだかたまりの中をもう一度押すと、その記号を選ぶ
-    if (part && !(sel?.kind === "part" && sel.index === Number(part.dataset.part) && sym)) setSel({ kind: "part", index: Number(part.dataset.part) });
-    else if (sym?.dataset.sym) setSel({ kind: "sym", key: sym.dataset.sym });
+    // かたまりの中なら、まずかたまりを選ぶ。選んだかたまりの中の記号を押すと、かたまりを選んだまま記号も選ぶ（同じ記号ならたたむ）
+    const pi = part ? Number(part.dataset.part) : undefined, k = sym?.dataset.sym;
+    if (pi !== undefined) setSel(sel?.part === pi && k ? { part: pi, sym: sel.sym === k ? undefined : k } : { part: pi });
+    else if (k) setSel(sel?.sym === k && sel.part === undefined ? null : { sym: k });
     else setSel(null);
   };
 
@@ -169,12 +175,13 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
   const reset = () => { snapshot(); setValues(start); setOpens([]); setSel(null); setStep(1); setRec(emptyRecord()); setLastDraw(null); };
 
   // ---- 開き方（選んだ記号） ----
-  const selSym = sel?.kind === "sym" ? symOf(sel.key, symbols) : undefined;
+  const selSym = sel?.sym ? symOf(sel.sym, symbols) : undefined;
   const choices = useMemo(() => {
     if (!selSym?.concept || !definitions) return [];
     return definitionsFor(selSym.key, toEngine(definitions(selSym.concept))).filter((d) => openSymbol(tree, symbols, selSym.key, d, new Map(), { resolve }).count > 0);
   }, [selSym, definitions, tree, symbols, resolve]);
   const open = (d: Definition) => { snapshot(selSym!.key); setOpens((o) => [...o, { key: selSym!.key, def: d }]); setSel(null); };
+  const pickSym = (k: string) => { haptic(); setSel((x) => ({ part: x?.part, sym: x?.sym === k ? undefined : k })); };
   const openKeys = [...new Set(opened.marks.values())];
   const close = (k: string) => { snapshot(); setOpens((o) => {
     const kept: typeof o = []; let cur = { tree: original.tree!, symbols: baseSymbols };
@@ -182,63 +189,76 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
     return kept;
   }); };
 
-  // ---- 帯 ----
+  // ---- 帯：上から「かたまり」→「この中の記号」→「選んだ記号」。下の段を選んでも上の段は残る（パンくず） ----
   const strip = () => {
-    if (sel?.kind === "part") {
-      const p = parts[sel.index]!, node = nodeAt(tree, p.path)!;
-      const inside = symbolsIn(node).filter((k) => symOf(k, symbols));
-      return (
-        <div className={s.strip} data-testid="ws-strip" key={`p${sel.index}`}>
-          <div className={s.stripRow}>
-            <span className={s.stripTex} dangerouslySetInnerHTML={{ __html: render(toTex(node, { symbols }), false) }} />
-            <div className={s.stripText}><b>{p.name}</b><p>{p.meaning}</p></div>
-            <span className={s.stripVal} data-testid="ws-part-value">{fmt(evaluate(node, env))}</span>
+    if (!sel) return <div className={`${s.strip} ${s.stripEmpty}`} data-testid="ws-strip"><p className={s.hint}>式のかたまり（ₙCₖ・pᵏ など）を押すと、意味と今の値がここに出る。</p></div>;
+    const p = sel.part !== undefined ? parts[sel.part] : undefined;
+    const node = p ? nodeAt(tree, p.path) : undefined;
+    const inside = node ? symbolsIn(node).filter((k) => symOf(k, symbols)) : [];
+    const v = selSym ? values[selSym.key] : undefined;
+    return (
+      <div className={s.strip} data-testid="ws-strip">
+        {p && node && (
+          <div className={s.ctx} key={`p${sel.part}`}>
+            <span className={s.ctxTex} dangerouslySetInnerHTML={{ __html: render(toTex(node, { symbols }), false) }} />
+            <span className={s.ctxVal} data-testid="ws-part-value">{fmt(evaluate(node, env))}</span>
+            <b className={s.ctxName}>{p.name}</b>
+            {!selSym && <p className={s.ctxText}>{p.meaning}</p>}
           </div>
-          {inside.length > 0 && (
-            <div className={s.stripFoot}>
-              <span className={s.muted}>この中の記号</span>
-              {inside.map((k) => <button key={k} type="button" className={s.mini} onClick={() => setSel({ kind: "sym", key: k })}>{symOf(k, symbols)!.symbol}</button>)}
-            </div>
-          )}
-        </div>
-      );
-    }
-    if (sel?.kind === "sym" && selSym) {
-      const v = values[selSym.key];
-      return (
-        <div className={s.strip} data-testid="ws-strip" key={`s${selSym.key}`}>
-          <div className={s.stripRow}>
-            <span className={s.stripBig}>{selSym.symbol}</span>
-            <div className={s.stripText}><b>{selSym.meaning}</b>{selSym.domain && <p>{describeDomain(selSym.domain, symbols)}</p>}</div>
-            {v !== undefined && <span className={s.stripVal}>{fmt(v)}</span>}
+        )}
+        {inside.length > 0 && (
+          <div className={s.chips} role="group" aria-label="この中の記号">
+            <span className={s.muted}>この中の記号</span>
+            {inside.map((k) => (
+              <button key={k} type="button" className={s.chip} aria-pressed={sel.sym === k} onClick={() => pickSym(k)}>{symOf(k, symbols)!.symbol}</button>
+            ))}
           </div>
-          {(choices.length > 0 || (selSym.concept && onConcept)) && (
-            <div className={s.stripFoot}>
-              {choices.map((d, i) => (
-                <button key={i} type="button" className={s.act} onClick={() => open(d)} data-testid="ws-open">
-                  式の中で開く{choices.length > 1 ? `（形${i + 1}）` : ""}
-                  <span dangerouslySetInnerHTML={{ __html: render(toTex((d.formula.tree as { args: FormulaNode[] }).args[d.side]!, { symbols: d.formula.symbols }), false) }} />
-                </button>
-              ))}
-              {selSym.concept && onConcept && <button type="button" className={s.link} onClick={() => onConcept(selSym.concept!)}>{conceptName?.(selSym.concept) ?? selSym.concept} へ →</button>}
-            </div>
-          )}
-        </div>
-      );
-    }
-    return <div className={`${s.strip} ${s.stripEmpty}`} data-testid="ws-strip"><p className={s.hint}>式のかたまり（ₙCₖ・pᵏ など）を押すと、意味と今の値がここに出る。</p></div>;
+        )}
+        {selSym && (
+          <div className={s.sym} key={`s${selSym.key}`} data-testid="ws-sym">
+            <span className={s.symBig}>{selSym.symbol}</span>
+            <div className={s.symText}><b>{selSym.meaning}</b>{selSym.domain && <p>{describeDomain(selSym.domain, symbols)}</p>}</div>
+            {v !== undefined && <span className={s.symVal}>{fmt(v)}</span>}
+            {(choices.length > 0 || (selSym.concept && onConcept)) && (
+              <div className={s.symActs}>
+                {choices.map((d, i) => (
+                  <button key={i} type="button" className={s.act} onClick={() => open(d)} data-testid="ws-open">
+                    式の中で開く{choices.length > 1 ? `（形${i + 1}）` : ""}
+                    <span dangerouslySetInnerHTML={{ __html: render(toTex((d.formula.tree as { args: FormulaNode[] }).args[d.side]!, { symbols: d.formula.symbols }), false) }} />
+                  </button>
+                ))}
+                {selSym.concept && onConcept && <button type="button" className={s.link} onClick={() => onConcept(selSym.concept!)}>{conceptName?.(selSym.concept) ?? selSym.concept} を見る</button>}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
   };
 
-  // ---- 分布の図 ----
-  const W = 340, H = 140, PAD = 18;
-  const maxY = Math.max(1e-9, ...dist.map((d) => d.y ?? 0));
-  const bw = (W - PAD * 2) / Math.max(1, dist.length);
-  const xPos = (x: number) => PAD + (x - range.min + 0.5) * bw;
+  // ---- 分布の図：理論＝棒、実験＝点（同じ縦軸）、期待値＝点線。目盛りは確率の切りのよい値 ----
+  const W = 340, TOP = 22, BASE = 138, H = BASE + 26, LEFT = 4, RIGHT = 34;
+  const empMax = rec.values.length ? Math.max(0, ...dist.map((d) => freq.get(d.x) ?? 0)) : 0;
+  const rawMax = Math.max(1e-9, ...dist.map((d) => d.y ?? 0), empMax);
+  const tick = [0.01, 0.02, 0.05, 0.1, 0.2, 0.25, 0.5, 1].find((t) => rawMax / t <= 4) ?? 1;
+  const yMax = Math.max(tick, Math.ceil(rawMax / tick - 1e-9) * tick);
+  const yPos = (v: number) => BASE - (v / yMax) * (BASE - TOP);
+  const bw = (W - LEFT - RIGHT) / Math.max(1, dist.length);
+  const xPos = (x: number) => LEFT + (x - range.min + 0.5) * bw;
+  const barW = Math.max(2, bw - Math.max(2, bw * 0.24));
+  const every = dist.length <= 13 ? 1 : dist.length <= 31 ? 5 : 10;
+  const cur = values[over];
   const chooseX = (x: number) => { haptic(); set(over, x); };
+  const pct = (v: number) => `${Number((v * 100).toFixed(v < 0.1 ? 1 : 0))}%`;
+  const barPath = (x: number, y: number) => {
+    const l = x - barW / 2, r = Math.min(3, barW / 2, BASE - y);
+    return `M${l},${BASE}V${y + r}Q${l},${y} ${l + r},${y}H${l + barW - r}Q${l + barW},${y} ${l + barW},${y + r}V${BASE}Z`;
+  };
+  const symText = overSym?.symbol ?? over;
 
   return (
     <section className={s.ws} data-testid="workspace" aria-label="式の作業台">
-      <div className={s.head}><span className={s.eyebrow}>作業台</span>{original.label && <b>{original.label}</b>}
+      <div className={s.head}><b>{original.label ?? "式を動かす"}</b>
         <button type="button" className={s.reset} onClick={reset} data-testid="ws-reset">初期値に戻す</button></div>
       <div ref={stage} className={s.stage} onClick={onStage} dangerouslySetInnerHTML={{ __html: html }} data-testid="ws-formula" />
       {strip()}
@@ -249,77 +269,97 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
         </div>
       )}
       <div className={s.result} data-testid="ws-result">
-        <span dangerouslySetInnerHTML={{ __html: lhs ? render(toTex(substitute(lhs, { values: { [over]: values[over]! } }), { symbols }), false) : "" }} />
-        <span className={s.resultVal}>{isProb && result !== undefined ? `${(result * 100).toFixed(2)}%` : fmt(result)}{isProb && <small className={s.resultSub}>{fmt(result, 5)}</small>}</span>
+        <span className={s.resultLhs} dangerouslySetInnerHTML={{ __html: lhs ? render(toTex(substitute(lhs, { values: { [over]: values[over]! } }), { symbols }), false) : "" }} />
+        <span className={s.resultVal}>{isProb && result !== undefined ? `${(result * 100).toFixed(2)}%` : fmt(result)}</span>
+        {isProb && <small className={s.resultSub}>{fmt(result, 5)}</small>}
       </div>
       {steps.length > 1 && (
         <div className={s.calc} data-testid="ws-calc">
-          <span className={s.muted}>計算過程</span>
-          <div className={s.calcTex} dangerouslySetInnerHTML={{ __html: render(`${toTex(steps[shownStep]!, { symbols, num: short })}${shownStep < steps.length - 1 ? `=${toTex(steps[steps.length - 1]!, { symbols, num: short })}` : ""}`, false) }} />
-          <div className={s.calcNav}>
-            <button type="button" className={s.tool} onClick={() => setStep(Math.max(1, shownStep - 1))} disabled={shownStep <= 1} aria-label="前の段">◀</button>
-            <span className={s.muted}>{shownStep}／{steps.length - 1}</span>
-            <button type="button" className={s.tool} onClick={() => setStep(Math.min(steps.length - 1, shownStep + 1))} disabled={shownStep >= steps.length - 1} aria-label="次の段">▶</button>
+          <div className={s.calcHead}>
+            <span className={s.muted}>計算の段</span>
+            <button type="button" className={s.step} onClick={() => setStep(Math.max(1, shownStep - 1))} disabled={shownStep <= 1} aria-label="前の段">‹</button>
+            <span className={s.stepNo}>{shownStep}／{steps.length - 1}</span>
+            <button type="button" className={s.step} onClick={() => setStep(Math.min(steps.length - 1, shownStep + 1))} disabled={shownStep >= steps.length - 1} aria-label="次の段">›</button>
           </div>
+          <div className={s.calcTex} dangerouslySetInnerHTML={{ __html: render(`${toTex(steps[shownStep]!, { symbols, num: short })}${shownStep < steps.length - 1 ? `=${toTex(steps[steps.length - 1]!, { symbols, num: short })}` : ""}`, false) }} />
         </div>
       )}
       <div className={s.sliders}>
         {[...vary, over].map((k) => {
           const sym = symOf(k); if (!sym) return null;
           const r = sliderRange(sym, values, FALLBACK);
+          const fill = r.max > r.min ? ((values[k]! - r.min) / (r.max - r.min)) * 100 : 0;
           return (
             <label key={k} className={s.slider}>
-              <span className={s.sliderHead}><span>{sym.meaning.split("（")[0]} <i>{sym.symbol}</i></span><b>{fmt(values[k], 2)}</b></span>
-              <input type="range" min={r.min} max={r.max} step={r.step} value={values[k]} onChange={(e) => set(k, Number(e.target.value))} aria-label={`${sym.symbol}（${sym.meaning}）`} data-testid={`ws-slider-${k}`} />
+              <span className={s.sliderSym}>{sym.symbol}</span>
+              <span className={s.sliderName}>{sym.meaning.split("（")[0]}</span>
+              <b className={s.sliderVal}>{fmt(values[k], 2)}</b>
+              <input type="range" min={r.min} max={r.max} step={r.step} value={values[k]} onChange={(e) => set(k, Number(e.target.value))}
+                style={{ "--fill": `${fill}%` } as React.CSSProperties} aria-label={`${sym.symbol}（${sym.meaning}）`} data-testid={`ws-slider-${k}`} />
             </label>
           );
         })}
       </div>
-      <figure className={s.chart} aria-label={`${overSym?.symbol ?? over} ごとの値`}>
+      <figure className={s.chart} aria-label={`${symText} ごとの確率`}>
         <figcaption className={s.chartHead}>
-          <span>{overSym?.meaning.split("（")[0] ?? over} ごとの確率</span>
-          {meanValue !== undefined && <span className={s.muted}>期待値 {fmt(meanValue, 2)}</span>}
+          <b>{overSym?.meaning.split("（")[0] ?? over} {symText} ごとの確率</b>
+          <span className={s.legend}>
+            <span><i className={s.keyBar} />理論</span>
+            {rec.values.length > 0 && <span><i className={s.keyDot} />実験 {rec.values.length} 回</span>}
+            {meanValue !== undefined && <span><i className={s.keyMean} />期待値 {fmt(meanValue, 2)}</span>}
+          </span>
         </figcaption>
-        <svg viewBox={`0 0 ${W} ${H + 22}`} className={s.svg} role="img">
+        <svg viewBox={`0 0 ${W} ${H}`} className={s.svg} role="img">
+          {Array.from({ length: Math.round(yMax / tick) }, (_, i) => (i + 1) * tick).map((t) => (
+            <g key={t}>
+              <line x1={LEFT} x2={W - RIGHT + 4} y1={yPos(t)} y2={yPos(t)} className={s.grid} />
+              <text x={W - 2} y={yPos(t) + 3.5} className={s.yTick} textAnchor="end">{pct(t)}</text>
+            </g>
+          ))}
           {dist.map((d) => {
-            const h = ((d.y ?? 0) / maxY) * (H - 12), on = d.x === values[over];
+            const on = d.x === cur, y = yPos(d.y ?? 0);
             return (
-              <g key={d.x} className={s.barG} onClick={() => chooseX(d.x)} data-testid={`ws-bar-${d.x}`} aria-label={`${overSym?.symbol ?? over}＝${d.x}：${fmt(d.y)}`}>
+              <g key={d.x} className={s.barG} onClick={() => chooseX(d.x)} data-testid={`ws-bar-${d.x}`} aria-label={`${symText}＝${d.x}：${fmt(d.y)}`}>
                 <rect x={xPos(d.x) - bw / 2} y={0} width={bw} height={H} className={s.hit} />
-                <rect x={xPos(d.x) - bw * 0.38} y={H - (H - 12)} width={bw * 0.76} height={H - 12} rx={Math.min(4, bw * 0.2)}
-                  className={on ? s.barOn : s.bar} style={{ transform: `scaleY(${(h / (H - 12)) || 0})` }} />
+                {BASE - y > 0.3 && <path d={barPath(xPos(d.x), y)} className={on ? s.barOn : s.bar} />}
               </g>
             );
           })}
-          {rec.values.length > 0 && dist.map((d) => {
-            const f = freq.get(d.x) ?? 0, y = H - Math.min(1, f / maxY) * (H - 12);
-            return <line key={`e${d.x}`} x1={xPos(d.x) - bw * 0.46} x2={xPos(d.x) + bw * 0.46} y1={y} y2={y}
-              className={d.x === lastDraw ? `${s.emp} ${s.empJust}` : s.emp} data-testid={`ws-emp-${d.x}`} />;
-          })}
+          <line x1={LEFT} x2={W - RIGHT + 4} y1={BASE} y2={BASE} className={s.base} />
           {meanValue !== undefined && meanValue >= range.min && meanValue <= range.max && (
-            <path d={`M ${xPos(meanValue)} ${H + 2} l -5 8 h 10 z`} className={s.mean} />
+            <line x1={xPos(meanValue)} x2={xPos(meanValue)} y1={TOP - 6} y2={BASE} className={s.mean} />
           )}
-          <text x={PAD} y={H + 20} className={s.axis}>{range.min}</text>
-          <text x={W - PAD} y={H + 20} className={s.axis} textAnchor="end">{range.max}</text>
+          {rec.values.length > 0 && dist.map((d) => (
+            <circle key={`e${d.x}`} cx={xPos(d.x)} cy={yPos(freq.get(d.x) ?? 0)} r={d.x === lastDraw ? 5 : 3.75}
+              className={d.x === lastDraw ? `${s.emp} ${s.empJust}` : s.emp} data-testid={`ws-emp-${d.x}`} />
+          ))}
+          {dist.filter((d) => d.x === cur).map((d) => (
+            <text key="v" x={Math.min(W - RIGHT - 14, Math.max(LEFT + 14, xPos(d.x)))} y={Math.min(yPos(d.y ?? 0), rec.values.length ? yPos(freq.get(d.x) ?? 0) : BASE) - 8} className={s.valLabel} textAnchor="middle">{pct(d.y ?? 0)}</text>
+          ))}
+          {dist.map((d) => {
+            const on = d.x === cur;
+            if (!on && ((d.x - range.min) % every !== 0 || Math.abs(d.x - (cur ?? -99)) * bw < 16)) return null;
+            return <text key={`t${d.x}`} x={xPos(d.x)} y={BASE + 17} className={on ? s.xTickOn : s.xTick} textAnchor="middle">{d.x}</text>;
+          })}
         </svg>
-        <p className={s.hint}>棒を押すと {overSym?.symbol ?? over} が選ばれ、式の値がその確率になる。スライダーを動かすと形が変わる。</p>
       </figure>
       <div className={s.exp} data-testid="ws-exp">
-        <div className={s.expHead}>
+        <div className={s.expRow}>
           <b>実験する</b>
-          <span className={s.muted}>棒＝理論　━＝実験の割合</span>
-        </div>
-        <div className={s.expBtns}>
-          <button type="button" className={s.expBtn} onClick={() => run(1)} data-testid="ws-run-1">1回</button>
-          <button type="button" className={`${s.expBtn} ${s.expMain}`} onClick={() => run(100)} data-testid="ws-run-100">100回</button>
-          <button type="button" className={s.tool} onClick={clearRec} disabled={!rec.values.length}>記録を消す</button>
+          <div className={s.expBtns} role="group" aria-label="実験の回数">
+            <button type="button" className={s.expBtn} onClick={() => run(1)} data-testid="ws-run-1">1回</button>
+            <button type="button" className={s.expBtn} onClick={() => run(100)} data-testid="ws-run-100">100回</button>
+          </div>
         </div>
         <p className={s.expStat} data-testid="ws-exp-stat" aria-live="polite">
           {rec.values.length
-            ? <>実験 <b>{rec.values.length}</b> 回{lastDraw !== null && <>（今回 {overSym?.symbol ?? over}＝<b>{lastDraw}</b>）</>}・平均 <b>{fmt(rec.mean, 2)}</b>{meanValue !== undefined && <>（理論 {fmt(meanValue, 2)}）</>}</>
-            : <>まだ実験していない。回数を増やすと、━ が棒の高さに近づいていくかを見る。</>}
-          <span className={s.seed}>種 {seed}</span>
+            ? <>実験 <b>{rec.values.length}</b> 回{lastDraw !== null && <>（今回 {symText}＝<b>{lastDraw}</b>）</>}・平均 <b>{fmt(rec.mean, 2)}</b>{meanValue !== undefined && <>（理論 {fmt(meanValue, 2)}）</>}</>
+            : <>まだ実験していない。回数を増やすと、点が棒の高さに近づくかを見る。</>}
         </p>
+        <div className={s.expFoot}>
+          <span>種 {seed}</span>
+          <button type="button" className={s.clear} onClick={clearRec} disabled={!rec.values.length}>記録を消す</button>
+        </div>
       </div>
     </section>
   );
