@@ -16,7 +16,9 @@ export type Mechanism =
   /** 箱（全部で total 個、うち当たり success 個）から、戻さずに n 個取る（超幾何分布） */
   | { kind: "urn"; n: number; total: number; success: number }
   /** 前の結果で確率が変わる（独立でない）：成功のあとは p＋carry、失敗のあとは p−carry（0〜1 に収める）。最初は p */
-  | { kind: "streak"; n: number; p: number; carry: number };
+  | { kind: "streak"; n: number; p: number; carry: number }
+  /** セットごとに確率がばらつく（同じ p でない）：セットごとに p−spread か p＋spread を半々で選ぶ（0〜1 に収める）。客や時間で買いやすさが違う、など */
+  | { kind: "mix"; n: number; p: number; spread: number };
 
 /** 理論のモデル：k（0〜n）ごとの確率を式で出す */
 export type Model =
@@ -36,6 +38,7 @@ export function checkMechanism(m: Mechanism): string | undefined {
   }
   if (!(m.p >= 0 && m.p <= 1)) return `p は 0〜1：${m.p}`;
   if (m.kind === "streak" && !(m.carry >= 0 && m.carry <= 1)) return `carry は 0〜1：${m.carry}`;
+  if (m.kind === "mix" && !(m.spread >= 0 && m.spread <= 1)) return `spread は 0〜1：${m.spread}`;
   return undefined;
 }
 
@@ -48,6 +51,11 @@ export function drawSet(rng: Random, m: Mechanism): number[] {
   if (m.kind === "urn") {
     let left = m.total, hit = m.success;
     for (let i = 0; i < m.n; i++) { const x = rng.next() < hit / left ? 1 : 0; out.push(x); hit -= x; left -= 1; }
+    return out;
+  }
+  if (m.kind === "mix") {
+    const q = Math.min(1, Math.max(0, m.p + (rng.next() < 0.5 ? -m.spread : m.spread)));
+    for (let i = 0; i < m.n; i++) out.push(rng.next() < q ? 1 : 0);
     return out;
   }
   let q = m.p;

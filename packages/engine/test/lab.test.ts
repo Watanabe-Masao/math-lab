@@ -7,6 +7,7 @@ const mech = fc.oneof(
   fc.record({ kind: fc.constant("bernoulli" as const), n: fc.integer({ min: 1, max: 30 }), p: fc.double({ min: 0, max: 1, noNaN: true }) }),
   fc.integer({ min: 1, max: 40 }).chain((total) => fc.record({ kind: fc.constant("urn" as const), total: fc.constant(total), success: fc.integer({ min: 0, max: total }), n: fc.integer({ min: 1, max: total }) })),
   fc.record({ kind: fc.constant("streak" as const), n: fc.integer({ min: 1, max: 30 }), p: fc.double({ min: 0, max: 1, noNaN: true }), carry: fc.double({ min: 0, max: 0.5, noNaN: true }) }),
+  fc.record({ kind: fc.constant("mix" as const), n: fc.integer({ min: 1, max: 30 }), p: fc.double({ min: 0, max: 1, noNaN: true }), spread: fc.double({ min: 0, max: 0.5, noNaN: true }) }),
 ) as fc.Arbitrary<Mechanism>;
 
 describe("1セットの並び", () => {
@@ -90,6 +91,11 @@ describe("起き方が理論に近づく・ずれる", () => {
     const m: Mechanism = { kind: "urn", n: 10, total: 20, success: 6 }, h = modelMoments(modelOf(m)!), s = near(m, 5);
     expect(Math.abs(s.mean! - h.mean)).toBeLessThan(5 * Math.sqrt(h.variance / 4000));
     expect(s.variance!).toBeLessThan(modelMoments({ kind: "binom", n: 10, p: 0.3 }).variance);
+  });
+  it("セットごとに確率がばらつくと（同じ p でない）、平均は np のままでも散らばりが大きい", () => {
+    const s = near({ kind: "mix", n: 10, p: 0.5, spread: 0.3 }, 11), b = modelMoments({ kind: "binom", n: 10, p: 0.5 });
+    expect(Math.abs(s.mean! - b.mean)).toBeLessThan(0.15);
+    expect(s.variance!).toBeGreaterThan(b.variance * 1.5);   // 理論：np(1−p)＋n(n−1)spread² ＝ 2.5＋8.1
   });
   it("前の結果に引きずられると（独立でない）、二項より散らばりが大きい", () => {
     const s = near({ kind: "streak", n: 10, p: 0.5, carry: 0.3 }, 9);

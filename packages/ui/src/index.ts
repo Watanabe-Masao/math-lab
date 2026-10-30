@@ -10,3 +10,4 @@ export { Formula, type FormulaData } from "./Formula";
 export { Workspace, type WorkspaceData } from "./Workspace";
 export { Lightbox } from "./Lightbox";
 export { FullView } from "./FullView";
+export { Experiment, type ExperimentDef, type ExperimentTheme } from "./Experiment";
