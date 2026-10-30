@@ -102,6 +102,13 @@ describe("起き方が理論に近づく・ずれる", () => {
     expect(Math.abs(s8.mean! - b8.mean)).toBeLessThan(0.15);
     expect(s8.variance!).toBeGreaterThan(b8.variance * 1.3);
   });
+  it("性質：どの p・carry でも、引きずられる起き方の平均は np のまま、散らばりは二項以上（p＝0.5 だけで確かめて見逃した誤りを防ぐ）", () => {
+    fc.assert(fc.property(fc.integer({ min: 5, max: 20 }), fc.double({ min: 0.05, max: 0.95, noNaN: true }), fc.double({ min: 0.15, max: 0.6, noNaN: true }), fc.integer({ min: 0, max: 2 ** 31 }), (n, p, carry, seed) => {
+      const s = near({ kind: "streak", n, p, carry }, seed, 3000), b = modelMoments({ kind: "binom", n, p });
+      expect(Math.abs(s.mean! - b.mean)).toBeLessThan(5 * Math.sqrt(s.variance! / 3000) + 1e-9);
+      expect(s.variance!).toBeGreaterThan(b.variance);
+    }), { numRuns: 25 });
+  });
   it("前の結果に引きずられると（独立でない）、二項より散らばりが大きい", () => {
     const s = near({ kind: "streak", n: 10, p: 0.5, carry: 0.3 }, 9);
     expect(s.variance!).toBeGreaterThan(modelMoments({ kind: "binom", n: 10, p: 0.5 }).variance * 1.3);
