@@ -1,0 +1,16 @@
+name: check
+# PR と main への取り込みで、型の検査と単体テストを走らせる。
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "22"}
+      - run: npm ci
+      - run: npm run check

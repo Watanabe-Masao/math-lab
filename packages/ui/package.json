@@ -1,0 +1,8 @@
+{
+  "name": "@math-lab/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "画面の部品と手触りの値（knowledge-net の src/ui と design/tokens.json をここへ移す。#107）",
+  "main": "src/index.ts"
+}

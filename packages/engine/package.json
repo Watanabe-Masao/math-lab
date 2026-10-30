@@ -1,0 +1,9 @@
+{
+  "name": "@math-lab/engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "画面を持たない計算：種つき乱数・実験エンジン・式の木（純粋関数）",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" }
+}
