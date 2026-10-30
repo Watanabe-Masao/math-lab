@@ -6,3 +6,4 @@ export { Card, Stack, Row, Split, Muted, Label, ErrorText, Badge, Badges, Disclo
 export { Segmented } from "./Segmented";
 export { Sheet } from "./Sheet";
 export { change, flash, haptic, reduced } from "./motion";
+export { Formula, type FormulaData } from "./Formula";
