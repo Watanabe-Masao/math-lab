@@ -140,7 +140,7 @@ export function TableLab({ def, reasonFormula, onConcept, conceptName, onSendMem
     const env = { domains: { x: support }, fns: { p: (x: number) => { const i = theme.values.indexOf(x); return i < 0 ? 0 : theme.compare[i]! / tot; } } };
     return expand(t, env);
   }, [reasonFormula, theme, support]);
-  const [si, setSi] = useState(1);
+  const [si, setSi] = useState(0);
   const num = (v: number) => String(Number(v.toPrecision(4)));
   const lhs = reasonFormula?.tree ? toTex((reasonFormula.tree as { args: FormulaNode[] }).args[0]!, { symbols: reasonFormula.symbols }) : "E(X)";
 
@@ -226,14 +226,14 @@ export function TableLab({ def, reasonFormula, onConcept, conceptName, onSendMem
     </>;
     cta = <button type="button" className={s.primary} onClick={() => go(3)}>なぜ {r2(mNext)}{unit} になる？ 理由を考える</button>;
   } else if (stage === 3) {
-    const shownStep = Math.min(si, Math.max(1, steps.length - 1));
+    const shownStep = Math.min(si, Math.max(0, steps.length - 1));
     body = <>
       <section className={s.card}>
-        <p className={s.h}>{def.reason?.title ?? "式で確かめる"}<span>{steps.length > 1 ? `${shownStep}／${steps.length - 1}` : ""}</span></p>
+        <p className={s.h}>{def.reason?.title ?? "式で確かめる"}<span>{steps.length > 1 ? `${shownStep + 1}／${steps.length}` : ""}</span></p>
         {steps.length > 0 && <div className={s.math} data-testid="exp-expand" dangerouslySetInnerHTML={{ __html: tex(`${lhs}=${toTex(steps[shownStep]!, { symbols: reasonFormula?.symbols, num })}`) }} />}
-        {steps.length > 2 && (
+        {steps.length > 1 && (
           <div className={s.two}>
-            <button type="button" className={s.secondary} disabled={shownStep <= 1} onClick={() => setSi(shownStep - 1)} aria-label="前の段">‹ 前の段</button>
+            <button type="button" className={s.secondary} disabled={shownStep <= 0} onClick={() => setSi(shownStep - 1)} aria-label="前の段">‹ 前の段</button>
             <button type="button" className={s.secondary} disabled={shownStep >= steps.length - 1} onClick={() => setSi(shownStep + 1)} aria-label="次の段">次の段 ›</button>
           </div>
         )}
