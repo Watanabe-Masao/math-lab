@@ -1,0 +1,17 @@
+{
+  "name": "math-lab",
+  "private": true,
+  "type": "module",
+  "description": "統計を発見する環境の土台：計算（種つき乱数・実験エンジン・式の木）と画面の部品",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "typecheck": "tsc -p packages/engine --noEmit",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run test"
+  },
+  "devDependencies": {
+    "fast-check": "4.10.2",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}
