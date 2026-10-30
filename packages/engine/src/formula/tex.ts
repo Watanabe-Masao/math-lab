@@ -43,7 +43,7 @@ export function formatNum(v: number): string {
 }
 
 // 強さ：比べる・等しい 0 ＜ 足す・引く 1 ＜ 掛ける・割る・符号 2 ＜ 累乗 3 ＜ 1つのかたまり 4
-type Out = { t: string; p: number; num?: boolean; neg?: boolean; fn?: boolean; numeric?: boolean };   // numeric：記号を含まない（数だけの式）
+type Out = { t: string; p: number; num?: boolean; neg?: boolean; fn?: boolean; numeric?: boolean; big?: boolean };   // numeric：記号を含まない（数だけの式）、big：Σ・Π（あとに掛けるものが続くなら括弧）
 
 const ATOM = 4;
 // 括弧：中身が高い（分数・Σ・∫・根号）ときだけ \left( \right) で伸ばす。ふつうは ( ) のまま（E\left(X\right) は E と ( の間が空いて見える）
@@ -75,13 +75,13 @@ export function toTex(node: FormulaNode, opt: TexOptions = {}): string {
       case "mul": {
         let t = "";
         a.forEach((x, i) => {
-          const part = paren(x, x.p < 2 || (i > 0 && !!x.neg));
+          const part = paren(x, x.p < 2 || (i > 0 && !!x.neg) || (!!x.big && i < a.length - 1));   // Σ・Π のあとに掛けるものが続くなら括弧（中身と読み違えない）
           if (i > 0) {
             const prev = a[i - 1]!;
             // 数のあとの数・括弧・分数、数字どうしが続く所は × を書く（2X・np はそのまま）
             // 数のあとの数・括弧・分数、数字どうし、数だけの式どうし（₁₀C₃ × 0.3³ × (1−0.3)⁷）は × を書く（2X・np(1−p) はそのまま）
             const times = x.num || /^[\d.]/.test(part) || (prev.numeric && x.numeric) || (prev.num && /^(\\left|\\dfrac|\()/.test(part));
-            t += times ? "\\times " : prev.fn && x.fn ? "\\," : /\\[A-Za-z]+$/.test(t) && /^[A-Za-z]/.test(part) ? " " : "";   // \lambda e が \lambdae にならないように
+            t += times ? "\\times " : (prev.fn && x.fn) ? "\\," : /\\[A-Za-z]+$/.test(t) && /^[A-Za-z]/.test(part) ? " " : "";   // \lambda e が \lambdae にならないように
           }
           t += part;
         });
@@ -97,7 +97,7 @@ export function toTex(node: FormulaNode, opt: TexOptions = {}): string {
         const v = n.var ? sym(n.var) : "";
         const sub = n.lower ? `${v}=${go(n.lower).t}` : v;
         const sup = n.upper ? `^{${go(n.upper).t}}` : "";
-        return { t: `${big}_{${sub}}${sup}${paren(a[0]!, a[0]!.p < 2)}`, p: 2 };
+        return { t: `${big}_{${sub}}${sup}${paren(a[0]!, a[0]!.p < 2)}`, p: 2, big: true };
       }
       case "int": {
         const lo = n.lower ? go(n.lower).t : "-\\infty", hi = n.upper ? go(n.upper).t : "\\infty";

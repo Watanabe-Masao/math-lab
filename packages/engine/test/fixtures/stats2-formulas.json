@@ -1,5 +1,193 @@
 [
  {
+  "concept": "TERM-comb",
+  "index": 0,
+  "tex": "{}_{n}\\mathrm{C}_{k}=\\dfrac{n!}{k!\\,(n-k)!}",
+  "symbols": [
+   {
+    "symbol": "ₙCₖ",
+    "meaning": "n 個から k 個を選ぶ選び方の数",
+    "key": "comb",
+    "concept": "TERM-comb"
+   },
+   {
+    "symbol": "n",
+    "meaning": "全体の個数",
+    "key": "n",
+    "kind": "value",
+    "domain": {
+     "min": 0,
+     "integer": true
+    }
+   },
+   {
+    "symbol": "k",
+    "meaning": "選ぶ個数",
+    "key": "k",
+    "kind": "value",
+    "domain": {
+     "min": 0,
+     "max": "n",
+     "integer": true
+    }
+   },
+   {
+    "symbol": "n!",
+    "meaning": "階乗（1からその数までを掛けた数）",
+    "key": "fact",
+    "concept": "TERM-fact"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "name": "comb",
+     "args": [
+      {
+       "sym": "n"
+      },
+      {
+       "sym": "k"
+      }
+     ]
+    },
+    {
+     "op": "div",
+     "args": [
+      {
+       "op": "fn",
+       "name": "fact",
+       "args": [
+        {
+         "sym": "n"
+        }
+       ]
+      },
+      {
+       "op": "mul",
+       "args": [
+        {
+         "op": "fn",
+         "name": "fact",
+         "args": [
+          {
+           "sym": "k"
+          }
+         ]
+        },
+        {
+         "op": "fn",
+         "name": "fact",
+         "args": [
+          {
+           "op": "sub",
+           "args": [
+            {
+             "sym": "n"
+            },
+            {
+             "sym": "k"
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "parts": [
+   {
+    "path": [
+     1,
+     0
+    ],
+    "name": "全部の並べ方",
+    "meaning": "n 個を1列に並べる並べ方の数"
+   },
+   {
+    "path": [
+     1,
+     1,
+     0
+    ],
+    "name": "選んだ中の並べ方",
+    "meaning": "選んだ k 個は順番を区別しないので、その並べ方の数で割る"
+   },
+   {
+    "path": [
+     1,
+     1,
+     1
+    ],
+    "name": "残した中の並べ方",
+    "meaning": "残した n−k 個も順番を区別しないので、その並べ方の数で割る"
+   }
+  ]
+ },
+ {
+  "concept": "TERM-fact",
+  "index": 0,
+  "tex": "n!=\\prod_{i=1}^{n} i",
+  "symbols": [
+   {
+    "symbol": "n!",
+    "meaning": "n の階乗",
+    "key": "fact",
+    "concept": "TERM-fact"
+   },
+   {
+    "symbol": "n",
+    "meaning": "並べるものの個数",
+    "key": "n",
+    "kind": "value",
+    "domain": {
+     "min": 0,
+     "integer": true
+    }
+   },
+   {
+    "symbol": "i",
+    "meaning": "掛ける数（1 から n まで動く）",
+    "key": "i",
+    "kind": "index"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "name": "fact",
+     "args": [
+      {
+       "sym": "n"
+      }
+     ]
+    },
+    {
+     "op": "prod",
+     "var": "i",
+     "lower": {
+      "num": 1
+     },
+     "upper": {
+      "sym": "n"
+     },
+     "args": [
+      {
+       "sym": "i"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
   "concept": "TERM-var",
   "index": 0,
   "tex": "V(X)=E\\big[(X-\\mu)^2\\big]=E(X^2)-\\{E(X)\\}^2",

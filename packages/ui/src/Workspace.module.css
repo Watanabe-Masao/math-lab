@@ -9,11 +9,16 @@
 .reset:focus-visible { outline: 2px solid var(--accent); }
 
 /* 式：押せるかたまりは細い下線だけ。選んだかたまりは淡い地、選んだ記号は強い色（かたまりの外の同じ記号は少し淡く） */
-.stage { overflow-x: auto; overflow-y: hidden; padding: 6px 0; font-size: 1.04em; }
+.stageWrap { position: relative; overflow-x: auto; overflow-y: hidden; padding: 8px 0; }
+.stage { position: relative; font-size: 1.04em; width: max-content; min-width: 100%; }   /* 広い式は横に送れる（中央寄せで左が切れないように） */
 .stage :global(.katex-display) { margin: 0; }
-.stage [data-part] { cursor: pointer; border-radius: 6px; padding: 1px 2px; box-shadow: inset 0 -1.5px 0 var(--line-strong);
-  transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease); }
-.stage [data-part][data-on] { background: var(--accent-soft); box-shadow: inset 0 -2px 0 var(--accent); }
+.stage [data-part] { cursor: pointer; margin: 0 3px; }   /* かたまりの間を少し空けて、囲みが重ならないように */
+/* かたまりの囲み（実際の字の範囲を測って置く）。式の後ろに敷き、下の線は字の下に離して引く */
+.boxes { position: absolute; inset: 0; pointer-events: none; }
+.box { position: absolute; border-radius: 6px; box-shadow: inset 0 -1.5px 0 var(--line-strong); }
+.boxSel { position: absolute; border-radius: 6px; background: var(--accent-soft); box-shadow: inset 0 -2px 0 var(--accent); opacity: 0;
+  transition: left var(--dur-sheet) var(--ease-sheet), top var(--dur-sheet) var(--ease-sheet), width var(--dur-sheet) var(--ease-sheet), height var(--dur-sheet) var(--ease-sheet), opacity var(--dur) var(--ease); }
+.boxSel[data-on] { opacity: 1; }
 .stage [data-sym] { cursor: pointer; transition: color var(--dur) var(--ease); }
 .stage [data-sym][data-on] { color: var(--accent); opacity: .6; }
 .stage [data-sym][data-here] { opacity: 1; }
@@ -104,16 +109,18 @@
 .base { stroke: var(--ink-3); stroke-width: 1; }
 .bar, .barOn { transition: d var(--dur) var(--ease), fill var(--dur) var(--ease), fill-opacity var(--dur) var(--ease); }
 .bar { fill: var(--data-1); fill-opacity: .55; }
-.barOn { fill: var(--data-hi); }
+.barOn { fill: var(--data-hi); transform-box: fill-box; transform-origin: 50% 100%; animation: grow var(--dur-sheet) var(--ease-sheet); }   /* 選んだ棒は少し伸びてから止まる */
+@keyframes grow { 45% { transform: scale(1.18, 1.05); } }
 .barG:active .bar { fill-opacity: .8; }
 .mean { stroke: var(--ink-2); stroke-width: 1.25; stroke-dasharray: 3 3; pointer-events: none; }
 .emp { fill: var(--ink); stroke: var(--raised); stroke-width: 1.5; pointer-events: none; transition: cy var(--dur) var(--ease), r var(--dur) var(--ease); }
-.empJust { fill: var(--accent); animation: pop var(--dur-flash) var(--ease); }
-.valLabel { font-size: 11px; font-weight: 600; fill: var(--ink); pointer-events: none; paint-order: stroke; stroke: var(--raised); stroke-width: 4px; stroke-linejoin: round; }
+.empJust { fill: var(--accent); animation: drop var(--dur-sheet) cubic-bezier(.5, 0, .9, .4); }   /* 1回：玉が上から落ちて、その k の点になる */
+@keyframes zoomIn { from { transform: scale(.6); opacity: 0; } }
+@keyframes drop { from { transform: translateY(var(--drop)); opacity: .2; } }
+.valLabel { animation: zoomIn var(--dur-sheet) var(--ease-sheet); transform-box: fill-box; transform-origin: 50% 100%; font-size: 11px; font-weight: 600; fill: var(--ink); pointer-events: none; paint-order: stroke; stroke: var(--raised); stroke-width: 4px; stroke-linejoin: round; }
 .xTick { font-size: 11px; fill: var(--ink-3); }
 .xTickOn { font-size: 11px; font-weight: 700; fill: var(--ink); }
 .yTick { font-size: 10px; fill: var(--ink-3); }
-@keyframes pop { from { r: 7px; } }
 @keyframes swap { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
 
 /* 実験 */
@@ -131,3 +138,4 @@
 .clear { all: unset; min-height: 32px; padding: 0 2px; font-size: var(--fs-small); color: var(--ink-2); cursor: pointer; }
 .clear:disabled { opacity: .4; cursor: default; }
 .clear:focus-visible { outline: 2px solid var(--accent); }
+.ctxActs { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; font-size: 12.5px; }

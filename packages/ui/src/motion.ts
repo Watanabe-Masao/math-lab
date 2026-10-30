@@ -3,6 +3,7 @@
 // - 切り替え・前後の図は change()：変わる所だけを View Transitions でつなぐ（使えない環境・動きを減らす設定では、すぐ変える）
 // - 結果が出た所は flash()：一度だけ淡く光らせる
 // - 触覚は haptic()：iPhone の Safari で、スイッチ（<input switch>）を押したときの振動を借りる試み。出ない環境では何もしない
+import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
 export const reduced = (): boolean => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -45,3 +46,33 @@ export function haptic(): void {
 
 // iPhone の Safari は、touchstart を聞いていないと :active（押した返事）を出さない
 if (typeof document !== "undefined") document.addEventListener("touchstart", () => {}, { passive: true });
+
+/** 手触りの値の長さ（ms）を読む（--dur・--dur-sheet など）。読めなければ fallback */
+export function tokenMs(name: string, fallback: number): number {
+  if (typeof document === "undefined") return fallback;
+  return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || fallback;
+}
+
+/**
+ * 数が変わったとき、前の値から新しい値へ短く動かす（数・棒の高さ。何がどれだけ変わったかが見える）。
+ * 最後は必ず新しい値ちょうどに止まる。動きを減らす設定ではすぐ新しい値。
+ */
+export function useTween(target: number[], ms?: number): number[] {
+  const [cur, setCur] = useState(target);
+  const now = useRef(target);
+  const key = target.join(",");
+  useEffect(() => {
+    if (reduced()) { now.current = target; setCur(target); return; }
+    const from = now.current, dur = ms ?? tokenMs("--dur-sheet", 320), t0 = performance.now();
+    let raf = 0;
+    const step = (t: number) => {
+      const u = Math.min(1, (t - t0) / dur), e = 1 - (1 - u) ** 3;
+      const v = target.map((x, i) => { const f = from[i] ?? 0; return u >= 1 || !Number.isFinite(x) || !Number.isFinite(f) ? x : f + (x - f) * e; });
+      now.current = v; setCur(v);
+      if (u < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [key]);   // eslint-disable-line react-hooks/exhaustive-deps
+  return target.map((x, i) => cur[i] ?? x);
+}

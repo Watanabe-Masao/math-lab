@@ -180,3 +180,41 @@ describe("式の中身：確率の和は1・期待値と分散は定義と一致
     }), { numRuns: 30 });
   });
 });
+
+// Σ・Π の値（階乗を ∏ で開いても値が変わらないように。#110）
+describe("Σ・Π の値", () => {
+  const prod: FormulaNode = { op: "prod", var: "i", lower: { num: 1 }, upper: { sym: "n" }, args: [{ sym: "i" }] };
+  const sum: FormulaNode = { op: "sum", var: "i", lower: { num: 1 }, upper: { sym: "n" }, args: [{ sym: "i" }] };
+  it("∏_{i=1}^{n} i は n!、Σ_{i=1}^{n} i は n(n+1)/2（空の積は1、空の和は0）", () => {
+    fc.assert(fc.property(fc.integer({ min: 0, max: 15 }), (n) => {
+      let f = 1; for (let i = 2; i <= n; i++) f *= i;
+      expect(evaluate(prod, { values: { n } })).toBe(f);
+      expect(evaluate(sum, { values: { n } })).toBe((n * (n + 1)) / 2);
+    }));
+  });
+  it("動かす記号の外の値は中に漏れない（i に外の値があっても、中では 1〜n を動く）", () => {
+    expect(evaluate(prod, { values: { n: 4, i: 100 } })).toBe(24);
+  });
+  it("端が整数でない・項が多すぎるときは値にしない", () => {
+    expect(evaluate(prod, { values: { n: 2.5 } })).toBeUndefined();
+    expect(evaluate(sum, { values: { n: 1e6 } })).toBeUndefined();
+  });
+  it("1段ずつの展開で、端が数になった ∏ は1段で値になる", () => {
+    const steps = expand(prod, { values: { n: 5 } });
+    expect(steps.map((s) => ("num" in s ? s.num : "式"))).toEqual(["式", "式", 120]);
+  });
+});
+
+describe("Σ・Π の端も1段ずつ", () => {
+  it("∏_{i=1}^{n−k} i は端を 7 にしてから値になる", () => {
+    const t: FormulaNode = { op: "prod", var: "i", lower: { num: 1 }, upper: { op: "sub", args: [{ sym: "n" }, { sym: "k" }] }, args: [{ sym: "i" }] };
+    const steps = expand(t, { values: { n: 10, k: 3 } });
+    expect("num" in steps[steps.length - 1]! && (steps[steps.length - 1] as { num: number }).num).toBe(5040);
+  });
+});
+
+it("Σ・Π のあとに掛けるものが続くと括弧で包む（∏k i ∏m i を1つの積と読み違えない）", () => {
+  const p = (u: string): FormulaNode => ({ op: "prod", var: "i", lower: { num: 1 }, upper: { sym: u }, args: [{ sym: "i" }] });
+  const t = toTex({ op: "mul", args: [p("k"), p("m")] });
+  expect(t).toBe("\\left(\\prod_{i=1}^{k}i\\right)\\prod_{i=1}^{m}i");
+});
