@@ -3,13 +3,14 @@
 // - 予想するまで結果を見せない。予想の答えは定義に書かず、理論のモデルから求める
 // - 起き方（engine の Mechanism）と理論のモデルを分ける：反例は、成り立つ条件を1つ崩した起き方で、二項の理論とのずれを見る
 // - 発見メモは ChatGPT に渡す（公開サイトは個人の記録を持たない。ChatGPT が Notion の学習記録へ書く）
-import katex from "katex";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
   createRandom, emptySetRecord, expand, modelMoments, modelPmf, runSets, summarize, toTex,
   type Mechanism, type SetRecord,
 } from "@math-lab/engine";
-import { haptic, reduced, useTween } from "./motion";
+import { haptic, reduced } from "./motion";
+import { Bars, LabShell, Replay, pct, peak, r2, tex, useStages } from "./labParts";
+import { TableLab, type TableDef } from "./ExperimentTable";
 import { Sheet } from "./Sheet";
 import { Formula, type FormulaData } from "./Formula";
 import { Workspace, type WorkspaceData } from "./Workspace";
@@ -18,7 +19,9 @@ import s from "./Experiment.module.css";
 type Cond = { n: number; p: number };
 type Range = { min: number; max: number; step: number };
 export type ExperimentTheme = { id: string; name: string; icon: string; success: string; failure: string; unit?: string; p?: number; story?: string };
-export type ExperimentDef = {
+/** 実験室の定義。model で形が分かれる（binom：成功の回数の山、table：値の表の平均。#119） */
+export type ExperimentDef = BinomDef | TableDef;
+export type BinomDef = {
   id: string; version: number; title: string; question: string;
   links: { concepts?: string[]; relations?: string[] };
   model: "binom";
@@ -32,7 +35,7 @@ export type ExperimentDef = {
   points?: string[];
 };
 
-type Props = {
+export type Props = {
   def: ExperimentDef;
   /** 理由の段で使う式（定義の reason.concept の reason.formula。E(X)＝np など） */
   reasonFormula?: FormulaData;
@@ -51,51 +54,11 @@ type Props = {
   workspace?: { formula: WorkspaceData; mean?: FormulaData; vary: string[]; over: string };
 };
 
-const STAGES = ["予測", "実験", "観察", "理由", "応用"] as const;
 const DIRS = ["左へ動く", "動かない", "右へ動く"] as const;
-const tex = (t: string) => { try { return katex.renderToString(t, { throwOnError: false, output: "html" }); } catch { return t; } };
-const pct = (v: number) => `${Math.round(v * 100)}%`;
-const r2 = (v: number | undefined) => (v === undefined || !Number.isFinite(v) ? "—" : String(Number(v.toFixed(2))));
 const mean = (c: Cond) => modelMoments({ kind: "binom", ...c }).mean;
-const peak = (f: number[]) => f.reduce((b, v, i) => (v > f[b]! ? i : b), 0);
 const dirOf = (a: Cond, b: Cond) => { const d = mean(b) - mean(a); return Math.abs(d) < 0.25 ? 1 : d > 0 ? 2 : 0; };
 
-/** 棒（実験の割合）・点（理論）・点線（前の条件）を重ねる図。高さは前の値から動く */
-function Bars({ freq, theory, ghost, guess, hi, mark, height = 150, label }: { freq?: number[]; theory?: number[]; ghost?: number[]; guess?: number[]; hi?: number; mark?: number; height?: number; label: string }) {
-  const base = freq ?? theory ?? [];
-  const n = base.length - 1, W = 340, B = height - 20, R = 30;
-  const raw = Math.max(1e-9, ...(freq ?? []), ...(theory ?? []), ...(ghost ?? []), ...(guess ?? []));
-  const tick = [0.05, 0.1, 0.2, 0.25, 0.5, 1].find((t) => raw / t <= 4) ?? 1;
-  const top = Math.ceil(raw / tick - 1e-9) * tick;
-  const [topT] = useTween([top]);
-  const bars = useTween(base);
-  const y = (v: number) => B - (v / topT!) * (B - 12);
-  const bw = (W - R) / (n + 1), x = (k: number) => k * bw + bw / 2;
-  const every = n <= 12 ? 1 : n <= 30 ? 5 : 10;
-  return (
-    <svg viewBox={`0 0 ${W} ${height}`} className={s.svg} role="img" aria-label={label}>
-      {Array.from({ length: Math.round(top / tick) }, (_, i) => (i + 1) * tick).map((t) => (
-        <g key={t}><line x1={0} x2={W - R + 4} y1={y(t)} y2={y(t)} className={s.grid} /><text x={W} y={y(t) + 3.5} textAnchor="end" className={s.tick}>{pct(t)}</text></g>
-      ))}
-      {ghost && <path d={ghost.map((v, k) => `${k ? "L" : "M"}${x(k)},${y(v)}`).join("")} className={s.ghost} />}
-      {guess && <path d={guess.slice(0, n + 1).map((v, k) => `${k ? "L" : "M"}${x(k)},${y(v)}`).join("")} className={s.guess} data-testid="exp-guess" />}
-      {bars.map((v, k) => (v > 0 && B - y(v) > 0.3) && (
-        <rect key={k} x={x(k) - bw * 0.32} y={y(v)} width={bw * 0.64} height={B - y(v)} rx={Math.min(3, bw * 0.15)} className={k === hi ? s.barHi : freq ? s.bar : s.barTheory} />
-      ))}
-      {freq && theory?.map((v, k) => <circle key={k} cx={x(k)} cy={y(v)} r={3} className={s.dot} />)}
-      <line x1={0} x2={W - R + 4} y1={B} y2={B} className={s.base} />
-      {mark !== undefined && mark >= 0 && mark <= n && (
-        <g className={s.mark} key={`m${mark}`}>
-          <line x1={x(mark)} x2={x(mark)} y1={12} y2={B} />
-          <text x={Math.min(W - R - 14, Math.max(14, x(mark)))} y={9} textAnchor="middle">予想</text>
-        </g>
-      )}
-      {base.map((_, k) => (k % every === 0 || k === hi) && <text key={k} x={x(k)} y={height - 5} textAnchor="middle" className={k === hi ? s.tickOn : s.tick}>{k}</text>)}
-    </svg>
-  );
-}
-
-type Counter = NonNullable<ExperimentDef["counterexamples"]>[number];
+type Counter = NonNullable<BinomDef["counterexamples"]>[number];
 const SPREAD = ["狭くなる", "変わらない", "広くなる"] as const;
 
 /** 反例を実験する：起き方だけ変えて、予想 → 実験（並びが出て積み上がる）→ 二項分布の理論と照らす。結果と説明は実験のあとに出す */
@@ -161,11 +124,12 @@ function CounterLab({ cx, cond, theme, onConcept, name }: { cx: Counter; cond: C
   );
 }
 
-export function Experiment({ def, reasonFormula, mainFormula, seed: seed0, onConcept, conceptName, onSendMemo, onBack, definitions, workspace }: Props) {
-  const [stage, setStage] = useState(0);
-  const [reached, setReached] = useState(0);
-  const go = (i: number) => { haptic(); setStage(i); setReached((r) => Math.max(r, i)); top.current?.scrollIntoView?.({ block: "start", behavior: reduced() ? "auto" : "smooth" }); };
-  const top = useRef<HTMLDivElement>(null);
+export function Experiment(props: Props) {
+  return props.def.model === "table" ? <TableLab {...props} def={props.def} /> : <BinomLab {...props} def={props.def} />;
+}
+
+function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, conceptName, onSendMemo, onBack, definitions, workspace }: Props & { def: BinomDef }) {
+  const { stage, reached, go } = useStages();
 
   // 問いの組（前の条件 → 変える条件）。応用の段の「次の問い」で入れ替わる
   const [round, setRound] = useState<{ question: string; start: Cond; next: Cond }>(() => ({ question: def.question, start: def.start, next: { ...def.start, ...def.compare } }));
@@ -316,6 +280,7 @@ export function Experiment({ def, reasonFormula, mainFormula, seed: seed0, onCon
         <div>平均（実験）<b>{r2(sum.mean)}</b><i>前の条件では {r2(mean(round.start))}</i></div>
         <div>平均（理論）<b>{r2(mean(cond))}</b><i>n×p＝{cond.n}×{r2(cond.p)}</i></div>
       </div>
+      <Replay rec={rec} theory={theoryNow} />
     </>;
     cta = <button type="button" className={s.primary} onClick={() => go(3)}>なぜ {r2(mean(cond))} になる？ 理由を考える</button>;
   } else if (stage === 3) {
@@ -381,19 +346,7 @@ export function Experiment({ def, reasonFormula, mainFormula, seed: seed0, onCon
   }
 
   return (
-    <div className={s.root} data-testid="experiment">
-      <div ref={top} className={s.top}>
-        <div className={s.titleRow}>{onBack && <button type="button" className={s.info} onClick={onBack} aria-label="戻る">←</button>}<b>{def.title}</b><button type="button" className={s.info} onClick={() => setSheet("info")} aria-label="基本と用語">ⓘ</button></div>
-        <ol className={s.stepper} aria-label="段">
-          {STAGES.map((t, i) => (
-            <li key={t}><button type="button" disabled={i > reached} aria-current={i === stage ? "step" : undefined} className={i < stage || (i <= reached && i !== stage) ? s.done : undefined} onClick={() => go(i)}>
-              <i>{i < stage ? "✓" : i + 1}</i>{t}</button></li>
-          ))}
-        </ol>
-        <p className={s.q} data-testid="exp-question"><span>今回の問い</span>{round.question}</p>
-      </div>
-      <div className={s.body} key={stage}>{body}</div>
-      <div className={s.bar}>{cta}</div>
+    <LabShell title={def.title} question={round.question} stage={stage} reached={reached} go={go} onBack={onBack} onInfo={() => setSheet("info")} body={body} cta={cta}>
       {sheet === "info" && (
         <Sheet label="基本と用語" title={def.title.replace(/ ?実験室$/, "の基本")} onClose={() => setSheet(null)} data-testid="exp-info">
           {mainFormula?.tex && <div className={s.math} dangerouslySetInnerHTML={{ __html: tex(mainFormula.tex) }} />}
@@ -419,6 +372,6 @@ export function Experiment({ def, reasonFormula, mainFormula, seed: seed0, onCon
           <p className={s.muted}>条件を変えると、記録は新しく始まる（種 {seed}）。</p>
         </Sheet>
       )}
-    </div>
+    </LabShell>
   );
 }
