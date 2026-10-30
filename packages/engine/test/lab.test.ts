@@ -1,13 +1,16 @@
 // 実験室のエンジン v0（#102・#115）：起き方と理論のモデル・1セットの並び・記録の型。性質で確かめる。
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { comb, createRandom, drawSet, emptySetRecord, modelMoments, modelOf, modelPmf, runSets, summarize, checkMechanism, type Mechanism } from "../src";
+import { comb, createRandom, drawSet, emptySetRecord, modelMoments, modelOf, modelPmf, runSets, summarize, checkMechanism, supportOf, type Mechanism } from "../src";
 
 const mech = fc.oneof(
   fc.record({ kind: fc.constant("bernoulli" as const), n: fc.integer({ min: 1, max: 30 }), p: fc.double({ min: 0, max: 1, noNaN: true }) }),
   fc.integer({ min: 1, max: 40 }).chain((total) => fc.record({ kind: fc.constant("urn" as const), total: fc.constant(total), success: fc.integer({ min: 0, max: total }), n: fc.integer({ min: 1, max: total }) })),
   fc.record({ kind: fc.constant("streak" as const), n: fc.integer({ min: 1, max: 30 }), p: fc.double({ min: 0, max: 1, noNaN: true }), carry: fc.double({ min: 0, max: 0.5, noNaN: true }) }),
   fc.record({ kind: fc.constant("mix" as const), n: fc.integer({ min: 1, max: 30 }), p: fc.double({ min: 0, max: 1, noNaN: true }), spread: fc.double({ min: 0, max: 0.5, noNaN: true }) }),
+  fc.integer({ min: 1, max: 6 }).chain((k) => fc.record({ kind: fc.constant("table" as const), n: fc.integer({ min: 1, max: 3 }),
+    values: fc.array(fc.integer({ min: -5, max: 20 }), { minLength: k, maxLength: k }), weights: fc.array(fc.integer({ min: 0, max: 5 }), { minLength: k, maxLength: k }) }))
+    .filter((m) => m.weights.some((w) => w > 0)),
 ) as fc.Arbitrary<Mechanism>;
 
 describe("1セットの並び", () => {
@@ -15,7 +18,8 @@ describe("1セットの並び", () => {
     fc.assert(fc.property(mech, fc.integer(), (m, seed) => {
       const s = drawSet(createRandom(seed), m);
       expect(s).toHaveLength(m.n);
-      expect(s.every((x) => x === 0 || x === 1)).toBe(true);
+      if (m.kind === "table") expect(s.every((x) => m.values.some((v, j) => v === x && m.weights[j]! > 0))).toBe(true);   // 重み0の値は出ない
+      else expect(s.every((x) => x === 0 || x === 1)).toBe(true);
       if (m.kind === "urn") { const k = s.reduce((a, b) => a + b, 0); expect(k).toBeLessThanOrEqual(m.success); expect(m.n - k).toBeLessThanOrEqual(m.total - m.success); }
     }));
   });
@@ -46,7 +50,8 @@ describe("記録", () => {
     expect(r.counts.reduce((a, b) => a + b, 0)).toBe(50);
     expect(r.sum).toBe(r.ks.reduce((a, b) => a + b, 0));
     expect(r.last).toHaveLength(10);
-    expect(r.version).toBe(1);
+    expect(r.version).toBe(2);
+    expect(r.support).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
   it("決まった種の最初の結果を固定する（方式を変えると既存の実験の再現が崩れる）", () => {
     const r = runSets(createRandom(12345), emptySetRecord(12345, { kind: "bernoulli", n: 10, p: 0.5 }), 5);
@@ -114,3 +119,33 @@ describe("起き方が理論に近づく・ずれる", () => {
     expect(s.variance!).toBeGreaterThan(modelMoments({ kind: "binom", n: 10, p: 0.5 }).variance * 1.3);
   });
 });
+
+// 値の表（くじ・さいころ。#119）：とる値・確率の和・期待値と分散が定義どおり、引いた平均は期待値に近づく
+describe("値の表の起き方", () => {
+  const tbl = fc.integer({ min: 1, max: 6 }).chain((k) => fc.tuple(fc.array(fc.integer({ min: -10, max: 30 }), { minLength: k, maxLength: k }), fc.array(fc.integer({ min: 0, max: 6 }), { minLength: k, maxLength: k }), fc.integer({ min: 1, max: 3 })))
+    .filter(([, w]) => w.some((x) => x > 0));
+  it("性質：確率の和は1、期待値と分散は値×確率の定義と一致（n 回足すと n 倍）", () => {
+    fc.assert(fc.property(tbl, ([values, weights, n]) => {
+      const m = { kind: "table" as const, n, values, weights }, f = modelPmf(m), sup = supportOf(m);
+      expect(f.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);
+      expect(sup).toHaveLength(f.length);
+      const mu = f.reduce((s, v, i) => s + sup[i]! * v, 0), va = f.reduce((s, v, i) => s + (sup[i]! - mu) ** 2 * v, 0);
+      expect(modelMoments(m).mean).toBeCloseTo(mu, 8); expect(modelMoments(m).variance).toBeCloseTo(va, 7);
+    }));
+  });
+  it("性質：引いた平均は期待値に近づく（標準誤差の5倍）。とる値の一覧の外は出ない", () => {
+    fc.assert(fc.property(tbl, fc.integer(), ([values, weights, n], seed) => {
+      const m = { kind: "table" as const, n, values, weights }, r = runSets(createRandom(seed), emptySetRecord(seed, m), 3000), s = summarize(r);
+      const mm = modelMoments(m);
+      expect(Math.abs(s.mean! - mm.mean)).toBeLessThan(5 * Math.sqrt(mm.variance / 3000) + 1e-9);
+      expect(r.counts.reduce((a, b) => a + b, 0)).toBe(3000);
+    }), { numRuns: 30 });
+  });
+  it("端：値が1つなら毎回その値。さいころの期待値は 3.5", () => {
+    const one = runSets(createRandom(3), emptySetRecord(3, { kind: "table", n: 1, values: [7], weights: [1] }), 20);
+    expect(new Set(one.ks)).toEqual(new Set([7]));
+    expect(modelMoments({ kind: "table", n: 1, values: [1, 2, 3, 4, 5, 6], weights: [1, 1, 1, 1, 1, 1] }).mean).toBeCloseTo(3.5, 12);
+    expect(checkMechanism({ kind: "table", n: 1, values: [1, 2], weights: [0, 0] })).toMatch(/重み/);
+  });
+});
+

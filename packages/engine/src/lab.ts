@@ -19,18 +19,28 @@ export type Mechanism =
    *  平均は p のまま（どの回も成功の確率は p）、続けて同じ結果が出やすい（隣どうしの相関が carry）。最初は p */
   | { kind: "streak"; n: number; p: number; carry: number }
   /** セットごとに確率がばらつく（同じ p でない）：セットごとに p−spread か p＋spread を半々で選ぶ（0〜1 に収める）。客や時間で買いやすさが違う、など */
-  | { kind: "mix"; n: number; p: number; spread: number };
+  | { kind: "mix"; n: number; p: number; spread: number }
+  /** 値の表（くじ・さいころ）から n 回引き、値を足す（n＝1 なら1回の値）。weights は重み（合計で割って確率にする）。#119 */
+  | { kind: "table"; n: number; values: number[]; weights: number[] };
 
 /** 理論のモデル：k（0〜n）ごとの確率を式で出す */
 export type Model =
   | { kind: "binom"; n: number; p: number }
-  | { kind: "hyper"; n: number; total: number; success: number };
+  | { kind: "hyper"; n: number; total: number; success: number }
+  | { kind: "table"; n: number; values: number[]; weights: number[] };
 
 const isCount = (x: number) => Number.isInteger(x) && x >= 0;
 
 /** 起き方の条件を確かめる（おかしければ理由を返す。よければ undefined） */
 export function checkMechanism(m: Mechanism): string | undefined {
   if (!isCount(m.n) || m.n < 1) return `n は1以上の整数：${m.n}`;
+  if (m.kind === "table") {
+    if (!m.values.length || m.values.length !== m.weights.length) return "値と重みは同じ数（1つ以上）";
+    if (m.values.some((v) => !Number.isFinite(v))) return "値は有限の数";
+    if (m.weights.some((w) => !(w >= 0)) || !(m.weights.reduce((a, b) => a + b, 0) > 0)) return "重みは0以上で、合計が0より大きい";
+    if (m.values.length ** Math.min(m.n, 8) > 1e6) return "値の数と回数が多すぎる（足した値の一覧が大きくなる）";
+    return undefined;
+  }
   if (m.kind === "urn") {
     if (!isCount(m.total) || !isCount(m.success)) return "箱の数と当たりの数は0以上の整数";
     if (m.success > m.total) return `当たり（${m.success}）は全部（${m.total}）以下`;
@@ -49,6 +59,16 @@ export function drawSet(rng: Random, m: Mechanism): number[] {
   if (bad) throw new RangeError(bad);
   const out: number[] = [];
   if (m.kind === "bernoulli") { for (let i = 0; i < m.n; i++) out.push(rng.next() < m.p ? 1 : 0); return out; }
+  if (m.kind === "table") {
+    const tot = m.weights.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < m.n; i++) {
+      let u = rng.next() * tot, j = 0;
+      while (j < m.values.length - 1 && (u -= m.weights[j]!) >= 0) j++;
+      while (m.weights[j] === 0 && j > 0) j--;   // 丸めで重み0の値に落ちたとき
+      out.push(m.values[j]!);
+    }
+    return out;
+  }
   if (m.kind === "urn") {
     let left = m.total, hit = m.success;
     for (let i = 0; i < m.n; i++) { const x = rng.next() < hit / left ? 1 : 0; out.push(x); hit -= x; left -= 1; }
@@ -70,8 +90,29 @@ export function drawSet(rng: Random, m: Mechanism): number[] {
 const lnFact = (() => { const t = [0]; return (k: number) => { for (let i = t.length; i <= k; i++) t[i] = t[i - 1]! + Math.log(i); return t[k]!; }; })();
 const lnComb = (n: number, k: number) => (k < 0 || k > n ? -Infinity : lnFact(n) - lnFact(k) - lnFact(n - k));
 
-/** 理論のモデルの、k＝0〜n の確率（合計1） */
+const key = (v: number) => Math.round(v * 1e9) / 1e9;
+
+/** 値の表を n 回引いて足した値の分布（たたみこみ）：とる値（小さい順）と確率 */
+function tableSum(m: { n: number; values: number[]; weights: number[] }): { support: number[]; probs: number[] } {
+  const tot = m.weights.reduce((a, b) => a + b, 0);
+  let dist = new Map<number, number>([[0, 1]]);
+  for (let i = 0; i < m.n; i++) {
+    const next = new Map<number, number>();
+    for (const [s, q] of dist) m.values.forEach((v, j) => { const w = m.weights[j]! / tot; if (w > 0) next.set(key(s + v), (next.get(key(s + v)) ?? 0) + q * w); });
+    dist = next;
+  }
+  const support = [...dist.keys()].sort((a, b) => a - b);
+  return { support, probs: support.map((x) => dist.get(x)!) };
+}
+
+/** とりうる値（記録の counts と、モデルの確率の並び）：0/1 の起き方は 0〜n、値の表は足した値の一覧 */
+export function supportOf(m: Mechanism | Model): number[] {
+  return m.kind === "table" ? tableSum(m).support : Array.from({ length: m.n + 1 }, (_, k) => k);
+}
+
+/** 理論のモデルの確率（supportOf の並び。0/1 の起き方は k＝0〜n。合計1） */
 export function modelPmf(m: Model): number[] {
+  if (m.kind === "table") return tableSum(m).probs;
   const out: number[] = [];
   for (let k = 0; k <= m.n; k++) {
     if (m.kind === "binom") {
@@ -88,19 +129,27 @@ export function modelPmf(m: Model): number[] {
 export function modelOf(m: Mechanism): Model | undefined {
   if (m.kind === "bernoulli") return { kind: "binom", n: m.n, p: m.p };
   if (m.kind === "urn") return { kind: "hyper", n: m.n, total: m.total, success: m.success };
+  if (m.kind === "table") return { kind: "table", n: m.n, values: m.values, weights: m.weights };
   return undefined;
 }
 
 /** モデルの期待値・分散 */
 export function modelMoments(m: Model): { mean: number; variance: number } {
   if (m.kind === "binom") return { mean: m.n * m.p, variance: m.n * m.p * (1 - m.p) };
+  if (m.kind === "table") {
+    const tot = m.weights.reduce((a, b) => a + b, 0);
+    const mu = m.values.reduce((s, v, j) => s + v * m.weights[j]! / tot, 0), m2 = m.values.reduce((s, v, j) => s + v * v * m.weights[j]! / tot, 0);
+    return { mean: m.n * mu, variance: m.n * Math.max(0, m2 - mu * mu) };
+  }
   const q = m.success / m.total, fpc = m.total > 1 ? (m.total - m.n) / (m.total - 1) : 0;
   return { mean: m.n * q, variance: m.n * q * (1 - q) * fpc };
 }
 
-/** 記録（版1）。sets はセットの数、ks はセットごとの成功の回数、counts は k ごとのセット数（長さ n＋1） */
+/** 記録（版2）。sets はセットの数、ks はセットごとの値（成功の回数か、値の表の足した値）、counts は support の値ごとのセット数。
+ *  版2 で support（とりうる値）を足した（版1 は 0/1 の起き方だけで、support＝0〜n と同じ）。#119 */
 export type SetRecord = {
-  version: 1;
+  version: 2;
+  support: number[];
   seed: number;
   mechanism: Mechanism;
   sets: number;
@@ -112,17 +161,18 @@ export type SetRecord = {
 };
 
 export function emptySetRecord(seed: number, mechanism: Mechanism): SetRecord {
-  return { version: 1, seed, mechanism, sets: 0, ks: [], counts: Array(mechanism.n + 1).fill(0), last: null, sum: 0, sumSq: 0 };
+  const support = supportOf(mechanism);
+  return { version: 2, support, seed, mechanism, sets: 0, ks: [], counts: Array(support.length).fill(0), last: null, sum: 0, sumSq: 0 };
 }
 
 /** count セットを起こして記録に足す（元の記録は変えない） */
 export function runSets(rng: Random, rec: SetRecord, count: number): SetRecord {
   if (!isCount(count)) throw new RangeError(`セットの数は0以上の整数：${count}`);
-  const ks = [...rec.ks], counts = [...rec.counts];
+  const ks = [...rec.ks], counts = [...rec.counts], at = new Map(rec.support.map((x, i) => [key(x), i]));
   let { sum, sumSq } = rec, last = rec.last;
   for (let i = 0; i < count; i++) {
-    const s = drawSet(rng, rec.mechanism), k = s.reduce((a, b) => a + b, 0);
-    ks.push(k); counts[k]! += 1; sum += k; sumSq += k * k; last = s;
+    const s = drawSet(rng, rec.mechanism), k = key(s.reduce((a, b) => a + b, 0));
+    ks.push(k); counts[at.get(k)!]! += 1; sum += k; sumSq += k * k; last = s;
   }
   return { ...rec, sets: rec.sets + count, ks, counts, last, sum, sumSq };
 }
