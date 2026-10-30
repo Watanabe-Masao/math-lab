@@ -46,10 +46,28 @@ function symValue(k: string, env: Env): number | undefined {
   return env.values?.[k] ?? CONST[k];
 }
 
-/** 値を求める（記号の値・関数がそろわない、または eq・Σ・∫ を含むときは undefined） */
+/** Σ・Π の項の数の上限（これを超えるときは値にしない） */
+const MAX_TERMS = 10000;
+
+/** Σ・Π：下端・上端が整数の値になれば、動かす記号に1つずつ入れて足す・掛ける（空なら 0・1）。∫ は値にしない */
+function bigOp(node: OpNode, env: Env): number | undefined {
+  if ((node.op !== "sum" && node.op !== "prod") || !node.var || !node.lower || !node.upper) return undefined;
+  const lo = evaluate(node.lower, env), hi = evaluate(node.upper, env);
+  if (lo === undefined || hi === undefined || !Number.isInteger(lo) || !Number.isInteger(hi) || hi - lo + 1 > MAX_TERMS) return undefined;
+  let r = node.op === "sum" ? 0 : 1;
+  for (let i = lo; i <= hi; i++) {
+    const x = evaluate(node.args[0]!, { ...env, values: { ...env.values, [node.var]: i } });
+    if (x === undefined) return undefined;
+    r = node.op === "sum" ? r + x : r * x;
+  }
+  return r;
+}
+
+/** 値を求める（記号の値・関数がそろわない、または eq・∫ を含むときは undefined。Σ・Π は範囲が決まれば求める） */
 export function evaluate(node: FormulaNode, env: Env = {}): number | undefined {
   if (isNum(node)) return node.num;
   if (isSym(node)) return symValue(node.sym, env);
+  if (node.op === "sum" || node.op === "prod") return bigOp(node, env);
   const v: number[] = [];
   for (const a of node.args) { const x = evaluate(a, env); if (x === undefined) return undefined; v.push(x); }
   return apply(node, v, env);
@@ -68,6 +86,11 @@ export function substitute(node: FormulaNode, env: Env): FormulaNode {
 /** 引数がすべて数になった演算を、1段だけ計算する（同じ深さのものはいっしょに）。変わらなければ同じ木を返す */
 function stepOnce(node: FormulaNode, env: Env): FormulaNode {
   if (!isOp(node)) return node;
+  // Σ・Π は、端が数になっていれば1段で値にする（中の動かす記号は外から入れない）
+  if ((node.op === "sum" || node.op === "prod") && node.lower && node.upper && isNum(node.lower) && isNum(node.upper)) {
+    const r = bigOp(node, { fns: env.fns });
+    if (r !== undefined && Number.isFinite(r)) return { num: r };
+  }
   const ready = node.args.every((a) => isNum(a) || (isSym(a) && CONST[a.sym] !== undefined && node.op !== "eq"));
   if (ready && node.op !== "eq") {
     const v = node.args.map((a) => (isNum(a) ? a.num : CONST[(a as { sym: string }).sym]!));
@@ -75,7 +98,13 @@ function stepOnce(node: FormulaNode, env: Env): FormulaNode {
     if (r !== undefined && Number.isFinite(r)) return { num: r };
   }
   const args = node.args.map((a) => stepOnce(a, env));
-  return args.every((a, i) => a === node.args[i]) ? node : { ...node, args };
+  // Σ・Π の端（10−3 など）も1段ずつ計算する
+  const lower = node.lower && stepOnce(node.lower, env), upper = node.upper && stepOnce(node.upper, env);
+  if (args.every((a, i) => a === node.args[i]) && lower === node.lower && upper === node.upper) return node;
+  const out: OpNode = { ...node, args };
+  if (lower) out.lower = lower;
+  if (upper) out.upper = upper;
+  return out;
 }
 
 /**
@@ -94,6 +123,20 @@ export function expand(node: FormulaNode, env: Env = {}): FormulaNode[] {
     cur = next;
   }
   return steps;
+}
+
+/** 木の中の関数の名前（出てくる順・重なりなし。comb・fact・E など） */
+export function fnsIn(node: FormulaNode): string[] {
+  const out: string[] = [];
+  const walk = (n: FormulaNode) => {
+    if (!isOp(n)) return;
+    if (n.op === "fn" && n.name && !out.includes(n.name)) out.push(n.name);
+    n.args.forEach(walk);
+    if (n.lower) walk(n.lower);
+    if (n.upper) walk(n.upper);
+  };
+  walk(node);
+  return out;
 }
 
 /** 木の中の記号の key（出てくる順・重なりなし。関数の名前は入れない） */
