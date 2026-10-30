@@ -47,13 +47,19 @@ export function Workspace({ formula: original, mean, vary, over, initial, defini
   const symOf = (k: string, list = baseSymbols) => list.find((x) => x.key === k);
 
   // ---- 値（スライダーと棒）。記号どうしの範囲（k ≦ n）に合わせて丸める ----
+  // 最初の値：渡された値か、定義域から決める（整数は 10 前後、0〜1 は 0.3、ほかは中ほど）。横軸の記号は期待値の近く
   const start = useMemo(() => {
     const v: Record<string, number> = { ...initial };
-    for (const k of [...vary, over]) {
+    for (const k of vary) {
       if (v[k] !== undefined) continue;
       const sym = symOf(k); if (!sym) continue;
       const r = sliderRange(sym, v, FALLBACK);
-      v[k] = sym.domain?.integer ? Math.round((r.min + Math.min(r.max, r.min + 20)) / 2) : Number(((r.min + r.max) / 2).toFixed(2));
+      v[k] = sym.domain?.integer ? Math.min(r.max, Math.max(r.min, 10)) : r.min >= 0 && r.max <= 1 ? 0.3 : Number(((r.min + r.max) / 2).toFixed(2));
+    }
+    if (v[over] === undefined) {
+      const m = mean?.tree ? evaluate(rhsOf(mean.tree), { values: v }) : undefined;
+      const r = symOf(over) ? sliderRange(symOf(over)!, v, FALLBACK) : { min: 0, max: 0, step: 1 };
+      v[over] = Math.min(r.max, Math.max(r.min, Math.round(m ?? r.min)));
     }
     return v;
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps

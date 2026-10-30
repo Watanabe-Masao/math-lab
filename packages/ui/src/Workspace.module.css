@@ -3,7 +3,8 @@
   box-shadow: 0 1px 0 var(--line), 0 8px 24px -16px var(--scrim); }
 .head { display: flex; align-items: baseline; gap: var(--sp-2); }
 .eyebrow { font-size: var(--fs-tag); font-weight: 700; letter-spacing: .12em; color: var(--accent); }
-.stage { overflow-x: auto; overflow-y: hidden; padding: var(--sp-2) 0 var(--sp-1); font-size: 1.35em; }
+.stage { overflow-x: auto; overflow-y: hidden; padding: var(--sp-2) 0 var(--sp-1); font-size: 1.12em; }
+.stage :global(.katex-display) { margin: 0; }
 .stage [data-part] { cursor: pointer; border-radius: 8px; padding: 2px 3px; background: var(--surface-2); box-shadow: inset 0 -2px 0 var(--line-strong);
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease); }
 .stage [data-part][data-on] { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
