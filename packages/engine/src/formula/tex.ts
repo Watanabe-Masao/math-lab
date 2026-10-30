@@ -7,6 +7,8 @@ export type TexOptions = {
   symbols?: FormulaSymbol[];
   /** 記号の TeX を包む（key と、包む前の TeX を受け取る） */
   wrap?: (key: string, tex: string) => string;
+  /** 節に印を付ける（開いた所など。返した名前で \\htmlData{open=名前}{…} に包む） */
+  mark?: (node: FormulaNode) => string | undefined;
   /** 数の書き方（既定：小数10桁までで丸め、末尾の0を落とす） */
   num?: (v: number) => string;
 };
@@ -52,9 +54,9 @@ export function toTex(node: FormulaNode, opt: TexOptions = {}): string {
   const sym = (k: string) => { const t = symbolTex(k, opt.symbols); return opt.wrap ? opt.wrap(k, t) : t; };
 
   const go = (n: FormulaNode): Out => {
-    if (isSym(n)) return { t: sym(n.sym), p: ATOM };
-    if (isNum(n)) return n.num < 0 ? { t: fmt(n.num), p: 2, num: true, neg: true } : { t: fmt(n.num), p: ATOM, num: true };
-    return opNode(n);
+    const o: Out = isSym(n) ? { t: sym(n.sym), p: ATOM } : isNum(n) ? (n.num < 0 ? { t: fmt(n.num), p: 2, num: true, neg: true } : { t: fmt(n.num), p: ATOM, num: true }) : opNode(n);
+    const m = opt.mark?.(n);
+    return m ? { ...o, t: `\\htmlData{open=${m}}{${o.t}}` } : o;
   };
 
   const opNode = (n: OpNode): Out => {

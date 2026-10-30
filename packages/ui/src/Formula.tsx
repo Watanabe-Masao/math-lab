@@ -2,12 +2,13 @@
 // - 式の記号（μ・σ・E など）を押すと、意味・範囲・今の値・概念が出る。記号は小さいので、下に同じ記号を押せる札でも並べる（44px）
 // - 値を入れると（実験の値・自分で入れた値。自分で入れる欄は「値を入れて計算する」を押したときだけ出す）、右辺を1段ずつ計算して見せる（E(X)＝np → 10×0.3 → 3）
 // - 記号が概念を指していれば、その概念へ開ける（地図とつながる）
+// - 記号を「開く」と、その記号の定義の式に置き換わる（σ → √V(X) → √E((X−μ)²)）。開いた所は一度だけ淡く光り、「閉じる」で戻る
 // 式は木（tree）から作る。木がない式は、元の TeX をそのまま出す（押せない）。
 import katex from "katex";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { expand, symbolsIn, toTex, type FormulaNode, type FormulaSymbol } from "@math-lab/engine";
+import { applyOpens, definitionsFor, expand, openSymbol, symbolsIn, toTex, type Definition, type Formula as EngineFormula, type FormulaNode, type FormulaSymbol } from "@math-lab/engine";
 import { Button } from "./Button";
-import { change } from "./motion";
+import { change, flash } from "./motion";
 import s from "./Formula.module.css";
 
 export type FormulaData = { tex?: string; label?: string; symbols?: FormulaSymbol[]; tree?: FormulaNode };
@@ -22,6 +23,8 @@ type Props = {
   onConcept?: (id: string) => void;
   /** 概念の名前（ボタンの文字に使う） */
   conceptName?: (id: string) => string;
+  /** 概念の式（記号を定義で開くときに使う。渡さなければ開けない） */
+  definitions?: (conceptId: string) => FormulaData[];
 };
 
 const KIND: Record<string, string> = { value: "値", data: "データ", rv: "確率変数", param: "母数", index: "添え字", const: "定数" };
@@ -31,7 +34,10 @@ const render = (tex: string, display = true) => {
 };
 const fmt = (v: number) => String(Number(v.toPrecision(6)));
 
-export function Formula({ formula: f, values, editable = false, onConcept, conceptName }: Props) {
+export function Formula({ formula: original, values, editable = false, onConcept, conceptName, definitions }: Props) {
+  const [opens, setOpens] = useState<{ key: string; def: Definition }[]>([]);
+  const opened = useMemo(() => (original.tree ? applyOpens({ symbols: original.symbols ?? [], tree: original.tree }, opens) : null), [original, opens]);
+  const f: FormulaData = opened ? { ...original, tree: opened.tree, symbols: opened.symbols } : original;
   const symbols = f.symbols ?? [];
   const [on, setOn] = useState<string | null>(null);
   const [own, setOwn] = useState<Record<string, number>>({});
@@ -40,7 +46,7 @@ export function Formula({ formula: f, values, editable = false, onConcept, conce
   const box = useRef<HTMLDivElement>(null);
   const steps = useRef<HTMLDivElement>(null);
 
-  const html = useMemo(() => render(f.tree ? toTex(f.tree, { symbols, wrap: (k, t) => `\\htmlData{sym=${k}}{${t}}` }) : f.tex ?? ""), [f, symbols]);
+  const html = useMemo(() => render(f.tree ? toTex(f.tree, { symbols, wrap: (k, t) => `\\htmlData{sym=${k}}{${t}}`, mark: (n) => opened?.marks.get(n) }) : f.tex ?? ""), [f.tree, f.tex, symbols, opened]);
   // 記号の札：式に出てくる順。木がなければ symbols の順
   const order = useMemo(() => {
     if (!f.tree) return symbols;
@@ -65,8 +71,30 @@ export function Formula({ formula: f, values, editable = false, onConcept, conce
     box.current?.querySelectorAll<HTMLElement>("[data-sym]").forEach((el) => el.toggleAttribute("data-on", el.dataset.sym === on));
   }, [on, html]);
 
+  // 開いた所を一度だけ淡く光らせる
+  const last = opens[opens.length - 1]?.key;
+  useEffect(() => { if (last) box.current?.querySelectorAll(`[data-open="${last}"]`).forEach((el) => flash(el)); }, [opens.length, last]);
+
   const pick = (k: string) => setOn((cur) => (cur === k ? null : k));
-  const sel = on ? symbols.find((x) => x.key === on) : undefined;
+  // 選んだ記号の開き方（その記号の概念の式のうち、左辺が同じ記号・関数のもの。今の式の中で開けるものだけ）
+  const sel0 = on ? symbols.find((x) => x.key === on) : undefined;
+  const choices = useMemo(() => {
+    if (!on || !f.tree || !sel0?.concept || !definitions) return [];
+    const forms = definitions(sel0.concept).filter((x): x is EngineFormula & FormulaData => !!x.tree).map((x) => ({ symbols: x.symbols ?? [], tree: x.tree! }));
+    return definitionsFor(on, forms).filter((d) => openSymbol(f.tree!, symbols, on, d).count > 0);
+  }, [on, f.tree, sel0, definitions, symbols]);
+  // 今の式の中に開いた所が残っている記号（σ を閉じると、その中で開いた V も見えなくなる）
+  const openKeys = [...new Set(opened ? [...opened.marks.values()] : [])];
+  const open = (d: Definition) => change(box.current, () => { setOpens((o) => [...o, { key: on!, def: d }]); setStep(0); setOn(null); });   // 開いた記号は式から消えるので、カードも閉じる
+  // 閉じる：その記号の開きを外し、外したことで開く所がなくなった手順も落とす（σ を閉じたら、その中の V の開きも消える）
+  const close = (k: string) => change(box.current, () => setOpens((o) => {
+    if (!original.tree) return [];
+    const kept: typeof o = [];
+    let cur = { tree: original.tree, symbols: original.symbols ?? [] };
+    for (const x of o.filter((x) => x.key !== k)) { const r = openSymbol(cur.tree, cur.symbols, x.key, x.def); if (r.count) { kept.push(x); cur = r; } }
+    return kept;
+  }));
+  const sel = sel0;
   const go = (i: number) => change(steps.current, () => setStep(i));
 
   return (
@@ -87,7 +115,25 @@ export function Formula({ formula: f, values, editable = false, onConcept, conce
           <p className={s.meaning}>{sel.meaning}</p>
           {sel.range && <p className={s.sub}>範囲：{sel.range}</p>}
           {vals[sel.key] !== undefined && <p className={s.sub}>今の値：<b>{fmt(vals[sel.key]!)}</b></p>}
+          {choices.length > 0 && (
+            <div className={s.opens}>
+              {choices.map((d, i) => (
+                <button key={i} type="button" className={s.open} onClick={() => open(d)} data-testid="open-def">
+                  <span className={s.openLabel}>{choices.length > 1 ? `開く（形${i + 1}）` : "開く"}</span>
+                  <span dangerouslySetInnerHTML={{ __html: render(toTex((d.formula.tree as { args: FormulaNode[] }).args[d.side]!, { symbols: d.formula.symbols }), false) }} />
+                </button>
+              ))}
+            </div>
+          )}
           {sel.concept && onConcept && <Button variant="link" onClick={() => onConcept(sel.concept!)}>{conceptName?.(sel.concept) ?? sel.concept} を開く →</Button>}
+        </div>
+      )}
+      {openKeys.length > 0 && (
+        <div className={s.opened}>
+          {openKeys.map((k) => (
+            <Button key={k} variant="quiet" onClick={() => close(k)} data-testid={`close-${k}`}>{symbols.find((x) => x.key === k)?.symbol ?? k} を閉じる</Button>
+          ))}
+          {opens.length > 1 && <Button variant="quiet" onClick={() => change(box.current, () => setOpens([]))}>元の式に戻す</Button>}
         </div>
       )}
       {editable && !values && inputs.length > 0 && !try_ && (
