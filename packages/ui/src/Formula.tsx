@@ -150,8 +150,10 @@ export function Formula({ formula: original, values, editable = false, onConcept
           {inputs.map((x) => (
             <label key={x.key} className={s.input}>
               <span>{x.symbol}</span>
-              <input type="number" inputMode="decimal" step={x.domain?.integer ? 1 : "any"} min={x.domain?.min} max={x.domain?.max}
-                placeholder={x.domain ? describeDomain(x.domain) : undefined} aria-label={`${x.symbol}（${x.meaning}）`} value={own[x.key] ?? ""}
+              <input type="number" inputMode="decimal" step={x.domain?.integer ? 1 : "any"}
+                min={typeof x.domain?.min === "number" ? x.domain.min : x.domain?.min !== undefined ? vals[x.domain.min] : undefined}
+                max={typeof x.domain?.max === "number" ? x.domain.max : x.domain?.max !== undefined ? vals[x.domain.max] : undefined}
+                placeholder={x.domain ? describeDomain(x.domain, symbols) : undefined} aria-label={`${x.symbol}（${x.meaning}）`} value={own[x.key] ?? ""}
                 onChange={(e) => setOwn((o) => { const n = { ...o }; if (e.target.value === "" || !Number.isFinite(Number(e.target.value))) delete n[x.key]; else n[x.key] = Number(e.target.value); return n; })} />
             </label>
           ))}

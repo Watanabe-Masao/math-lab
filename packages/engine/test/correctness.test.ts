@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import formulas from "./fixtures/stats2-formulas.json";
 import {
-  boundSymbols, checkDomain, definitionsFor, describeDomain, evaluate, expand, freeSymbols, inDomain, openSymbol, stopReason, toTex,
+  boundSymbols, checkDomain, definitionsFor, sliderRange, describeDomain, evaluate, expand, freeSymbols, inDomain, openSymbol, stopReason, toTex,
   type Definition, type Formula, type FormulaNode, type FormulaSymbol,
 } from "../src";
 
@@ -80,8 +80,19 @@ describe("定義域", () => {
   const binom = find("TERM-binom", 0);
   it("定義域の外の値を知らせる：p＝1.5・k＝2.5・n＝0", () => {
     expect(new Set(checkDomain({ p: 1.5, k: 2.5, n: 0 }, binom.symbols))).toEqual(new Set([
-      "k は 0以上の整数（今 2.5）", "n は 1以上の整数（今 0）", "p は 0以上1以下（今 1.5）",
+      "k は 0以上 n 以下の整数（今 2.5、n＝0）", "n は 1以上の整数（今 0）", "p は 0以上1以下（今 1.5）",
     ]));
+  });
+  it("記号どうしの範囲：k ≦ n（デザイン監査の n＝5・k＝10・p＝7 は3つとも知らせる）", () => {
+    expect(new Set(checkDomain({ n: 5, k: 10, p: 7 }, binom.symbols))).toEqual(new Set([
+      "k は 0以上 n 以下の整数（今 10、n＝5）", "p は 0以上1以下（今 7）",
+    ]));
+    expect(checkDomain({ n: 5, k: 5, p: 0.5 }, binom.symbols)).toEqual([]);
+    const k = binom.symbols.find((s) => s.key === "k")!;
+    expect(sliderRange(k, { n: 5 }, { min: 0, max: 100, step: 0.01 })).toEqual({ min: 0, max: 5, step: 1 });   // n を動かすと k の範囲も動く
+    expect(sliderRange(k, { n: 12 }, { min: 0, max: 100, step: 0.01 }).max).toBe(12);
+    const lam = find("TERM-poisson", 0).symbols.find((s) => s.key === "lambda")!;
+    expect(sliderRange(lam, {}, { min: 0, max: 10, step: 0.1 }).min).toBeCloseTo(0.1);   // 0より大きい
     expect(checkDomain({ p: 0.3, k: 2, n: 10 }, binom.symbols)).toEqual([]);
   });
   it("端を含まない・0でない", () => {
@@ -92,7 +103,10 @@ describe("定義域", () => {
   });
   it("教材の式の定義域は、範囲の文（range）と食い違わない（定義域の端の値が range の文に出てくる）", () => {
     for (const f of all) for (const s of f.symbols) if (s.domain && s.range) {
-      for (const v of [s.domain.min, s.domain.max]) if (v !== undefined) expect([f.concept, s.key, s.range.includes(String(v))]).toEqual([f.concept, s.key, true]);
+      for (const v of [s.domain.min, s.domain.max]) if (v !== undefined) {
+        const word = typeof v === "string" ? f.symbols.find((x) => x.key === v)!.symbol : String(v);   // 記号どうしなら相手の記号が文に出る
+        expect([f.concept, s.key, s.range.includes(word)]).toEqual([f.concept, s.key, true]);
+      }
     }
   });
 });

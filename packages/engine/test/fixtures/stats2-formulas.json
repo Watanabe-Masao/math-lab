@@ -1223,6 +1223,7 @@
     "kind": "value",
     "domain": {
      "min": 0,
+     "max": "n",
      "integer": true
     }
    },
@@ -1896,6 +1897,7 @@
     "kind": "value",
     "range": "r 以上の整数",
     "domain": {
+     "min": "r",
      "integer": true
     }
    },

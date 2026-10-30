@@ -5,4 +5,4 @@ export { evaluate, expand, substitute, symbolsIn, factorial, comb, type Env } fr
 export { validateFormula } from "./validate";
 export { definitionsFor, openSymbol, applyOpens, substituteFree, type Definition, type Opened, type OpenOptions } from "./open";
 export { freeSymbols, boundSymbols, renameBound, freshName } from "./scope";
-export { inDomain, describeDomain, checkDomain, stopReason } from "./domain";
+export { inDomain, describeDomain, checkDomain, sliderRange, stopReason } from "./domain";
