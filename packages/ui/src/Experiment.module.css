@@ -117,3 +117,22 @@
 .points { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; font-size: 13px; }
 .breaks { margin: 0; font-size: var(--fs-small); font-weight: 700; color: var(--bad); }
 .story { margin: -4px 0 0; font-size: var(--fs-small); color: var(--ink-3); }
+/* 予想の頂点：点線と札。置き直すと少し伸びて出る */
+.mark line { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.mark text { font-size: 10px; font-weight: 700; fill: var(--accent); }
+.mark { animation: enter var(--dur) var(--ease); }
+.choice button:disabled { opacity: .35; cursor: default; }
+/* あなたの予想の山（強い色の実線）。前の条件は点線、理論は点 */
+.guess { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; transition: d var(--dur) var(--ease); }
+.kGuess { width: 14px; height: 0; border-top: 2px solid var(--accent); }
+.shape { display: block; margin-top: 4px; font-size: 13px; color: var(--ink-2); }
+.shape b { color: var(--ink); }
+.formula { border-top: 1px solid var(--line); padding-top: 6px; }
+.ws { display: grid; gap: 6px; }
+.ws > p { padding: 0 2px; }
+/* 反例の実験：起き方 → 予想 → 実験 → 照らす */
+.cx { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 10px; animation: enter var(--dur-sheet) var(--ease-sheet); }
+.how { margin: 0; font-size: 13px; color: var(--ink-2); line-height: 1.6; }
+.how b { display: inline-block; margin-right: 8px; font-size: var(--fs-tag); color: var(--ink-3); }
+.cxK { margin: 0; text-align: center; font-size: 15px; font-weight: 600; }
+.cxK b { color: var(--accent); font-size: 18px; }

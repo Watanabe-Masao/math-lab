@@ -15,7 +15,8 @@ export type Mechanism =
   | { kind: "bernoulli"; n: number; p: number }
   /** 箱（全部で total 個、うち当たり success 個）から、戻さずに n 個取る（超幾何分布） */
   | { kind: "urn"; n: number; total: number; success: number }
-  /** 前の結果で確率が変わる（独立でない）：成功のあとは p＋carry、失敗のあとは p−carry（0〜1 に収める）。最初は p */
+  /** 前の結果で確率が変わる（独立でない）：前の結果の方へ carry だけ寄る。成功のあとは p＋carry(1−p)、失敗のあとは p−carry·p。
+   *  平均は p のまま（どの回も成功の確率は p）、続けて同じ結果が出やすい（隣どうしの相関が carry）。最初は p */
   | { kind: "streak"; n: number; p: number; carry: number }
   /** セットごとに確率がばらつく（同じ p でない）：セットごとに p−spread か p＋spread を半々で選ぶ（0〜1 に収める）。客や時間で買いやすさが違う、など */
   | { kind: "mix"; n: number; p: number; spread: number };
@@ -61,7 +62,7 @@ export function drawSet(rng: Random, m: Mechanism): number[] {
   let q = m.p;
   for (let i = 0; i < m.n; i++) {
     const x = rng.next() < q ? 1 : 0; out.push(x);
-    q = Math.min(1, Math.max(0, m.p + (x ? m.carry : -m.carry)));
+    q = m.p + m.carry * (x - m.p);
   }
   return out;
 }
