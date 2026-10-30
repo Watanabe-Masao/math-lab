@@ -7,7 +7,7 @@
 import katex from "katex";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
-  applyOpens, definitionsFor, describeDomain, distribution, evaluate, expand, formatNum, lhsOf, nodeAt, openSymbol, rhsOf, sliderRange, substitute, symbolsIn, toTex,
+  applyOpens, createRandom, definitionsFor, describeDomain, distribution, emptyRecord, evaluate, expand, formatNum, frequencies, lhsOf, nodeAt, runTrials, openSymbol, rhsOf, sliderRange, substitute, symbolsIn, toTex,
   type Definition, type Formula as EngineFormula, type FormulaNode, type FormulaPart, type FormulaSymbol,
 } from "@math-lab/engine";
 import { flash, haptic, reduced } from "./motion";
@@ -27,6 +27,8 @@ type Props = {
   over: string;
   /** 最初の値（なければ定義域の中ほど） */
   initial?: Record<string, number>;
+  /** 実験の種（なければ時刻から。画面に出し、同じ種なら同じ結果） */
+  seed?: number;
   definitions?: (conceptId: string) => FormulaData[];
   onConcept?: (id: string) => void;
   conceptName?: (id: string) => string;
@@ -43,7 +45,7 @@ const FALLBACK = { min: 0, max: 30, step: 0.01 };
 
 type Sel = { kind: "part"; index: number } | { kind: "sym"; key: string } | null;
 
-export function Workspace({ formula: original, mean, vary, over, initial, definitions, onConcept, conceptName }: Props) {
+export function Workspace({ formula: original, mean, vary, over, initial, seed: seed0, definitions, onConcept, conceptName }: Props) {
   const baseSymbols = original.symbols ?? [];
   const symOf = (k: string, list = baseSymbols) => list.find((x) => x.key === k);
 
@@ -144,12 +146,27 @@ export function Workspace({ formula: original, mean, vary, over, initial, defini
   const range = overSym ? sliderRange(overSym, values, FALLBACK) : { min: 0, max: 0, step: 1 };
   const dist = useMemo(() => distribution(original.tree!, over, range.min, range.max, env), [original.tree, over, range.min, range.max, JSON.stringify(values)]);   // eslint-disable-line react-hooks/exhaustive-deps
   const meanValue = mean?.tree ? evaluate(rhsOf(mean.tree), env) : undefined;
+  // ---- 実験（#102）：理論の分布から種つき乱数で1回ずつ引き、結果を同じ図に積み上げる。条件（n・p）を変えたら記録を分ける ----
+  const [seed, setSeed] = useState(() => seed0 ?? (Date.now() % 100000));
+  const rng = useRef(createRandom(seed));
+  const [rec, setRec] = useState(emptyRecord);
+  const [lastDraw, setLastDraw] = useState<number | null>(null);
+  const cond = JSON.stringify(vary.map((k) => values[k]));
+  useEffect(() => { setRec(emptyRecord()); setLastDraw(null); }, [cond]);
+  const run = (count: number) => {
+    haptic();
+    const r = runTrials(rng.current, dist, count, rec);
+    setRec(r); setLastDraw(count === 1 ? r.values[r.values.length - 1]! : null);
+  };
+  const clearRec = () => { const s2 = Date.now() % 100000; setSeed(s2); rng.current = createRandom(s2); setRec(emptyRecord()); setLastDraw(null); };
+  const freq = frequencies(rec);
+
   // 計算過程：右辺に今の値を入れて1段ずつ（252 × 0.5⁵ × 0.5⁵ ＝ 0.2461）。最初は「値を入れた式」の段
   const steps = useMemo(() => expand(original.tree!, env), [original.tree, JSON.stringify(values)]);   // eslint-disable-line react-hooks/exhaustive-deps
   const [step, setStep] = useState(1);
   const shownStep = Math.min(step, steps.length - 1);
   const isProb = lhs && "op" in lhs && lhs.op === "fn" && lhs.name === "P";
-  const reset = () => { snapshot(); setValues(start); setOpens([]); setSel(null); setStep(1); };
+  const reset = () => { snapshot(); setValues(start); setOpens([]); setSel(null); setStep(1); setRec(emptyRecord()); setLastDraw(null); };
 
   // ---- 開き方（選んだ記号） ----
   const selSym = sel?.kind === "sym" ? symOf(sel.key, symbols) : undefined;
@@ -274,6 +291,11 @@ export function Workspace({ formula: original, mean, vary, over, initial, defini
               </g>
             );
           })}
+          {rec.values.length > 0 && dist.map((d) => {
+            const f = freq.get(d.x) ?? 0, y = H - Math.min(1, f / maxY) * (H - 12);
+            return <line key={`e${d.x}`} x1={xPos(d.x) - bw * 0.46} x2={xPos(d.x) + bw * 0.46} y1={y} y2={y}
+              className={d.x === lastDraw ? `${s.emp} ${s.empJust}` : s.emp} data-testid={`ws-emp-${d.x}`} />;
+          })}
           {meanValue !== undefined && meanValue >= range.min && meanValue <= range.max && (
             <path d={`M ${xPos(meanValue)} ${H + 2} l -5 8 h 10 z`} className={s.mean} />
           )}
@@ -282,6 +304,23 @@ export function Workspace({ formula: original, mean, vary, over, initial, defini
         </svg>
         <p className={s.hint}>棒を押すと {overSym?.symbol ?? over} が選ばれ、式の値がその確率になる。スライダーを動かすと形が変わる。</p>
       </figure>
+      <div className={s.exp} data-testid="ws-exp">
+        <div className={s.expHead}>
+          <b>実験する</b>
+          <span className={s.muted}>棒＝理論　━＝実験の割合</span>
+        </div>
+        <div className={s.expBtns}>
+          <button type="button" className={s.expBtn} onClick={() => run(1)} data-testid="ws-run-1">1回</button>
+          <button type="button" className={`${s.expBtn} ${s.expMain}`} onClick={() => run(100)} data-testid="ws-run-100">100回</button>
+          <button type="button" className={s.tool} onClick={clearRec} disabled={!rec.values.length}>記録を消す</button>
+        </div>
+        <p className={s.expStat} data-testid="ws-exp-stat" aria-live="polite">
+          {rec.values.length
+            ? <>実験 <b>{rec.values.length}</b> 回{lastDraw !== null && <>（今回 {overSym?.symbol ?? over}＝<b>{lastDraw}</b>）</>}・平均 <b>{fmt(rec.mean, 2)}</b>{meanValue !== undefined && <>（理論 {fmt(meanValue, 2)}）</>}</>
+            : <>まだ実験していない。回数を増やすと、━ が棒の高さに近づいていくかを見る。</>}
+          <span className={s.seed}>種 {seed}</span>
+        </p>
+      </div>
     </section>
   );
 }
