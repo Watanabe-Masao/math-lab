@@ -6,3 +6,4 @@ export { validateFormula } from "./validate";
 export { definitionsFor, openSymbol, applyOpens, substituteFree, type Definition, type Opened, type OpenOptions } from "./open";
 export { freeSymbols, boundSymbols, renameBound, freshName } from "./scope";
 export { inDomain, describeDomain, checkDomain, sliderRange, stopReason } from "./domain";
+export { nodeAt, rhsOf, lhsOf, distribution } from "./parts";
