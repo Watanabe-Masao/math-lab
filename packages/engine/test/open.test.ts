@@ -28,16 +28,26 @@ describe("記号を開く", () => {
     const a = openSymbol(z.tree, z.symbols, "sigma", sd!);
     expect(toTex(a.tree, { symbols: a.symbols, mark: (n) => a.marks.get(n) })).toContain("\\htmlData{open=sigma}{\\sqrt{V(X)}}");
   });
-  it("関数は引数を結び付ける：V(Z) → E((Z−μ)²)", () => {
+  it("関数は引数を結び付け、属する記号も移す：V(Z) → E((Z−μ_Z)²)、μ_Z は「Z の期待値」", () => {
     const vz = find("TERM-std", 2);
     const r = openSymbol(vz.tree, vz.symbols, "V", definitionsFor("V", of("TERM-var"))[0]!);
-    expect(tex(r)).toBe("V(Z)=1".replace("V(Z)", "E((Z-\\mu)^{2})"));
+    expect(tex(r)).toBe("E((Z-\\mu_Z)^{2})=1");
+    const muZ = r.symbols.find((s) => s.key === "mu_Z")!;
+    expect([muZ.of, muZ.meaning]).toEqual(["Z", "Z の期待値 E(Z)"]);
   });
-  it("引数が式の関数は開かない（V(aX+b) の中の μ の意味が変わるため）", () => {
+  it("引数が式のとき、属する記号は自分の定義で開いてから移す：V(aX+b) → E((aX+b−E(aX+b))²)", () => {
     const f = find("TERM-var", 1);
-    const r = openSymbol(f.tree, f.symbols, "V", definitionsFor("V", of("TERM-var"))[0]!);
-    expect(r.count).toBe(1);   // 右辺の V(X) だけ開く
-    expect(tex(r)).toBe("V(aX+b)=a^{2}E((X-\\mu)^{2})");
+    const resolve = (s: { concept?: string; key: string }) => definitionsFor(s.key, all.filter((g) => g.concept === s.concept));
+    const r = openSymbol(f.tree, f.symbols, "V", definitionsFor("V", of("TERM-var"))[0]!, new Map(), { resolve });
+    expect(r.count).toBe(2);
+    expect(tex(r)).toBe("E((aX+b-E(aX+b))^{2})=a^{2}E((X-\\mu)^{2})");
+  });
+  it("属する記号の定義が見つからなければ、引数が式の所は開かない（理由を返す）", () => {
+    const f = find("TERM-var", 1);
+    const aXb = ((f.tree as { args: FormulaNode[] }).args[0] as { args: FormulaNode[] }).args[0]!;   // V(aX+b) の aX+b
+    const r = openSymbol({ op: "fn", name: "V", args: [aXb] }, f.symbols, "V", definitionsFor("V", of("TERM-var"))[0]!);
+    expect(r.count).toBe(0);
+    expect(r.reason).toContain("μ は X に属する記号");
   });
   it("閉じる＝手順から外して当て直す", () => {
     const sd = definitionsFor("sigma", of("TERM-sd"))[0]!, v = definitionsFor("V", of("TERM-var"))[0]!;
@@ -51,8 +61,9 @@ describe("記号を開く", () => {
     for (const f of all) for (const s of f.symbols) {
       if (!s.concept) continue;
       const target = all.filter((g) => `${g.concept}` === s.concept);
+      const resolve = (x: { concept?: string; key: string }) => definitionsFor(x.key, all.filter((g) => g.concept === x.concept));
       for (const d of definitionsFor(s.key, target)) {
-        const r = openSymbol(f.tree, f.symbols, s.key, d);
+        const r = openSymbol(f.tree, f.symbols, s.key, d, new Map(), { resolve });
         if (r.count) { opened++; expect(() => toTex(r.tree, { symbols: r.symbols })).not.toThrow(); }
       }
     }

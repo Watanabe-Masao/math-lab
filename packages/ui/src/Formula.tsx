@@ -6,7 +6,7 @@
 // 式は木（tree）から作る。木がない式は、元の TeX をそのまま出す（押せない）。
 import katex from "katex";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { applyOpens, definitionsFor, expand, openSymbol, symbolsIn, toTex, type Definition, type Formula as EngineFormula, type FormulaNode, type FormulaSymbol } from "@math-lab/engine";
+import { applyOpens, checkDomain, definitionsFor, describeDomain, expand, openSymbol, stopReason, symbolsIn, toTex, type Definition, type Formula as EngineFormula, type FormulaNode, type FormulaSymbol } from "@math-lab/engine";
 import { Button } from "./Button";
 import { change, flash } from "./motion";
 import s from "./Formula.module.css";
@@ -33,10 +33,13 @@ const render = (tex: string, display = true) => {
   catch { return tex; }
 };
 const fmt = (v: number) => String(Number(v.toPrecision(6)));
+const toEngine = (fs: FormulaData[]): EngineFormula[] => fs.filter((x) => !!x.tree).map((x) => ({ symbols: x.symbols ?? [], tree: x.tree! }));
 
 export function Formula({ formula: original, values, editable = false, onConcept, conceptName, definitions }: Props) {
   const [opens, setOpens] = useState<{ key: string; def: Definition }[]>([]);
-  const opened = useMemo(() => (original.tree ? applyOpens({ symbols: original.symbols ?? [], tree: original.tree }, opens) : null), [original, opens]);
+  // 属する記号（of）の定義を探す（V(aX+b) を開くとき、中の μ を E(X) にしてから移す。#109）
+  const resolve = useMemo(() => (sym: FormulaSymbol) => (sym.concept && definitions ? definitionsFor(sym.key, toEngine(definitions(sym.concept))) : []), [definitions]);
+  const opened = useMemo(() => (original.tree ? applyOpens({ symbols: original.symbols ?? [], tree: original.tree }, opens, { resolve }) : null), [original, opens, resolve]);
   const f: FormulaData = opened ? { ...original, tree: opened.tree, symbols: opened.symbols } : original;
   const symbols = f.symbols ?? [];
   const [on, setOn] = useState<string | null>(null);
@@ -62,7 +65,11 @@ export function Formula({ formula: original, values, editable = false, onConcept
   const rhs = f.tree && "op" in f.tree && f.tree.op === "eq" ? f.tree.args[f.tree.args.length - 1]! : f.tree;
   const inputs = useMemo(() => (rhs ? symbolsIn(rhs) : []).map((k) => symbols.find((x) => x.key === k)).filter((x): x is FormulaSymbol => !!x && ["param", "value", "const"].includes(x.kind ?? "") && !["e", "pi"].includes(x.key)), [rhs, symbols]);
   const vals = { ...own, ...values };
-  const expansion = useMemo(() => (f.tree && Object.keys(vals).length ? expand(f.tree, { values: vals }) : []), [f.tree, JSON.stringify(vals)]);
+  // 定義域の外の値では計算しない（#109）。計算が途中で止まったら理由を出す
+  const outside = checkDomain(vals, symbols);
+  const expansion = useMemo(() => (f.tree && Object.keys(vals).length && !outside.length ? expand(f.tree, { values: vals }) : []), [f.tree, JSON.stringify(vals), outside.length]);
+  const lastStep = expansion[expansion.length - 1];
+  const stopped = lastStep && inputs.every((x) => vals[x.key] !== undefined) && !("num" in lastStep) ? stopReason(lastStep) : undefined;
   const lhs = f.tree && "op" in f.tree && f.tree.op === "eq" ? toTex(f.tree.args[0]!, { symbols }) : "";
   useEffect(() => setStep(Math.max(0, expansion.length - 1)), [expansion.length]);
 
@@ -80,9 +87,8 @@ export function Formula({ formula: original, values, editable = false, onConcept
   const sel0 = on ? symbols.find((x) => x.key === on) : undefined;
   const choices = useMemo(() => {
     if (!on || !f.tree || !sel0?.concept || !definitions) return [];
-    const forms = definitions(sel0.concept).filter((x): x is EngineFormula & FormulaData => !!x.tree).map((x) => ({ symbols: x.symbols ?? [], tree: x.tree! }));
-    return definitionsFor(on, forms).filter((d) => openSymbol(f.tree!, symbols, on, d).count > 0);
-  }, [on, f.tree, sel0, definitions, symbols]);
+    return definitionsFor(on, toEngine(definitions(sel0.concept))).filter((d) => openSymbol(f.tree!, symbols, on, d, new Map(), { resolve }).count > 0);
+  }, [on, f.tree, sel0, definitions, symbols, resolve]);
   // 今の式の中に開いた所が残っている記号（σ を閉じると、その中で開いた V も見えなくなる）
   const openKeys = [...new Set(opened ? [...opened.marks.values()] : [])];
   const open = (d: Definition) => change(box.current, () => { setOpens((o) => [...o, { key: on!, def: d }]); setStep(0); setOn(null); });   // 開いた記号は式から消えるので、カードも閉じる
@@ -91,7 +97,7 @@ export function Formula({ formula: original, values, editable = false, onConcept
     if (!original.tree) return [];
     const kept: typeof o = [];
     let cur = { tree: original.tree, symbols: original.symbols ?? [] };
-    for (const x of o.filter((x) => x.key !== k)) { const r = openSymbol(cur.tree, cur.symbols, x.key, x.def); if (r.count) { kept.push(x); cur = r; } }
+    for (const x of o.filter((x) => x.key !== k)) { const r = openSymbol(cur.tree, cur.symbols, x.key, x.def, new Map(), { resolve }); if (r.count) { kept.push(x); cur = r; } }
     return kept;
   }));
   const sel = sel0;
@@ -144,12 +150,15 @@ export function Formula({ formula: original, values, editable = false, onConcept
           {inputs.map((x) => (
             <label key={x.key} className={s.input}>
               <span>{x.symbol}</span>
-              <input type="number" inputMode="decimal" step="any" aria-label={`${x.symbol}（${x.meaning}）`} value={own[x.key] ?? ""}
+              <input type="number" inputMode="decimal" step={x.domain?.integer ? 1 : "any"} min={x.domain?.min} max={x.domain?.max}
+                placeholder={x.domain ? describeDomain(x.domain) : undefined} aria-label={`${x.symbol}（${x.meaning}）`} value={own[x.key] ?? ""}
                 onChange={(e) => setOwn((o) => { const n = { ...o }; if (e.target.value === "" || !Number.isFinite(Number(e.target.value))) delete n[x.key]; else n[x.key] = Number(e.target.value); return n; })} />
             </label>
           ))}
         </div>
       )}
+      {outside.length > 0 && <ul className={s.warn} role="status" data-testid="outside">{outside.map((m) => <li key={m}>{m}</li>)}</ul>}
+      {stopped && <p className={s.warn} role="status" data-testid="stopped">計算が止まった：{stopped}</p>}
       {expansion.length > 1 && (
         <div className={s.steps} data-testid="expansion">
           <div ref={steps} className={s.step} dangerouslySetInnerHTML={{ __html: render(`${lhs ? `${lhs}=` : ""}${toTex(expansion[step]!, { symbols })}`) }} />
