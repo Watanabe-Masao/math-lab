@@ -5,7 +5,7 @@
 .split { display: flex; gap: var(--sp-2); }
 .split > * { flex: 1; }
 .muted { color: var(--ink-3); font-size: var(--fs-small); }
-.label { font-size: var(--fs-label); font-weight: 700; letter-spacing: .06em; color: var(--ink-3); }
+.label { font-size: var(--fs-label); font-weight: 600; letter-spacing: .06em; color: var(--ink-3); }
 .error { color: var(--accent); font-weight: 600; }
 .badges { display: inline-flex; gap: 6px; flex-wrap: wrap; }
 .badge { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-tag); font-weight: 600; line-height: 1;
