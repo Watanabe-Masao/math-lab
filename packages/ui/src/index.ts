@@ -5,6 +5,7 @@ export { Button } from "./Button";
 export { Card, Stack, Row, Split, Muted, Label, ErrorText, Badge, Badges, Disclosure, Field } from "./Layout";
 export { Segmented } from "./Segmented";
 export { Sheet } from "./Sheet";
+export { BottomSheet, snapDetent, rubber, DETENTS, type Detent } from "./BottomSheet";
 export { change, flash, haptic, reduced, tokenMs, useTween } from "./motion";
 export { Formula, type FormulaData } from "./Formula";
 export { Workspace, type WorkspaceData } from "./Workspace";

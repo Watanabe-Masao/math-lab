@@ -1,0 +1,14 @@
+/* 地図の上に重なる下からの面（BottomSheet.tsx）。高さは段と指の位置から決める。止まる動きはばね */
+.sheet { position: fixed; left: 0; right: 0; z-index: 8; display: flex; flex-direction: column;
+  background: var(--raised); border-top: 1px solid var(--line); border-radius: 14px 14px 0 0; box-shadow: var(--shadow-raised);
+  transition: height var(--dur-spring) var(--ease-spring); animation: up var(--dur-spring) var(--ease-spring); }
+@media (min-width: 760px) { .sheet { left: calc(50% - 380px); right: calc(50% - 380px); } }
+@keyframes up { from { transform: translateY(100%); } }
+.head { flex: none; padding: 4px var(--sp-4) var(--sp-2); touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.grab { all: unset; display: block; margin: 0 auto 4px; width: 64px; height: 16px; cursor: grab; position: relative; }
+.grab::before { content: ""; position: absolute; left: 50%; top: 5px; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--line-strong); }
+.grab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  padding: 0 var(--sp-4) calc(var(--sp-4) + env(safe-area-inset-bottom)); }
+/* 全部に広げたときだけ後ろを暗くする（半分以下では後ろの地図も触れる） */
+.scrim { position: fixed; inset: 0; z-index: 7; background: var(--scrim); opacity: 0; transition: opacity var(--dur-spring) var(--ease-spring); }
