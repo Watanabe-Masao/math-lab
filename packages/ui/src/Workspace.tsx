@@ -256,6 +256,16 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
   const defTex = (d: Definition) => { const t = d.formula.tree as { args: FormulaNode[] }; return `${toTex(t.args[0]!, { symbols: d.formula.symbols })}=${toTex(t.args[d.side]!, { symbols: d.formula.symbols })}`; };
   const pickSym = (k: string) => { haptic(); setSel((x) => ({ part: x?.part, sym: x?.sym === k ? undefined : k })); };
   const openKeys = [...new Set(opened.marks.values())];
+  // 開いた所の印（marks）を、かたまりの中から集める。「たたむ」は開いた中身を選んでいる「分解する」の右に出す（渡辺さん 2026-10-31）
+  const marksIn = (n: FormulaNode): string[] => {
+    const out = new Set<string>();
+    const walk = (x: unknown) => { if (!x || typeof x !== "object") return; const m = opened.marks.get(x as FormulaNode); if (m) out.add(m); for (const v of Object.values(x)) { if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === "object") walk(v); } };
+    walk(n);
+    return [...out];
+  };
+  const selPartNode = sel?.part !== undefined && parts[sel.part] ? nodeAt(tree, parts[sel.part]!.path) : undefined;
+  const shownFold = new Set(selPartNode ? marksIn(selPartNode) : []);
+  const restKeys = openKeys.filter((k) => !shownFold.has(k));
   const close = (k: string) => { snapshot(); setOpens((o) => {
     const kept: typeof o = []; let cur = { tree: original.tree!, symbols: baseSymbols };
     for (const x of o.filter((x) => x.key !== k)) { const r = openSymbol(cur.tree, cur.symbols, x.key, x.def, new Map(), { resolve }); if (r.count) { kept.push(x); cur = r; } }
@@ -271,6 +281,7 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
     const fns = node ? fnsIn(node).filter((k) => symOf(k, symbols)) : [];
     const inside = node ? [...fns, ...symbolsIn(node).filter((k) => symOf(k, symbols))] : [];
     const breakable = fns.map((k) => ({ key: k, defs: choicesFor(k) })).filter((x) => x.defs.length > 0);
+    const foldable = node ? marksIn(node) : [];
     const v = selSym ? values[selSym.key] : undefined;
     return (
       <div className={s.strip} data-testid="ws-strip">
@@ -280,13 +291,14 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
             <Tween className={s.ctxVal} data-testid="ws-part-value" v={evaluate(node, env)} show={(x) => fmt(x)} />
             <b className={s.ctxName}>{p.name}</b>
             {!selSym && <p className={s.ctxText}>{p.meaning}</p>}
-            {breakable.length > 0 && (
+            {(breakable.length > 0 || foldable.length > 0) && (
               <div className={s.ctxActs}>
                 {breakable.map(({ key, defs }) => defs.map((d, i) => (
                   <button key={`${key}${i}`} type="button" className={s.act} onClick={() => open(d, key)} data-testid={`ws-break-${key}`}>
                     分解する<span dangerouslySetInnerHTML={{ __html: render(defTex(d), false) }} />
                   </button>
                 )))}
+                {foldable.map((k) => <button key={`f${k}`} type="button" className={s.tool} onClick={() => close(k)} data-testid={`ws-close-${k}`}>{symOf(k, symbols)?.symbol ?? k} をたたむ</button>)}
               </div>
             )}
           </div>
@@ -356,9 +368,9 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
         <div ref={stage} className={s.stage} onClick={onStage} dangerouslySetInnerHTML={{ __html: html }} data-testid="ws-formula" />
       </div>
       {strip()}
-      {openKeys.length > 0 && (
+      {(restKeys.length > 0 || opens.length > 1) && (
         <div className={s.tools}>
-          {openKeys.map((k) => <button key={k} type="button" className={s.tool} onClick={() => close(k)} data-testid={`ws-close-${k}`}>{symOf(k, symbols)?.symbol ?? k} をたたむ</button>)}
+          {restKeys.map((k) => <button key={k} type="button" className={s.tool} onClick={() => close(k)} data-testid={`ws-close-${k}`}>{symOf(k, symbols)?.symbol ?? k} をたたむ</button>)}
           {opens.length > 1 && <button type="button" className={s.tool} onClick={() => { snapshot(); setOpens([]); }}>元の式に戻す</button>}
         </div>
       )}
