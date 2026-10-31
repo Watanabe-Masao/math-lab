@@ -188,7 +188,7 @@
 .cardPick small { display: block; color: var(--ink-3); font-size: 11.5px; }
 .cardPick:focus-visible, .cardDel:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .swatch { width: 12px; height: 12px; border-radius: 3px; box-shadow: inset 0 0 0 1.5px var(--line-strong); }
-.cardDel { all: unset; width: var(--tap); height: var(--tap); display: grid; place-items: center; color: var(--ink-3); cursor: pointer; border-radius: var(--r-m); }
+.cardDel { all: unset; min-width: var(--tap); font-size: 12.5px; height: var(--tap); display: grid; place-items: center; color: var(--ink-3); cursor: pointer; border-radius: var(--r-m); }
 .cmpTable { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .cmpTable th, .cmpTable td { padding: 6px 4px; border-bottom: 1px solid var(--line); text-align: right; vertical-align: top; }
 .cmpTable th:first-child, .cmpTable td:first-child { text-align: left; }

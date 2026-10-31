@@ -79,7 +79,7 @@ export function CompareStage({ deck, describe, editor, draft, unit = "", labels,
       {editor}
       <div className={s.two}>
         <button type="button" className={s.secondary} onClick={() => save(20)} disabled={cards.length >= MAX_CARDS} data-testid="cmp-save-20">20セットで保存</button>
-        <button type="button" className={s.primary} onClick={() => save(100)} disabled={cards.length >= MAX_CARDS} data-testid="cmp-save-100">▶ 100セット 実験して保存</button>
+        <button type="button" className={s.primary} onClick={() => save(100)} disabled={cards.length >= MAX_CARDS} data-testid="cmp-save-100">▶ 100セットで保存</button>
       </div>
       {cards.length >= MAX_CARDS && <p className={s.muted}>カードは {MAX_CARDS} 枚まで。いらないカードを × で消すと保存できる</p>}
     </section>
@@ -95,7 +95,7 @@ export function CompareStage({ deck, describe, editor, draft, unit = "", labels,
                   <i className={`${s.swatch} ${at >= 0 ? SERIES[at] : ""}`} aria-hidden="true" />
                   <span>{describe(c.mechanism)}<small>{c.sets} セット・平均 {num3(m.mean)}{unit}・種 {c.seed}</small></span>
                 </button>
-                <button type="button" className={s.cardDel} onClick={() => { haptic(); more(i, 100); }} aria-label={`${describe(c.mechanism)} をあと100セット`}>＋</button>
+                <button type="button" className={s.cardDel} onClick={() => { haptic(); more(i, 100); }} aria-label={`${describe(c.mechanism)} をあと100セット`}>＋100</button>
                 <button type="button" className={s.cardDel} onClick={() => { haptic(); remove(i); }} aria-label={`${describe(c.mechanism)} を消す`}>×</button>
               </div>
             );
