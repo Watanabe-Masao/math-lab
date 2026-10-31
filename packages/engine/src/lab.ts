@@ -138,8 +138,10 @@ export function modelMoments(m: Model): { mean: number; variance: number } {
   if (m.kind === "binom") return { mean: m.n * m.p, variance: m.n * m.p * (1 - m.p) };
   if (m.kind === "table") {
     const tot = m.weights.reduce((a, b) => a + b, 0);
-    const mu = m.values.reduce((s, v, j) => s + v * m.weights[j]! / tot, 0), m2 = m.values.reduce((s, v, j) => s + v * v * m.weights[j]! / tot, 0);
-    return { mean: m.n * mu, variance: m.n * Math.max(0, m2 - mu * mu) };
+    // 分散は平均からのずれの2乗で求める（E(X²)−μ² の引き算は、近い大きな値で桁が落ちる：10億と10億＋1 で 0 になっていた。#142）
+    const mu = m.values.reduce((s, v, j) => s + v * m.weights[j]! / tot, 0);
+    const v2 = m.values.reduce((s, v, j) => s + (v - mu) ** 2 * m.weights[j]! / tot, 0);
+    return { mean: m.n * mu, variance: m.n * v2 };
   }
   const q = m.success / m.total, fpc = m.total > 1 ? (m.total - m.n) / (m.total - 1) : 0;
   return { mean: m.n * q, variance: m.n * q * (1 - q) * fpc };
@@ -182,5 +184,7 @@ export function summarize(rec: SetRecord): { mean: number | undefined; variance:
   const n = rec.sets;
   if (!n) return { mean: undefined, variance: undefined, freq: rec.counts.map(() => 0) };
   const mean = rec.sum / n;
-  return { mean, variance: Math.max(0, rec.sumSq / n - mean * mean), freq: rec.counts.map((c) => c / n) };
+  // 分散は値の一覧（ks）から平均のずれで求める（sumSq/n − 平均² は大きな値で桁が落ちる。#142）
+  const variance = rec.ks.reduce((s, k) => s + (k - mean) ** 2, 0) / n;
+  return { mean, variance, freq: rec.counts.map((c) => c / n) };
 }

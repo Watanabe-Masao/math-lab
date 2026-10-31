@@ -240,7 +240,8 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
   const [step, setStep] = useState(1);
   const shownStep = Math.min(step, steps.length - 1);
   const isProb = lhs && "op" in lhs && lhs.op === "fn" && lhs.name === "P";
-  const reset = () => { snapshot(); setValues(start); setOpens([]); setSel(null); setStep(1); setRec(emptyRecord()); setLastDraw(null); };
+  // 初期値に戻すときは実験のタイマーも止める（止めないと、消した記録を次の更新が書き戻す。#142）
+  const reset = () => { stop(); snapshot(); setValues(start); setOpens([]); setSel(null); setStep(1); setRec(emptyRecord()); setLastDraw(null); };
 
   // ---- 開き方（選んだ記号） ----
   const selSym = sel?.sym ? symOf(sel.sym, symbols) : undefined;
