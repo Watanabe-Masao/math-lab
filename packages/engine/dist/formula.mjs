@@ -235,7 +235,12 @@ const BUILTIN = {
 	comb,
 	fact: factorial,
 	exp: Math.exp,
-	log: Math.log
+	log: Math.log,
+	gt: (a, b) => +(a > b),
+	ge: (a, b) => +(a >= b),
+	lt: (a, b) => +(a < b),
+	le: (a, b) => +(a <= b),
+	between: (x, a, b) => +(a <= x && x <= b)
 };
 /** 1つの演算を、引数の値から計算する（計算できなければ undefined） */
 function apply(n, v, env) {
@@ -699,7 +704,7 @@ function describeDomain(d, symbols = []) {
 	return d.integer ? `${s}${s ? "の" : ""}整数` : s;
 }
 /** 入れた値のうち、定義域の外のもの（記号ごとに1文。記号どうしの範囲なら相手の今の値も添える） */
-function checkDomain(values, symbols) {
+function checkDomain(values, symbols, conditions = []) {
 	const out = [];
 	for (const s of symbols) {
 		const v = values[s.key];
@@ -708,6 +713,7 @@ function checkDomain(values, symbols) {
 		const refs = [s.domain.min, s.domain.max].filter((b) => typeof b === "string" && values[b] !== void 0).map((b) => `${symbols.find((x) => x.key === b)?.symbol ?? b}＝${values[b]}`);
 		out.push(`${s.symbol} は ${describeDomain(s.domain, symbols)}（今 ${v}${refs.length ? `、${refs.join("・")}` : ""}）`);
 	}
+	for (const c of conditions) if (evaluate(c.tree, { values }) === 0) out.push(c.text);
 	return out;
 }
 /** スライダーの範囲：定義域の端（記号どうしなら今の値）。端がなければ fallback。整数なら刻み1 */

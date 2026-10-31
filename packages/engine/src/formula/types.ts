@@ -20,7 +20,9 @@ export type FormulaSymbol = { symbol: string; meaning: string; key: string; kind
 /** 式の意味のかたまり（作業台で押せる部分式。path は根からの args の番号。#110） */
 export type FormulaPart = { path: number[]; name: string; meaning: string };
 
-export type Formula = { tex?: string; symbols: FormulaSymbol[]; tree: FormulaNode; parts?: FormulaPart[] };
+/** 記号どうしの条件（1つの記号の domain で書けないもの：超幾何の k ≦ M など）。tree は比べる式（le・lt・ge・gt・between）。教材の契約の conditions（#118） */
+export type FormulaCondition = { text: string; tree: FormulaNode };
+export type Formula = { tex?: string; symbols: FormulaSymbol[]; tree: FormulaNode; parts?: FormulaPart[]; conditions?: FormulaCondition[] };
 
 export const isSym = (n: FormulaNode): n is SymNode => "sym" in n;
 export const isNum = (n: FormulaNode): n is NumNode => "num" in n;

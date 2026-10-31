@@ -12,8 +12,9 @@
     "design": "node scripts/check-design.mjs",
     "typecheck": "tsc -p packages/engine --noEmit && tsc -p packages/ui --noEmit",
     "test": "vitest run",
-    "check": "npm run design && npm run typecheck && node scripts/bundle-formula.mjs --check && npm run test",
-    "bundle": "node scripts/bundle-formula.mjs"
+    "check": "npm run design && npm run typecheck && node scripts/bundle-formula.mjs --check && node scripts/sync-stats2.mjs && npm run test",
+    "bundle": "node scripts/bundle-formula.mjs",
+    "sync": "node scripts/sync-stats2.mjs"
   },
   "devDependencies": {
     "@radix-ui/react-toggle-group": "1.2.1",
