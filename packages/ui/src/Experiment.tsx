@@ -3,12 +3,12 @@
 // - 予想するまで結果を見せない。予想の答えは定義に書かず、理論のモデルから求める
 // - 起き方（engine の Mechanism）と理論のモデルを分ける：反例は、成り立つ条件を1つ崩した起き方で、二項の理論とのずれを見る
 // - 発見メモは ChatGPT に渡す（公開サイトは個人の記録を持たない。ChatGPT が Notion の学習記録へ書く）
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import {
-  createRandom, emptySetRecord, expand, modelMoments, modelPmf, runSets, summarize, toTex,
+  expand, modelMoments, modelPmf, summarize, toTex,
   type Mechanism, type SetRecord,
 } from "@math-lab/engine";
-import { haptic, reduced } from "./motion";
+import { haptic } from "./motion";
 import { Bars, LabShell, Replay, pct, peak, r2, tex, usePairRuns, useStages } from "./labParts";
 import { TableLab, type TableDef } from "./ExperimentTable";
 import { Sheet } from "./Sheet";
@@ -72,48 +72,46 @@ function CounterLab({ cx, cond, theme, onConcept, name }: { cx: Counter; cond: C
     : m.kind === "streak" ? `${theme.success}のあとは確率 ${r2(cond.p + m.carry * (1 - cond.p))}、${theme.failure}のあとは ${r2(cond.p - m.carry * cond.p)}（最初は ${r2(cond.p)}。どの回も平均すると ${r2(cond.p)}）`
     : `セットごとに確率が ${r2(Math.max(0, cond.p - m.spread))} か ${r2(Math.min(1, cond.p + m.spread))} になる（平均は ${r2(cond.p)}）`;
   const [guess, setGuess] = useState<number | undefined>();
-  const [seed] = useState(() => Date.now() % 100000);
-  const rng = useRef(createRandom(seed));
-  const [rec, setRec] = useState<SetRecord>(() => emptySetRecord(seed, m));
-  const [fresh, setFresh] = useState(0);
-  const stream = useRef<ReturnType<typeof setInterval> | null>(null);
-  const stop = () => { if (stream.current) { clearInterval(stream.current); stream.current = null; } };
-  useEffect(() => stop, []);
-  const run = (count: number) => {
-    haptic(); stop();
-    if (count === 1 || reduced()) { setRec(runSets(rng.current, rec, count)); setFresh((f) => f + 1); return; }
-    let cur = rec, done = 0;
-    const tick = () => { cur = runSets(rng.current, cur, 20); done += 20; setRec(cur); setFresh((f) => f + 1); if (done >= count) stop(); };
-    tick(); stream.current = setInterval(tick, 60);
-  };
-  const sm = summarize(rec), binom = modelPmf({ kind: "binom", ...cond }), bv = modelMoments({ kind: "binom", ...cond }).variance;
+  // 条件どおり（独立・毎回同じ p＝二項分布の前提）と、条件を1つ崩した起き方を、同じセット数ずつ起こして比べる（issue 121）
+  const { before: recB, after: rec, run, fresh } = usePairRuns({ kind: "bernoulli", n: cond.n, p: cond.p }, m);
+  const sm = summarize(rec), smB = summarize(recB), binom = modelPmf({ kind: "binom", ...cond }), bv = modelMoments({ kind: "binom", ...cond }).variance;
   const ratio = sm.variance !== undefined && bv > 0 ? sm.variance / bv : undefined;
   const actual = ratio === undefined ? undefined : ratio < 0.9 ? 0 : ratio > 1.1 ? 2 : 1;
   const enough = rec.sets >= 100;
-  const k = rec.last?.reduce((a, b) => a + b, 0);
+  const kOf = (r: SetRecord) => r.last?.reduce((a, b) => a + b, 0);
   return (
     <div className={s.cx} data-testid="exp-cx">
       <p className={s.how}><b>起き方</b>{how}</p>
-      <p className={s.h}>二項分布と比べて、山の広がりは？</p>
+      <p className={s.h}>条件どおりの二項分布と比べて、山の広がりは？</p>
       <div className={s.choice} role="radiogroup" aria-label="反例の予想">
         {SPREAD.map((t, i) => <button key={t} type="button" role="radio" aria-checked={guess === i} onClick={() => { haptic(); setGuess(i); }}>{t}</button>)}
       </div>
       {guess !== undefined && <>
-        <div className={s.set} key={fresh}>
-          {(rec.last ?? Array(cond.n).fill(null)).map((v, i) => (
-            <span key={i} className={v === null ? s.slot : v ? s.hit : s.miss} style={{ "--i": i } as CSSProperties}>{v === null ? "" : v ? theme.icon : "・"}</span>
+        <div className={s.lanes}>
+          {([["条件どおり（二項分布）", recB, s.laneB, "exp-cx-set-before"], [`条件を崩した：${cx.name}`, rec, s.laneA, "exp-cx-set"]] as const).map(([tag, r, cls, tid]) => (
+            <div key={tid} className={`${s.lane} ${cls}`}>
+              <div className={s.laneHead}><b>{tag}</b>{kOf(r) === undefined ? <span className={s.muted}>まだ</span> : <span><em>{kOf(r)}</em> {theme.unit ?? "回"} {theme.success}</span>}</div>
+              <div className={s.set} key={fresh} data-testid={tid}>
+                {(r.last ?? Array(cond.n).fill(null)).map((v, i) => (
+                  <span key={i} className={v === null ? s.slot : v ? s.hit : s.miss} style={{ "--i": i } as CSSProperties}>{v === null ? "" : v ? theme.icon : "・"}</span>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
-        {k !== undefined && <p className={s.cxK}>{cond.n} {theme.unit ?? "回"}中 <b>{k}</b> {theme.unit ?? "回"} {theme.success}</p>}
-        <div className={s.legend}><span><i className={s.kBar} />この起き方 {rec.sets} セット</span><span><i className={s.kDot} />二項分布の理論</span></div>
-        <Bars freq={sm.freq} theory={binom} height={130} label={`${cx.name}の実験と二項分布の理論`} />
+        <div className={s.legend}><span><i className={s.kBarB} />条件どおり</span><span><i className={s.kBar} />条件を崩した</span><span><i className={s.kDot} />二項分布の理論</span><span className={s.muted}>各 {rec.sets} セット</span></div>
+        <Bars freq={sm.freq} pair={smB.freq} theory={binom} height={130} label={`条件どおりと${cx.name}の実験と二項分布の理論`} />
         <div className={s.two}>
-          <button type="button" className={s.secondary} onClick={() => run(1)} data-testid="exp-cx-run-1">1セット</button>
-          <button type="button" className={s.primary} onClick={() => run(100)} data-testid="exp-cx-run-100">▶ 100セット</button>
+          <button type="button" className={s.secondary} onClick={() => run(1, 20)} data-testid="exp-cx-run-1">両方 1セット</button>
+          <button type="button" className={s.primary} onClick={() => run(100, 20)} data-testid="exp-cx-run-100">▶ 各 100セット</button>
         </div>
         {!enough ? <p className={s.muted}>あと {100 - rec.sets} セットで、二項分布と照らす</p> : <>
           <div className={guess === actual ? s.ok : s.ng} data-testid="exp-cx-verdict">
-            <b>{guess === actual ? "✓ 予想どおり" : "✗ 予想と違った"}</b>　山は二項分布より{actual !== undefined ? SPREAD[actual] : "—"}（散らばり {r2(sm.variance)}、二項分布なら {r2(bv)}）
+            <b>{guess === actual ? "✓ 予想どおり" : "✗ 予想と違った"}</b>　山は二項分布より{actual !== undefined ? SPREAD[actual] : "—"}（散らばり：崩した {r2(sm.variance)}・条件どおり {r2(smB.variance)}・二項分布の理論 {r2(bv)}）
+          </div>
+          <div className={s.tiles}>
+            <div>平均<b>{r2(smB.mean)} ・ {r2(sm.mean)}</b><i>条件どおり・崩した（理論 {r2(mean(cond))}）</i></div>
+            <div>散らばり<b>{r2(smB.variance)} ・ {r2(sm.variance)}</b><i>平均はほぼ同じでも、広がりが違う</i></div>
           </div>
           <p className={s.breaks}>崩した条件：{cx.breaks}</p>
           <p className={s.note}>{cx.text}</p>
