@@ -3,7 +3,7 @@
 import katex from "katex";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createRandom, emptySetRecord, runSets, type Mechanism, type SetRecord } from "@math-lab/engine";
-import { haptic, reduced, tokenMs, useTween } from "./motion";
+import { haptic, reduced, useTween } from "./motion";
 import s from "./Experiment.module.css";
 
 export const STAGES = ["予測", "実験", "観察", "理由", "応用", "比べる"] as const;
@@ -188,6 +188,9 @@ const MARKS = [1, 3, 10, 30, 100, 300, 1000, 3000, 10000, 30000];
  * 下の図は平均の移り変わり（横は対数の目盛り）。理論の平均の線と、ずれの目安（±2×標準偏差÷√セット数。4倍集めると半分）を重ねる。
  * 記録にはセットごとの値（ks）が残っているので、実験をやり直さずに戻せる。
  */
+/** 再生で1つの目盛りを見せる時間（ms） */
+const REPLAY_MS = 900;
+
 export function Replay({ rec, theory, before, labels, unit = "" }: {
   rec: SetRecord; theory: number[];
   /** 前の条件の記録と理論（#121）。あると、割合を前と後で並べ、平均の線を2本にする */
@@ -203,7 +206,9 @@ export function Replay({ rec, theory, before, labels, unit = "" }: {
   useEffect(() => { setT(marks.length - 1); }, [marks.length]);
   const play = () => {
     haptic(); setPlaying(true); setT(0);
-    const step = (i: number) => { timer.current = setTimeout(() => { setT(i); if (i < marks.length - 1) step(i + 1); else setPlaying(false); }, reduced() ? 0 : tokenMs("--dur-flash", 700)); };
+    // 再生の速さは中身（何セット目かを順に見せる）なので、動きを減らす設定でも飛ばさない（渡辺さん 2026-10-31：「再生を押すと一気に600まで飛ぶ」）。
+    // 減らす設定で止めるのは、棒が伸びる・光るなどの飾りの動きだけ
+    const step = (i: number) => { timer.current = setTimeout(() => { setT(i); if (i < marks.length - 1) step(i + 1); else setPlaying(false); }, REPLAY_MS); };
     step(1);
   };
   const upto = marks[Math.min(t, marks.length - 1)] ?? N;
