@@ -71,6 +71,17 @@ function CounterLab({ cx, cond, theme, onConcept, name }: { cx: Counter; cond: C
   const how = m.kind === "urn" ? `${total} 個の箱（${theme.success} ${m.success} 個）から、${cond.n} 個を戻さずに取る`
     : m.kind === "streak" ? `${theme.success}のあとは確率 ${r2(cond.p + m.carry * (1 - cond.p))}、${theme.failure}のあとは ${r2(cond.p - m.carry * cond.p)}（最初は ${r2(cond.p)}。どの回も平均すると ${r2(cond.p)}）`
     : `セットごとに確率が ${r2(Math.max(0, cond.p - m.spread))} か ${r2(Math.min(1, cond.p + m.spread))} になる（平均は ${r2(cond.p)}）`;
+  // 条件を比べる：二項分布の成り立つ条件ごとに、条件どおりと崩した起き方を並べる。崩した条件（定義の breaks）の行に印
+  const pp = r2(cond.p);
+  const rows: { cond: string; ok: string; bad: string }[] = [
+    { cond: "回数 n が決まっている", ok: `n＝${cond.n}`, bad: `n＝${cond.n}` },
+    { cond: "結果が成功・失敗の2つ", ok: `${theme.success}・${theme.failure}`, bad: `${theme.success}・${theme.failure}` },
+    { cond: "各回の成功確率 p が同じ", ok: `毎回 ${pp}`,
+      bad: m.kind === "urn" ? "取るたびに変わる（残りの割合）" : m.kind === "streak" ? `前の結果で ${r2(cond.p + m.carry * (1 - cond.p))} か ${r2(cond.p - m.carry * cond.p)}（平均は ${pp}）` : `セットごとに ${r2(Math.max(0, cond.p - m.spread))} か ${r2(Math.min(1, cond.p + m.spread))}（平均は ${pp}）` },
+    { cond: "各回が独立", ok: "前の結果に左右されない",
+      bad: m.kind === "urn" ? "取った物で残りが変わる" : m.kind === "streak" ? "前の結果に引きずられる" : "セットの中では左右されない（p がセットごとに揺れる）" },
+  ];
+  const broken = (c: string) => cx.breaks.split("・").some((b) => b.trim() === c);
   const [guess, setGuess] = useState<number | undefined>();
   // 条件どおり（独立・毎回同じ p＝二項分布の前提）と、条件を1つ崩した起き方を、同じセット数ずつ起こして比べる（issue 121）
   const { before: recB, after: rec, run, fresh } = usePairRuns({ kind: "bernoulli", n: cond.n, p: cond.p }, m);
@@ -82,6 +93,17 @@ function CounterLab({ cx, cond, theme, onConcept, name }: { cx: Counter; cond: C
   return (
     <div className={s.cx} data-testid="exp-cx">
       <p className={s.how}><b>起き方</b>{how}</p>
+      <table className={s.cmp} data-testid="exp-cx-compare">
+        <caption>条件を比べる</caption>
+        <thead><tr><th scope="col">成り立つ条件</th><th scope="col">条件どおり</th><th scope="col">{cx.name}</th></tr></thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.cond} className={broken(r.cond) ? s.cmpBroken : undefined} data-broken={broken(r.cond) || undefined}>
+              <th scope="row">{r.cond}{broken(r.cond) && <span className={s.cmpTag}>崩した</span>}</th><td>{r.ok}</td><td>{r.bad}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
       <p className={s.h}>条件どおりの二項分布と比べて、山の広がりは？</p>
       <div className={s.choice} role="radiogroup" aria-label="反例の予想">
         {SPREAD.map((t, i) => <button key={t} type="button" role="radio" aria-checked={guess === i} onClick={() => { haptic(); setGuess(i); }}>{t}</button>)}
