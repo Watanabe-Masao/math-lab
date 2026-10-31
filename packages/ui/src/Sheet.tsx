@@ -2,6 +2,7 @@
 // - 上のつまみ（と見出しの行）を指でつかんで動かせる。上へ引くと全体に広がり、下へ払うと閉じる。離すと近い段（半分・全体）へすっと止まる
 // - つまみを押すと 半分 ⇄ 全体 を切り替える。全体のときは後ろを暗くし、暗い所を押すと半分に戻る
 // - 半分のときは後ろ（図）も触れる。閉じるは左上の丸い × か、下へ払う
+// - 引いている間は、後ろの暗さを引いた量に合わせる。離すとばね（--ease-spring）で段に止まる
 // - 動きを減らす設定では、すっと動かず段に切り替わるだけ（base.css）
 import { useEffect, useRef, useState, type HTMLAttributes, type PointerEvent as RPE, type ReactNode } from "react";
 import s from "./Sheet.module.css";
@@ -61,7 +62,8 @@ export function Sheet({ label, title, onClose, children, ...rest }: Props) {
   const style = { height: h, transform: closing ? "translateY(100%)" : drag?.down ? `translateY(${drag.down}px)` : undefined, transition: drag ? "none" : undefined };
   return (
     <>
-      <div className={`${s.scrim}${full && !closing ? ` ${s.on}` : ""}`} onClick={() => setFull(false)} aria-hidden="true" data-testid="sheet-scrim" />
+      <div className={`${s.scrim}${full && !closing ? ` ${s.on}` : ""}`} onClick={() => setFull(false)} aria-hidden="true" data-testid="sheet-scrim"
+        style={drag ? { opacity: Math.max(0, Math.min(1, (drag.h - halfH()) / (fullH() - halfH()))), transition: "none" } : undefined} />
       <aside className={s.sheet} role="dialog" aria-label={label} data-detent={full ? "full" : "half"} style={style} {...rest}>
         <div className={s.head} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
           <button type="button" className={s.grab} data-grab onClick={(e) => { if (e.detail === 0) setFull((f) => !f); }} aria-label={full ? "半分にする" : "全体に広げる"} />
