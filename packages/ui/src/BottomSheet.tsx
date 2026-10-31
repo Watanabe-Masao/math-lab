@@ -1,5 +1,6 @@
 // 地図の上に重なる、いつも出ている下からの面（stats2-course #42：Apple の地図アプリのような手触り）。
-// - 3つの段：少し（peek）・半分（half）・全部（full）。上のつまみと見出しの行を指でつかんで動かす。つまみを押すと次の段へ
+// - 4つの段：しまう（min：つまみと見出しの1行だけ）・少し（peek）・半分（half）・全部（full）。上のつまみと見出しの行を指でつかんで動かす。
+//   下へ押し込むと「しまう」（地図を広く見る）。しまっているときにつまみか見出しを押すと「少し」に戻る。つまみを押すと次の段へ
 // - 離すと、指の速さを足した位置にいちばん近い段へ、ばね（--ease-spring）で止まる。上下の端はゴムのように少しだけ伸びる
 // - 全部のときだけ後ろを暗くし、暗い所を押すと半分に戻る。半分以下では後ろ（地図）も触れる
 // - 中身は本文の中で縦に動かす。閉じる操作は持たない（選ぶのをやめると親が外す）
@@ -8,8 +9,8 @@ import { useEffect, useRef, useState, type HTMLAttributes, type PointerEvent as 
 import { haptic } from "./motion";
 import s from "./BottomSheet.module.css";
 
-export type Detent = "peek" | "half" | "full";
-export const DETENTS: Detent[] = ["peek", "half", "full"];
+export type Detent = "min" | "peek" | "half" | "full";
+export const DETENTS: Detent[] = ["min", "peek", "half", "full"];
 
 /**
  * 離したときに止まる段を決める（純粋な計算。テストで確かめる）。
@@ -18,7 +19,7 @@ export const DETENTS: Detent[] = ["peek", "half", "full"];
  */
 export function snapDetent(h: number, v: number, heights: Record<Detent, number>): Detent {
   const projected = h + v * 180;
-  let best: Detent = "peek", dist = Infinity;
+  let best: Detent = "min", dist = Infinity;
   for (const d of DETENTS) { const x = Math.abs(heights[d] - projected); if (x < dist) { dist = x; best = d; } }
   if (Math.abs(v) > 0.5) {   // 速く払った：今の高さから払った向きに次の段へ（戻りはしない）
     const order = DETENTS.map((d) => heights[d]);
@@ -42,16 +43,19 @@ type Props = {
   children: ReactNode;
   detent: Detent;
   onDetent: (d: Detent) => void;
-  /** 段の高さ（px）。peek は見出しと主の操作が見える高さ */
-  peek?: number;
+  /** 段の高さ（px）。peek は見出しと主の操作が見える高さ、min はしまったとき（つまみと見出しの1行） */
+  peek?: number; min?: number;
   /** 下の余白（下のタブの高さなど。面はその上に乗る） */
   bottom?: number;
 } & Omit<HTMLAttributes<HTMLElement>, "title">;
 
+/** つまみを押したときの次の段（少し → 半分 → 全部 → 少し。しまうは押し込んだときだけ） */
+const nextDetent = (d: Detent): Detent => (d === "peek" ? "half" : d === "half" ? "full" : "peek");
+
 const vh = () => (typeof window === "undefined" ? 800 : window.innerHeight);
 
-export function BottomSheet({ label, header, children, detent, onDetent, peek = 220, bottom = 0, ...rest }: Props) {
-  const heights = (): Record<Detent, number> => ({ peek, half: Math.round((vh() - bottom) * 0.55), full: vh() - bottom - 44 });
+export function BottomSheet({ label, header, children, detent, onDetent, peek = 220, min = 64, bottom = 0, ...rest }: Props) {
+  const heights = (): Record<Detent, number> => ({ min, peek, half: Math.round((vh() - bottom) * 0.55), full: vh() - bottom - 44 });
   const [drag, setDrag] = useState<number | null>(null);
   const [, force] = useState(0);
   const g = useRef<{ y0: number; h0: number; t: number; y: number; v: number; moved: boolean; grab: boolean } | null>(null);
@@ -68,13 +72,14 @@ export function BottomSheet({ label, header, children, detent, onDetent, peek = 
     d.v = -(e.clientY - d.y) / dt; d.t = e.timeStamp; d.y = e.clientY;   // 上向きが＋
     if (Math.abs(e.clientY - d.y0) > 4) d.moved = true;
     const hs = heights();
-    setDrag(rubber(d.h0 - (e.clientY - d.y0), hs.peek, hs.full));
+    setDrag(rubber(d.h0 - (e.clientY - d.y0), hs.min, hs.full));
   };
   const onUp = (e: RPE) => {
     const d = g.current; g.current = null; if (!d) return;
     setDrag(null);
-    if (!d.moved) {   // つまみを押しただけ：次の段へ（全部の次は少し）
-      if (d.grab) { haptic(); onDetent(DETENTS[(DETENTS.indexOf(detent) + 1) % DETENTS.length]!); }
+    if (!d.moved) {   // 押しただけ：しまっているなら少しへ。つまみなら次の段へ（全部の次は少し）
+      if (detent === "min") { haptic(); onDetent("peek"); }
+      else if (d.grab) { haptic(); onDetent(nextDetent(detent)); }
       return;
     }
     const next = snapDetent(d.h0 - (e.clientY - d.y0), d.v, heights());
@@ -92,8 +97,8 @@ export function BottomSheet({ label, header, children, detent, onDetent, peek = 
       <section className={s.sheet} role="region" aria-label={label} data-detent={detent}
         style={{ height: h, bottom, transition: drag !== null ? "none" : undefined }} {...rest}>
         <div className={s.head} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
-          <button type="button" className={s.grab} data-grab aria-label={detent === "full" ? "少しだけにする" : "広げる"}
-            onClick={(e) => { if (e.detail === 0) onDetent(DETENTS[(DETENTS.indexOf(detent) + 1) % DETENTS.length]!); }} />
+          <button type="button" className={s.grab} data-grab aria-label={detent === "full" ? "少しだけにする" : detent === "min" ? "出す" : "広げる"}
+            onClick={(e) => { if (e.detail === 0) onDetent(detent === "min" ? "peek" : nextDetent(detent)); }} />
           {header}
         </div>
         <div className={s.body}>{children}</div>

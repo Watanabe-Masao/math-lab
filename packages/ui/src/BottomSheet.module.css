@@ -12,3 +12,5 @@
   padding: 0 var(--sp-4) calc(var(--sp-4) + env(safe-area-inset-bottom)); }
 /* 全部に広げたときだけ後ろを暗くする（半分以下では後ろの地図も触れる） */
 .scrim { position: fixed; inset: 0; z-index: 7; background: var(--scrim); opacity: 0; transition: opacity var(--dur-spring) var(--ease-spring); }
+.sheet[data-detent="min"] .body { visibility: hidden; }
+.sheet { overflow: hidden; }
