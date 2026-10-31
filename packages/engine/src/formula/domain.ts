@@ -1,6 +1,6 @@
 // 定義域と前提条件（#109）：値を入れて計算する前に、記号の定義域を確かめる。計算が途中で止まったら理由を言う。
 // min・max には数のほか、同じ式の記号の key を書ける（k ≦ n）。その記号の値が決まっていないときは、その端は確かめない。
-import { isNum, isOp, isSym, type Domain, type FormulaNode, type FormulaSymbol } from "./types";
+import { isNum, isOp, isSym, type Domain, type FormulaCondition, type FormulaNode, type FormulaSymbol } from "./types";
 import { evaluate, type Env } from "./evaluate";
 
 /** 端の値（数か、記号の今の値。決まらなければ undefined） */
@@ -30,7 +30,7 @@ export function describeDomain(d: Domain, symbols: FormulaSymbol[] = []): string
 }
 
 /** 入れた値のうち、定義域の外のもの（記号ごとに1文。記号どうしの範囲なら相手の今の値も添える） */
-export function checkDomain(values: Record<string, number>, symbols: FormulaSymbol[]): string[] {
+export function checkDomain(values: Record<string, number>, symbols: FormulaSymbol[], conditions: FormulaCondition[] = []): string[] {
   const out: string[] = [];
   for (const s of symbols) {
     const v = values[s.key];
@@ -40,6 +40,8 @@ export function checkDomain(values: Record<string, number>, symbols: FormulaSymb
       .map((b) => `${symbols.find((x) => x.key === b)?.symbol ?? b}＝${values[b]}`);
     out.push(`${s.symbol} は ${describeDomain(s.domain, symbols)}（今 ${v}${refs.length ? `、${refs.join("・")}` : ""}）`);
   }
+  // 記号どうしの条件：値がそろっていて成り立たないもの（値が足りなければ問わない）
+  for (const c of conditions) if (evaluate(c.tree, { values }) === 0) out.push(c.text);
   return out;
 }
 

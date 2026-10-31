@@ -29,6 +29,9 @@ export function comb(n: number, k: number): number {
 
 const BUILTIN: Record<string, (...a: number[]) => number> = {
   comb, fact: factorial, exp: Math.exp, log: Math.log,
+  // 比べる式（記号どうしの条件。教材の契約の conditions。#118）：成り立てば 1、成り立たなければ 0
+  gt: (a, b) => +(a! > b!), ge: (a, b) => +(a! >= b!), lt: (a, b) => +(a! < b!), le: (a, b) => +(a! <= b!),
+  between: (x, a, b) => +(a! <= x! && x! <= b!),
 };
 
 /** 1つの演算を、引数の値から計算する（計算できなければ undefined） */

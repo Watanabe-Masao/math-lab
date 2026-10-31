@@ -2,7 +2,9 @@
  {
   "concept": "TERM-comb",
   "index": 0,
-  "tex": "{}_{n}\\mathrm{C}_{k}=\\dfrac{n!}{k!\\,(n-k)!}",
+  "id": "F-comb-def",
+  "label": "階乗で表す",
+  "tex": "{}_{n}\\mathrm{C}_{k}=\\dfrac{n!}{k!(n-k)!}",
   "symbols": [
    {
     "symbol": "ₙCₖ",
@@ -127,12 +129,24 @@
     "name": "残した中の並べ方",
     "meaning": "残した n−k 個も順番を区別しないので、その並べ方の数で割る"
    }
-  ]
+  ],
+  "contract": {
+   "kinds": [
+    "定義"
+   ],
+   "properties": [
+    "非負",
+    "対称",
+    "条件しだい"
+   ]
+  }
  },
  {
   "concept": "TERM-fact",
   "index": 0,
-  "tex": "n!=\\prod_{i=1}^{n} i",
+  "id": "F-fact-def",
+  "label": "1 から n までの積",
+  "tex": "n!=\\prod_{i=1}^{n}i",
   "symbols": [
    {
     "symbol": "n!",
@@ -185,12 +199,23 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "定義"
+   ],
+   "properties": [
+    "非負",
+    "単調",
+    "条件しだい"
+   ]
   }
  },
  {
   "concept": "TERM-var",
   "index": 0,
-  "tex": "V(X)=E\\big[(X-\\mu)^2\\big]=E(X^2)-\\{E(X)\\}^2",
+  "id": "F-var-def",
+  "tex": "V(X)=E((X-\\mu)^{2})=E(X^{2})-(E(X))^{2}",
   "symbols": [
    {
     "symbol": "V( )",
@@ -296,12 +321,27 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "定義",
+    "恒等式"
+   ],
+   "properties": [
+    "非負",
+    "同値",
+    "不変",
+    "単位の整合"
+   ],
+   "representative": true
   }
  },
  {
   "concept": "TERM-var",
   "index": 1,
-  "tex": "V(aX+b)=a^2V(X)",
+  "id": "F-var-linear",
+  "label": "1次式の分散",
+  "tex": "V(aX+b)=a^{2}V(X)",
   "symbols": [
    {
     "symbol": "V( )",
@@ -382,11 +422,24 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "恒等式",
+    "変換"
+   ],
+   "properties": [
+    "同値",
+    "不変",
+    "対称"
+   ],
+   "representative": true
   }
  },
  {
   "concept": "TERM-sd",
   "index": 0,
+  "id": "F-sd-def",
   "tex": "\\sigma=\\sqrt{V(X)}",
   "symbols": [
    {
@@ -435,11 +488,21 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "定義"
+   ],
+   "properties": [
+    "非負",
+    "単位の整合"
+   ]
   }
  },
  {
   "concept": "TERM-std",
   "index": 0,
+  "id": "F-std-def",
   "tex": "Z=\\dfrac{X-\\mu}{\\sigma}",
   "symbols": [
    {
@@ -502,11 +565,26 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "定義",
+    "変換"
+   ],
+   "properties": [
+    "線形",
+    "不変",
+    "単位の整合",
+    "条件しだい"
+   ],
+   "representative": true
   }
  },
  {
   "concept": "TERM-std",
   "index": 1,
+  "id": "F-std-mean",
+  "label": "標準化した値の期待値",
   "tex": "E(Z)=0",
   "symbols": [
    {
@@ -538,11 +616,23 @@
      "num": 0
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "恒等式"
+   ],
+   "properties": [
+    "正規化",
+    "条件しだい"
+   ],
+   "representative": true
   }
  },
  {
   "concept": "TERM-std",
   "index": 2,
+  "id": "F-std-var",
+  "label": "標準化した値の分散",
   "tex": "V(Z)=1",
   "symbols": [
    {
@@ -574,12 +664,23 @@
      "num": 1
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "恒等式"
+   ],
+   "properties": [
+    "正規化",
+    "条件しだい"
+   ],
+   "representative": true
   }
  },
  {
   "concept": "TERM-normal",
   "index": 0,
-  "tex": "f(x)=\\dfrac{1}{\\sqrt{2\\pi}\\,\\sigma}\\exp\\!\\Big(-\\dfrac{(x-\\mu)^2}{2\\sigma^2}\\Big)",
+  "id": "F-normal-pdf",
+  "tex": "f(x)=\\dfrac{1}{\\sqrt{2\\pi}\\sigma}\\exp\\left(-\\dfrac{(x-\\mu)^{2}}{2\\sigma^{2}}\\right)",
   "symbols": [
    {
     "symbol": "f(x)",
@@ -594,11 +695,18 @@
     "kind": "value"
    },
    {
+    "symbol": "X",
+    "meaning": "この密度に従う確率変数（μ・σ は X の期待値・標準偏差。#118 D7）",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
     "symbol": "μ",
     "meaning": "平均（山の中心）",
     "key": "mu",
     "concept": "TERM-expect",
-    "kind": "param"
+    "kind": "param",
+    "of": "X"
    },
    {
     "symbol": "σ",
@@ -607,6 +715,7 @@
     "key": "sigma",
     "concept": "TERM-sd",
     "kind": "param",
+    "of": "X",
     "domain": {
      "min": 0,
      "minOpen": true
@@ -723,12 +832,25 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "確率モデル"
+   ],
+   "properties": [
+    "非負",
+    "正規化",
+    "対称",
+    "有界",
+    "単位の整合"
+   ]
   }
  },
  {
   "concept": "TERM-expect",
   "index": 0,
-  "tex": "E(X)=\\sum_x x\\,p(x)",
+  "id": "F-expect-def",
+  "tex": "E(X)=\\sum_{x}xp(x)",
   "symbols": [
    {
     "symbol": "E( )",
@@ -792,11 +914,24 @@
      "var": "x"
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "定義"
+   ],
+   "properties": [
+    "線形",
+    "有界",
+    "単位の整合"
+   ],
+   "representative": true
   }
  },
  {
   "concept": "TERM-expect",
   "index": 1,
+  "id": "F-expect-mu",
+  "label": "記号 μ",
   "tex": "\\mu=E(X)",
   "symbols": [
    {
@@ -835,11 +970,22 @@
      "name": "E"
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "定義"
+   ],
+   "properties": [
+    "同値"
+   ],
+   "representative": true
   }
  },
  {
   "concept": "TERM-expect",
   "index": 2,
+  "id": "F-expect-linear",
+  "label": "線形性",
   "tex": "E(aX+b)=aE(X)+b",
   "symbols": [
    {
@@ -921,11 +1067,23 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "恒等式",
+    "変換"
+   ],
+   "properties": [
+    "線形",
+    "同値"
+   ],
+   "representative": true
   }
  },
  {
   "concept": "TERM-indep",
   "index": 0,
+  "id": "F-indep-def",
   "tex": "P(A\\cap B)=P(A)\\,P(B)",
   "symbols": [
    {
@@ -989,11 +1147,23 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "定義",
+    "判定"
+   ],
+   "properties": [
+    "対称",
+    "有界",
+    "条件しだい"
+   ]
   }
  },
  {
   "concept": "TERM-rv",
   "index": 0,
+  "id": "F-rv-pmf",
   "tex": "P(X=x)=p(x)",
   "symbols": [
    {
@@ -1052,54 +1222,24 @@
      "name": "p"
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "定義"
+   ],
+   "properties": [
+    "非負",
+    "有界"
+   ]
   }
  },
  {
   "concept": "TERM-rv",
   "index": 1,
-  "tex": "\\sum_x p(x)=1",
-  "symbols": [
-   {
-    "symbol": "p(x)",
-    "meaning": "X が x になる確率",
-    "key": "p",
-    "concept": "TERM-dist"
-   },
-   {
-    "symbol": "x",
-    "meaning": "X がとる値",
-    "key": "x",
-    "kind": "index"
-   }
-  ],
-  "tree": {
-   "op": "eq",
-   "args": [
-    {
-     "op": "sum",
-     "args": [
-      {
-       "op": "fn",
-       "args": [
-        {
-         "sym": "x"
-        }
-       ],
-       "name": "p"
-      }
-     ],
-     "var": "x"
-    },
-    {
-     "num": 1
-    }
-   ]
-  }
- },
- {
-  "concept": "TERM-dist",
-  "index": 0,
-  "tex": "\\sum_x p(x)=1",
+  "id": "F-dist-sum",
+  "defined_in": "TERM-dist",
+  "label": "確率の合計は1",
+  "tex": "\\sum_{x}p(x)=1",
   "symbols": [
    {
     "symbol": "p(x)",
@@ -1136,12 +1276,73 @@
      "num": 1
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "恒等式"
+   ],
+   "properties": [
+    "正規化"
+   ]
+  }
+ },
+ {
+  "concept": "TERM-dist",
+  "index": 0,
+  "id": "F-dist-sum",
+  "label": "確率の合計は1",
+  "tex": "\\sum_{x}p(x)=1",
+  "symbols": [
+   {
+    "symbol": "p(x)",
+    "meaning": "X が x になる確率",
+    "range": "0以上1以下",
+    "key": "p"
+   },
+   {
+    "symbol": "x",
+    "meaning": "X がとる値",
+    "key": "x",
+    "kind": "index"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "sum",
+     "args": [
+      {
+       "op": "fn",
+       "args": [
+        {
+         "sym": "x"
+        }
+       ],
+       "name": "p"
+      }
+     ],
+     "var": "x"
+    },
+    {
+     "num": 1
+    }
+   ]
+  },
+  "contract": {
+   "kinds": [
+    "恒等式"
+   ],
+   "properties": [
+    "正規化"
+   ]
   }
  },
  {
   "concept": "TERM-cov",
   "index": 0,
-  "tex": "\\mathrm{Cov}(X,Y)=E\\big[(X-\\mu_X)(Y-\\mu_Y)\\big]=E(XY)-E(X)E(Y)",
+  "id": "F-cov-def",
+  "tex": "\\mathrm{Cov}(X,\\,Y)=E((X-\\mu_X)(Y-\\mu_Y))=E(XY)-E(X)\\,E(Y)",
   "symbols": [
    {
     "symbol": "Cov(X, Y)",
@@ -1277,12 +1478,24 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "定義",
+    "恒等式"
+   ],
+   "properties": [
+    "対称",
+    "同値"
+   ]
   }
  },
  {
   "concept": "TERM-cov",
   "index": 1,
-  "tex": "V(X+Y)=V(X)+V(Y)+2\\,\\mathrm{Cov}(X,Y)",
+  "id": "F-cov-varsum",
+  "label": "和の分散",
+  "tex": "V(X+Y)=V(X)+V(Y)+2\\mathrm{Cov}(X,\\,Y)",
   "symbols": [
    {
     "symbol": "V( )",
@@ -1373,12 +1586,23 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "恒等式"
+   ],
+   "properties": [
+    "対称",
+    "同値",
+    "条件しだい"
+   ]
   }
  },
  {
   "concept": "TERM-binom",
   "index": 0,
-  "tex": "P(X=k)={}_nC_k\\,p^k(1-p)^{n-k}",
+  "id": "F-binom-pmf",
+  "tex": "P(X=k)={}_{n}\\mathrm{C}_{k}p^{k}(1-p)^{n-k}",
   "symbols": [
    {
     "symbol": "P( )",
@@ -1535,11 +1759,26 @@
     "name": "失敗が n−k 回の確率",
     "meaning": "1回の失敗確率 1−p を、失敗の回数 n−k だけ掛け合わせる"
    }
-  ]
+  ],
+  "contract": {
+   "kinds": [
+    "確率モデル"
+   ],
+   "properties": [
+    "非負",
+    "正規化",
+    "対称",
+    "有界",
+    "条件しだい"
+   ],
+   "representative": true
+  }
  },
  {
   "concept": "TERM-binom",
   "index": 1,
+  "id": "F-binom-mean",
+  "label": "期待値",
   "tex": "E(X)=np",
   "symbols": [
    {
@@ -1601,11 +1840,24 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "恒等式"
+   ],
+   "properties": [
+    "同値",
+    "単調",
+    "有界"
+   ],
+   "representative": true
   }
  },
  {
   "concept": "TERM-binom",
   "index": 2,
+  "id": "F-binom-var",
+  "label": "分散",
   "tex": "V(X)=np(1-p)",
   "symbols": [
    {
@@ -1678,12 +1930,25 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "恒等式"
+   ],
+   "properties": [
+    "同値",
+    "非負",
+    "対称",
+    "有界"
+   ],
+   "representative": true
   }
  },
  {
   "concept": "TERM-poisson",
   "index": 0,
-  "tex": "P(X=k)=\\dfrac{e^{-\\lambda}\\lambda^k}{k!}",
+  "id": "F-poisson-pmf",
+  "tex": "P(X=k)=\\dfrac{e^{-\\lambda}\\lambda^{k}}{k!}",
   "symbols": [
    {
     "symbol": "P( )",
@@ -1799,11 +2064,24 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "確率モデル"
+   ],
+   "properties": [
+    "非負",
+    "正規化",
+    "条件しだい",
+    "収束"
+   ]
   }
  },
  {
   "concept": "TERM-poisson",
   "index": 1,
+  "id": "F-poisson-moments",
+  "label": "期待値と分散",
   "tex": "E(X)=V(X)=\\lambda",
   "symbols": [
    {
@@ -1861,12 +2139,21 @@
      "sym": "lambda"
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "恒等式"
+   ],
+   "properties": [
+    "同値"
+   ]
   }
  },
  {
   "concept": "TERM-geom",
   "index": 0,
-  "tex": "P(X=k)=(1-p)^{k-1}p\\quad(k=1,2,\\dots)",
+  "id": "F-geom-pmf",
+  "tex": "P(X=k)=(1-p)^{k-1}p",
   "symbols": [
    {
     "symbol": "P( )",
@@ -1899,7 +2186,8 @@
     "kind": "param",
     "domain": {
      "min": 0,
-     "max": 1
+     "max": 1,
+     "minOpen": true
     }
    }
   ],
@@ -1959,12 +2247,25 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "確率モデル"
+   ],
+   "properties": [
+    "非負",
+    "正規化",
+    "単調",
+    "条件しだい"
+   ]
   }
  },
  {
   "concept": "TERM-geom",
   "index": 1,
-  "tex": "E(X)=\\frac{1}{p}",
+  "id": "F-geom-mean",
+  "label": "期待値",
+  "tex": "E(X)=\\dfrac{1}{p}",
   "symbols": [
    {
     "symbol": "E( )",
@@ -1986,7 +2287,8 @@
     "kind": "param",
     "domain": {
      "min": 0,
-     "max": 1
+     "max": 1,
+     "minOpen": true
     }
    }
   ],
@@ -2014,12 +2316,24 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "恒等式"
+   ],
+   "properties": [
+    "同値",
+    "単調",
+    "条件しだい"
+   ]
   }
  },
  {
   "concept": "TERM-geom",
   "index": 2,
-  "tex": "V(X)=\\frac{1-p}{p^2}",
+  "id": "F-geom-var",
+  "label": "分散",
+  "tex": "V(X)=\\dfrac{1-p}{p^{2}}",
   "symbols": [
    {
     "symbol": "V( )",
@@ -2041,7 +2355,8 @@
     "kind": "param",
     "domain": {
      "min": 0,
-     "max": 1
+     "max": 1,
+     "minOpen": true
     }
    }
   ],
@@ -2085,12 +2400,22 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "恒等式"
+   ],
+   "properties": [
+    "同値",
+    "非負"
+   ]
   }
  },
  {
   "concept": "TERM-negbinom",
   "index": 0,
-  "tex": "P(X=k)={}_{k-1}C_{r-1}\\,p^r(1-p)^{k-r}\\quad(k=r,r+1,\\dots)",
+  "id": "F-negbinom-pmf",
+  "tex": "P(X=k)={}_{k-1}\\mathrm{C}_{r-1}p^{r}(1-p)^{k-r}",
   "symbols": [
    {
     "symbol": "P( )",
@@ -2236,12 +2561,40 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "確率モデル"
+   ],
+   "properties": [
+    "非負",
+    "正規化",
+    "条件しだい"
+   ],
+   "conditions": [
+    {
+     "text": "r ≦ k（r 回目の成功は r 回目より前には起きない）",
+     "tree": {
+      "op": "fn",
+      "name": "le",
+      "args": [
+       {
+        "sym": "r"
+       },
+       {
+        "sym": "k"
+       }
+      ]
+     }
+    }
+   ]
   }
  },
  {
   "concept": "TERM-hyper",
   "index": 0,
-  "tex": "P(X=k)=\\frac{\\binom{M}{k}\\binom{N-M}{n-k}}{\\binom{N}{n}}",
+  "id": "F-hyper-pmf",
+  "tex": "P(X=k)=\\dfrac{{}_{M}\\mathrm{C}_{k}\\,{}_{N-M}\\mathrm{C}_{n-k}}{{}_{N}\\mathrm{C}_{n}}",
   "symbols": [
    {
     "symbol": "P( )",
@@ -2272,6 +2625,7 @@
     "kind": "param",
     "domain": {
      "min": 0,
+     "max": "N",
      "integer": true
     }
    },
@@ -2282,6 +2636,7 @@
     "kind": "param",
     "domain": {
      "min": 1,
+     "max": "N",
      "integer": true
     }
    },
@@ -2292,6 +2647,7 @@
     "kind": "value",
     "domain": {
      "min": 0,
+     "max": "n",
      "integer": true
     }
    },
@@ -2385,12 +2741,73 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "確率モデル"
+   ],
+   "properties": [
+    "非負",
+    "正規化",
+    "対称",
+    "条件しだい"
+   ],
+   "conditions": [
+    {
+     "text": "k ≦ M（当たりの数より多くは引けない）",
+     "tree": {
+      "op": "fn",
+      "name": "le",
+      "args": [
+       {
+        "sym": "k"
+       },
+       {
+        "sym": "M"
+       }
+      ]
+     }
+    },
+    {
+     "text": "n−(N−M) ≦ k（外れを全部引いても足りない分は当たり）",
+     "tree": {
+      "op": "fn",
+      "name": "ge",
+      "args": [
+       {
+        "sym": "k"
+       },
+       {
+        "op": "sub",
+        "args": [
+         {
+          "sym": "n"
+         },
+         {
+          "op": "sub",
+          "args": [
+           {
+            "sym": "N"
+           },
+           {
+            "sym": "M"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
   }
  },
  {
   "concept": "TERM-hyper",
   "index": 1,
-  "tex": "E(X)=n\\frac{M}{N}",
+  "id": "F-hyper-mean",
+  "label": "期待値",
+  "tex": "E(X)=n\\dfrac{M}{N}",
   "symbols": [
    {
     "symbol": "E( )",
@@ -2411,6 +2828,7 @@
     "kind": "param",
     "domain": {
      "min": 1,
+     "max": "N",
      "integer": true
     }
    },
@@ -2421,6 +2839,7 @@
     "kind": "param",
     "domain": {
      "min": 0,
+     "max": "N",
      "integer": true
     }
    },
@@ -2467,12 +2886,21 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "恒等式"
+   ],
+   "properties": [
+    "同値"
+   ]
   }
  },
  {
   "concept": "TERM-expo",
   "index": 0,
-  "tex": "f(x)=\\lambda e^{-\\lambda x}\\quad(x\\ge 0)",
+  "id": "F-expo-pdf",
+  "tex": "f(x)=\\lambda e^{-\\lambda x}",
   "symbols": [
    {
     "symbol": "f(x)",
@@ -2550,11 +2978,24 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "確率モデル"
+   ],
+   "properties": [
+    "非負",
+    "正規化",
+    "単調",
+    "単位の整合"
+   ]
   }
  },
  {
   "concept": "TERM-expo",
   "index": 1,
+  "id": "F-expo-surv",
+  "label": "待ち時間が x を超える確率",
   "tex": "P(X>x)=e^{-\\lambda x}",
   "symbols": [
    {
@@ -2640,12 +3081,25 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "恒等式"
+   ],
+   "properties": [
+    "有界",
+    "単調",
+    "同値",
+    "不変"
+   ]
   }
  },
  {
   "concept": "TERM-expo",
   "index": 2,
-  "tex": "E(X)=\\frac{1}{\\lambda}",
+  "id": "F-expo-mean",
+  "label": "期待値",
+  "tex": "E(X)=\\dfrac{1}{\\lambda}",
   "symbols": [
    {
     "symbol": "E( )",
@@ -2695,12 +3149,23 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "恒等式"
+   ],
+   "properties": [
+    "同値",
+    "単位の整合"
+   ]
   }
  },
  {
   "concept": "TERM-expo",
   "index": 3,
-  "tex": "V(X)=\\frac{1}{\\lambda^2}",
+  "id": "F-expo-var",
+  "label": "分散",
+  "tex": "V(X)=\\dfrac{1}{\\lambda^{2}}",
   "symbols": [
    {
     "symbol": "V( )",
@@ -2758,12 +3223,22 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "恒等式"
+   ],
+   "properties": [
+    "同値",
+    "非負"
+   ]
   }
  },
  {
   "concept": "TERM-pdf",
   "index": 0,
-  "tex": "P(a\\le X\\le b)=\\int_a^b f(x)\\,dx",
+  "id": "F-pdf-interval",
+  "tex": "P(a\\le X\\le b)=\\int_{a}^{b}f(x)\\,dx",
   "symbols": [
    {
     "symbol": "P( )",
@@ -2848,12 +3323,41 @@
      }
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "定義"
+   ],
+   "properties": [
+    "非負",
+    "有界",
+    "単調"
+   ],
+   "conditions": [
+    {
+     "text": "a ≦ b",
+     "tree": {
+      "op": "fn",
+      "name": "le",
+      "args": [
+       {
+        "sym": "a"
+       },
+       {
+        "sym": "b"
+       }
+      ]
+     }
+    }
+   ]
   }
  },
  {
   "concept": "TERM-pdf",
   "index": 1,
-  "tex": "\\int_{-\\infty}^{\\infty} f(x)\\,dx=1",
+  "id": "F-pdf-total",
+  "label": "全体の面積は1",
+  "tex": "\\int_{-\\infty}^{\\infty}f(x)\\,dx=1",
   "symbols": [
    {
     "symbol": "f(x)",
@@ -2889,12 +3393,21 @@
      "num": 1
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "恒等式"
+   ],
+   "properties": [
+    "正規化"
+   ]
   }
  },
  {
   "concept": "TERM-uniform",
   "index": 0,
-  "tex": "f(x)=\\frac{1}{b-a}\\quad(a\\le x\\le b)",
+  "id": "F-uniform-pdf",
+  "tex": "f(x)=\\dfrac{1}{b-a}",
   "symbols": [
    {
     "symbol": "f(x)",
@@ -2919,6 +3432,10 @@
     "meaning": "値のとりうる範囲の右端",
     "range": "a より大きい",
     "key": "b",
+    "domain": {
+     "min": "a",
+     "minOpen": true
+    },
     "kind": "param"
    }
   ],
@@ -2954,12 +3471,24 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "確率モデル"
+   ],
+   "properties": [
+    "非負",
+    "正規化",
+    "条件しだい"
+   ]
   }
  },
  {
   "concept": "TERM-uniform",
   "index": 1,
-  "tex": "E(X)=\\frac{a+b}{2}",
+  "id": "F-uniform-mean",
+  "label": "期待値",
+  "tex": "E(X)=\\dfrac{a+b}{2}",
   "symbols": [
    {
     "symbol": "E( )",
@@ -2984,6 +3513,10 @@
     "meaning": "値のとりうる範囲の右端",
     "range": "a より大きい",
     "key": "b",
+    "domain": {
+     "min": "a",
+     "minOpen": true
+    },
     "kind": "param"
    }
   ],
@@ -3019,12 +3552,24 @@
      ]
     }
    ]
+  },
+  "contract": {
+   "kinds": [
+    "恒等式"
+   ],
+   "properties": [
+    "対称",
+    "線形",
+    "同値"
+   ]
   }
  },
  {
   "concept": "TERM-uniform",
   "index": 2,
-  "tex": "V(X)=\\frac{(b-a)^2}{12}",
+  "id": "F-uniform-var",
+  "label": "分散",
+  "tex": "V(X)=\\dfrac{(b-a)^{2}}{12}",
   "symbols": [
    {
     "symbol": "V( )",
@@ -3049,6 +3594,10 @@
     "meaning": "値のとりうる範囲の右端",
     "range": "a より大きい",
     "key": "b",
+    "domain": {
+     "min": "a",
+     "minOpen": true
+    },
     "kind": "param"
    }
   ],
@@ -3091,6 +3640,16 @@
       }
      ]
     }
+   ]
+  },
+  "contract": {
+   "kinds": [
+    "恒等式"
+   ],
+   "properties": [
+    "非負",
+    "不変",
+    "同値"
    ]
   }
  }

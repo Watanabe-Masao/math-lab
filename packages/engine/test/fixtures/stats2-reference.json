@@ -1,0 +1,1821 @@
+{
+ "format": "oracle/1",
+ "status": "check_all が --check で古くないかを確かめ、math-lab のテストが写して engine と照らす",
+ "generated_by": {
+  "script": "build/oracle.py",
+  "script_sha256": "ae22793f5c814a08880aea0bcd9549781e0485057e0f5af0bba1a0ab129ea538",
+  "libraries": [
+   "math",
+   "fractions",
+   "itertools"
+  ],
+  "python_min": "3.10",
+  "random": "使わない（入力は固定の表）",
+  "independence": "教材の式（tex・tree）と math-lab の engine を読まない。定義（数え上げ・期待値の和・正規方程式）から求める"
+ },
+ "formula_id_scheme": "式 ID（terms.yaml の formulas[].id。F-…。#118 D1）",
+ "tolerance": {
+  "exact": {
+   "rel": 1e-12,
+   "abs": 1e-15,
+   "note": "Fraction の正確な値。比べる側の浮動小数の丸めだけを許す"
+  },
+  "derived": {
+   "rel": 1e-12,
+   "abs": 1e-12,
+   "note": "√ を1回通した値（σ・z）。math.sqrt の丸め（0.5 ulp）と比べる側の丸めを許す"
+  },
+  "sum": {
+   "rel": 0.0,
+   "abs": 1e-12,
+   "note": "和が1・平均0など、正確に決まる値を浮動小数で足した結果（項は n+1 ≦ 41 個）"
+  }
+ },
+ "cases": [
+  {
+   "id": "binom-n1-p0_1",
+   "formula_ids": [
+    "F-binom-pmf",
+    "F-binom-mean",
+    "F-binom-var"
+   ],
+   "representative": "二項分布",
+   "method": "n 回の並び 2^n 通りを数え上げ、成功の数ごとに並びの確率を足す（式を使わない）",
+   "inputs": {
+    "n": 1,
+    "p": {
+     "exact": "0/1",
+     "float": 0.0
+    }
+   },
+   "values": {
+    "pmf": [
+     {
+      "exact": "1/1",
+      "float": 1.0
+     },
+     {
+      "exact": "0/1",
+      "float": 0.0
+     }
+    ],
+    "sum": {
+     "exact": "1/1",
+     "float": 1.0
+    },
+    "mean_by_definition": {
+     "exact": "0/1",
+     "float": 0.0
+    },
+    "var_by_definition": {
+     "exact": "0/1",
+     "float": 0.0
+    }
+   },
+   "properties": {
+    "正規化": "sum = 1",
+    "非負": "pmf[k] ≥ 0",
+    "同値": "mean = np・var = np(1−p)（式の右辺と照らす）"
+   },
+   "tolerance": {
+    "pmf": "exact",
+    "sum": "sum",
+    "mean_by_definition": "exact",
+    "var_by_definition": "exact"
+   }
+  },
+  {
+   "id": "binom-n1-p1_1",
+   "formula_ids": [
+    "F-binom-pmf",
+    "F-binom-mean",
+    "F-binom-var"
+   ],
+   "representative": "二項分布",
+   "method": "n 回の並び 2^n 通りを数え上げ、成功の数ごとに並びの確率を足す（式を使わない）",
+   "inputs": {
+    "n": 1,
+    "p": {
+     "exact": "1/1",
+     "float": 1.0
+    }
+   },
+   "values": {
+    "pmf": [
+     {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     {
+      "exact": "1/1",
+      "float": 1.0
+     }
+    ],
+    "sum": {
+     "exact": "1/1",
+     "float": 1.0
+    },
+    "mean_by_definition": {
+     "exact": "1/1",
+     "float": 1.0
+    },
+    "var_by_definition": {
+     "exact": "0/1",
+     "float": 0.0
+    }
+   },
+   "properties": {
+    "正規化": "sum = 1",
+    "非負": "pmf[k] ≥ 0",
+    "同値": "mean = np・var = np(1−p)（式の右辺と照らす）"
+   },
+   "tolerance": {
+    "pmf": "exact",
+    "sum": "sum",
+    "mean_by_definition": "exact",
+    "var_by_definition": "exact"
+   }
+  },
+  {
+   "id": "binom-n1-p1_2",
+   "formula_ids": [
+    "F-binom-pmf",
+    "F-binom-mean",
+    "F-binom-var"
+   ],
+   "representative": "二項分布",
+   "method": "n 回の並び 2^n 通りを数え上げ、成功の数ごとに並びの確率を足す（式を使わない）",
+   "inputs": {
+    "n": 1,
+    "p": {
+     "exact": "1/2",
+     "float": 0.5
+    }
+   },
+   "values": {
+    "pmf": [
+     {
+      "exact": "1/2",
+      "float": 0.5
+     },
+     {
+      "exact": "1/2",
+      "float": 0.5
+     }
+    ],
+    "sum": {
+     "exact": "1/1",
+     "float": 1.0
+    },
+    "mean_by_definition": {
+     "exact": "1/2",
+     "float": 0.5
+    },
+    "var_by_definition": {
+     "exact": "1/4",
+     "float": 0.25
+    }
+   },
+   "properties": {
+    "正規化": "sum = 1",
+    "非負": "pmf[k] ≥ 0",
+    "同値": "mean = np・var = np(1−p)（式の右辺と照らす）"
+   },
+   "tolerance": {
+    "pmf": "exact",
+    "sum": "sum",
+    "mean_by_definition": "exact",
+    "var_by_definition": "exact"
+   }
+  },
+  {
+   "id": "binom-n4-p1_4",
+   "formula_ids": [
+    "F-binom-pmf",
+    "F-binom-mean",
+    "F-binom-var"
+   ],
+   "representative": "二項分布",
+   "method": "n 回の並び 2^n 通りを数え上げ、成功の数ごとに並びの確率を足す（式を使わない）",
+   "inputs": {
+    "n": 4,
+    "p": {
+     "exact": "1/4",
+     "float": 0.25
+    }
+   },
+   "values": {
+    "pmf": [
+     {
+      "exact": "81/256",
+      "float": 0.31640625
+     },
+     {
+      "exact": "27/64",
+      "float": 0.421875
+     },
+     {
+      "exact": "27/128",
+      "float": 0.2109375
+     },
+     {
+      "exact": "3/64",
+      "float": 0.046875
+     },
+     {
+      "exact": "1/256",
+      "float": 0.00390625
+     }
+    ],
+    "sum": {
+     "exact": "1/1",
+     "float": 1.0
+    },
+    "mean_by_definition": {
+     "exact": "1/1",
+     "float": 1.0
+    },
+    "var_by_definition": {
+     "exact": "3/4",
+     "float": 0.75
+    }
+   },
+   "properties": {
+    "正規化": "sum = 1",
+    "非負": "pmf[k] ≥ 0",
+    "同値": "mean = np・var = np(1−p)（式の右辺と照らす）"
+   },
+   "tolerance": {
+    "pmf": "exact",
+    "sum": "sum",
+    "mean_by_definition": "exact",
+    "var_by_definition": "exact"
+   }
+  },
+  {
+   "id": "binom-n5-p1_2",
+   "formula_ids": [
+    "F-binom-pmf",
+    "F-binom-mean",
+    "F-binom-var"
+   ],
+   "representative": "二項分布",
+   "method": "n 回の並び 2^n 通りを数え上げ、成功の数ごとに並びの確率を足す（式を使わない）",
+   "inputs": {
+    "n": 5,
+    "p": {
+     "exact": "1/2",
+     "float": 0.5
+    }
+   },
+   "values": {
+    "pmf": [
+     {
+      "exact": "1/32",
+      "float": 0.03125
+     },
+     {
+      "exact": "5/32",
+      "float": 0.15625
+     },
+     {
+      "exact": "5/16",
+      "float": 0.3125
+     },
+     {
+      "exact": "5/16",
+      "float": 0.3125
+     },
+     {
+      "exact": "5/32",
+      "float": 0.15625
+     },
+     {
+      "exact": "1/32",
+      "float": 0.03125
+     }
+    ],
+    "sum": {
+     "exact": "1/1",
+     "float": 1.0
+    },
+    "mean_by_definition": {
+     "exact": "5/2",
+     "float": 2.5
+    },
+    "var_by_definition": {
+     "exact": "5/4",
+     "float": 1.25
+    }
+   },
+   "properties": {
+    "正規化": "sum = 1",
+    "非負": "pmf[k] ≥ 0",
+    "同値": "mean = np・var = np(1−p)（式の右辺と照らす）"
+   },
+   "tolerance": {
+    "pmf": "exact",
+    "sum": "sum",
+    "mean_by_definition": "exact",
+    "var_by_definition": "exact"
+   }
+  },
+  {
+   "id": "binom-n6-p1_3",
+   "formula_ids": [
+    "F-binom-pmf",
+    "F-binom-mean",
+    "F-binom-var"
+   ],
+   "representative": "二項分布",
+   "method": "n 回の並び 2^n 通りを数え上げ、成功の数ごとに並びの確率を足す（式を使わない）",
+   "inputs": {
+    "n": 6,
+    "p": {
+     "exact": "1/3",
+     "float": 0.3333333333333333
+    }
+   },
+   "values": {
+    "pmf": [
+     {
+      "exact": "64/729",
+      "float": 0.0877914951989026
+     },
+     {
+      "exact": "64/243",
+      "float": 0.26337448559670784
+     },
+     {
+      "exact": "80/243",
+      "float": 0.3292181069958848
+     },
+     {
+      "exact": "160/729",
+      "float": 0.2194787379972565
+     },
+     {
+      "exact": "20/243",
+      "float": 0.0823045267489712
+     },
+     {
+      "exact": "4/243",
+      "float": 0.01646090534979424
+     },
+     {
+      "exact": "1/729",
+      "float": 0.0013717421124828531
+     }
+    ],
+    "sum": {
+     "exact": "1/1",
+     "float": 1.0
+    },
+    "mean_by_definition": {
+     "exact": "2/1",
+     "float": 2.0
+    },
+    "var_by_definition": {
+     "exact": "4/3",
+     "float": 1.3333333333333333
+    }
+   },
+   "properties": {
+    "正規化": "sum = 1",
+    "非負": "pmf[k] ≥ 0",
+    "同値": "mean = np・var = np(1−p)（式の右辺と照らす）"
+   },
+   "tolerance": {
+    "pmf": "exact",
+    "sum": "sum",
+    "mean_by_definition": "exact",
+    "var_by_definition": "exact"
+   }
+  },
+  {
+   "id": "binom-n10-p3_10",
+   "formula_ids": [
+    "F-binom-pmf",
+    "F-binom-mean",
+    "F-binom-var"
+   ],
+   "representative": "二項分布",
+   "method": "n 回の並び 2^n 通りを数え上げ、成功の数ごとに並びの確率を足す（式を使わない）",
+   "inputs": {
+    "n": 10,
+    "p": {
+     "exact": "3/10",
+     "float": 0.3
+    }
+   },
+   "values": {
+    "pmf": [
+     {
+      "exact": "282475249/10000000000",
+      "float": 0.0282475249
+     },
+     {
+      "exact": "121060821/1000000000",
+      "float": 0.121060821
+     },
+     {
+      "exact": "466948881/2000000000",
+      "float": 0.2334744405
+     },
+     {
+      "exact": "66706983/250000000",
+      "float": 0.266827932
+     },
+     {
+      "exact": "200120949/1000000000",
+      "float": 0.200120949
+     },
+     {
+      "exact": "257298363/2500000000",
+      "float": 0.1029193452
+     },
+     {
+      "exact": "36756909/1000000000",
+      "float": 0.036756909
+     },
+     {
+      "exact": "2250423/250000000",
+      "float": 0.009001692
+     },
+     {
+      "exact": "2893401/2000000000",
+      "float": 0.0014467005
+     },
+     {
+      "exact": "137781/1000000000",
+      "float": 0.000137781
+     },
+     {
+      "exact": "59049/10000000000",
+      "float": 5.9049e-06
+     }
+    ],
+    "sum": {
+     "exact": "1/1",
+     "float": 1.0
+    },
+    "mean_by_definition": {
+     "exact": "3/1",
+     "float": 3.0
+    },
+    "var_by_definition": {
+     "exact": "21/10",
+     "float": 2.1
+    }
+   },
+   "properties": {
+    "正規化": "sum = 1",
+    "非負": "pmf[k] ≥ 0",
+    "同値": "mean = np・var = np(1−p)（式の右辺と照らす）"
+   },
+   "tolerance": {
+    "pmf": "exact",
+    "sum": "sum",
+    "mean_by_definition": "exact",
+    "var_by_definition": "exact"
+   }
+  },
+  {
+   "id": "binom-n10-p0_1",
+   "formula_ids": [
+    "F-binom-pmf",
+    "F-binom-mean",
+    "F-binom-var"
+   ],
+   "representative": "二項分布",
+   "method": "n 回の並び 2^n 通りを数え上げ、成功の数ごとに並びの確率を足す（式を使わない）",
+   "inputs": {
+    "n": 10,
+    "p": {
+     "exact": "0/1",
+     "float": 0.0
+    }
+   },
+   "values": {
+    "pmf": [
+     {
+      "exact": "1/1",
+      "float": 1.0
+     },
+     {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     {
+      "exact": "0/1",
+      "float": 0.0
+     }
+    ],
+    "sum": {
+     "exact": "1/1",
+     "float": 1.0
+    },
+    "mean_by_definition": {
+     "exact": "0/1",
+     "float": 0.0
+    },
+    "var_by_definition": {
+     "exact": "0/1",
+     "float": 0.0
+    }
+   },
+   "properties": {
+    "正規化": "sum = 1",
+    "非負": "pmf[k] ≥ 0",
+    "同値": "mean = np・var = np(1−p)（式の右辺と照らす）"
+   },
+   "tolerance": {
+    "pmf": "exact",
+    "sum": "sum",
+    "mean_by_definition": "exact",
+    "var_by_definition": "exact"
+   }
+  },
+  {
+   "id": "binom-n10-p1_1",
+   "formula_ids": [
+    "F-binom-pmf",
+    "F-binom-mean",
+    "F-binom-var"
+   ],
+   "representative": "二項分布",
+   "method": "n 回の並び 2^n 通りを数え上げ、成功の数ごとに並びの確率を足す（式を使わない）",
+   "inputs": {
+    "n": 10,
+    "p": {
+     "exact": "1/1",
+     "float": 1.0
+    }
+   },
+   "values": {
+    "pmf": [
+     {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     {
+      "exact": "1/1",
+      "float": 1.0
+     }
+    ],
+    "sum": {
+     "exact": "1/1",
+     "float": 1.0
+    },
+    "mean_by_definition": {
+     "exact": "10/1",
+     "float": 10.0
+    },
+    "var_by_definition": {
+     "exact": "0/1",
+     "float": 0.0
+    }
+   },
+   "properties": {
+    "正規化": "sum = 1",
+    "非負": "pmf[k] ≥ 0",
+    "同値": "mean = np・var = np(1−p)（式の右辺と照らす）"
+   },
+   "tolerance": {
+    "pmf": "exact",
+    "sum": "sum",
+    "mean_by_definition": "exact",
+    "var_by_definition": "exact"
+   }
+  },
+  {
+   "id": "binom-n12-p2_3",
+   "formula_ids": [
+    "F-binom-pmf",
+    "F-binom-mean",
+    "F-binom-var"
+   ],
+   "representative": "二項分布",
+   "method": "n 回の並び 2^n 通りを数え上げ、成功の数ごとに並びの確率を足す（式を使わない）",
+   "inputs": {
+    "n": 12,
+    "p": {
+     "exact": "2/3",
+     "float": 0.6666666666666666
+    }
+   },
+   "values": {
+    "pmf": [
+     {
+      "exact": "1/531441",
+      "float": 1.8816764231589208e-06
+     },
+     {
+      "exact": "8/177147",
+      "float": 4.51602341558141e-05
+     },
+     {
+      "exact": "88/177147",
+      "float": 0.0004967625757139551
+     },
+     {
+      "exact": "1760/531441",
+      "float": 0.0033117505047597006
+     },
+     {
+      "exact": "880/59049",
+      "float": 0.014902877271418652
+     },
+     {
+      "exact": "2816/59049",
+      "float": 0.04768920726853969
+     },
+     {
+      "exact": "19712/177147",
+      "float": 0.11127481695992594
+     },
+     {
+      "exact": "11264/59049",
+      "float": 0.19075682907415875
+     },
+     {
+      "exact": "14080/59049",
+      "float": 0.23844603634269843
+     },
+     {
+      "exact": "112640/531441",
+      "float": 0.21195203230462084
+     },
+     {
+      "exact": "22528/177147",
+      "float": 0.1271712193827725
+     },
+     {
+      "exact": "8192/177147",
+      "float": 0.046244079775553636
+     },
+     {
+      "exact": "4096/531441",
+      "float": 0.0077073466292589396
+     }
+    ],
+    "sum": {
+     "exact": "1/1",
+     "float": 1.0
+    },
+    "mean_by_definition": {
+     "exact": "8/1",
+     "float": 8.0
+    },
+    "var_by_definition": {
+     "exact": "8/3",
+     "float": 2.6666666666666665
+    }
+   },
+   "properties": {
+    "正規化": "sum = 1",
+    "非負": "pmf[k] ≥ 0",
+    "同値": "mean = np・var = np(1−p)（式の右辺と照らす）"
+   },
+   "tolerance": {
+    "pmf": "exact",
+    "sum": "sum",
+    "mean_by_definition": "exact",
+    "var_by_definition": "exact"
+   }
+  },
+  {
+   "id": "table-die",
+   "formula_ids": [
+    "F-expect-def",
+    "F-expect-mu",
+    "F-expect-linear",
+    "F-var-def",
+    "F-var-linear",
+    "F-std-def",
+    "F-std-mean",
+    "F-std-var"
+   ],
+   "representative": "期待値・分散・標準化",
+   "method": "値の表から定義の和（Σ x p(x)・Σ (x−μ)² p(x)）で求める。aX+b は表の値を置き換えた別の表で求める（線形の式を使わない）",
+   "note": "さいころ（1〜6 が同じ重み）",
+   "inputs": {
+    "rows": [
+     {
+      "x": 1,
+      "weight": 1
+     },
+     {
+      "x": 2,
+      "weight": 1
+     },
+     {
+      "x": 3,
+      "weight": 1
+     },
+     {
+      "x": 4,
+      "weight": 1
+     },
+     {
+      "x": 5,
+      "weight": 1
+     },
+     {
+      "x": 6,
+      "weight": 1
+     }
+    ]
+   },
+   "values": {
+    "mu": {
+     "exact": "7/2",
+     "float": 3.5
+    },
+    "var_by_definition": {
+     "exact": "35/12",
+     "float": 2.9166666666666665
+    },
+    "var_by_moments": {
+     "exact": "35/12",
+     "float": 2.9166666666666665
+    },
+    "linear": [
+     {
+      "a": {
+       "exact": "2/1",
+       "float": 2.0
+      },
+      "b": {
+       "exact": "3/1",
+       "float": 3.0
+      },
+      "E_by_table": {
+       "exact": "10/1",
+       "float": 10.0
+      },
+      "V_by_table": {
+       "exact": "35/3",
+       "float": 11.666666666666666
+      },
+      "mutants": {
+       "V_missing_square": {
+        "exact": "35/6",
+        "float": 5.833333333333333
+       },
+       "V_keeps_b": {
+        "exact": "44/3",
+        "float": 14.666666666666666
+       }
+      }
+     },
+     {
+      "a": {
+       "exact": "-1/1",
+       "float": -1.0
+      },
+      "b": {
+       "exact": "0/1",
+       "float": 0.0
+      },
+      "E_by_table": {
+       "exact": "-7/2",
+       "float": -3.5
+      },
+      "V_by_table": {
+       "exact": "35/12",
+       "float": 2.9166666666666665
+      },
+      "mutants": {
+       "V_missing_square": {
+        "exact": "-35/12",
+        "float": -2.9166666666666665
+       },
+       "V_keeps_b": {
+        "exact": "35/12",
+        "float": 2.9166666666666665
+       }
+      }
+     },
+     {
+      "a": {
+       "exact": "1/2",
+       "float": 0.5
+      },
+      "b": {
+       "exact": "-4/1",
+       "float": -4.0
+      },
+      "E_by_table": {
+       "exact": "-9/4",
+       "float": -2.25
+      },
+      "V_by_table": {
+       "exact": "35/48",
+       "float": 0.7291666666666666
+      },
+      "mutants": {
+       "V_missing_square": {
+        "exact": "35/24",
+        "float": 1.4583333333333333
+       },
+       "V_keeps_b": {
+        "exact": "-157/48",
+        "float": -3.2708333333333335
+       }
+      }
+     },
+     {
+      "a": {
+       "exact": "0/1",
+       "float": 0.0
+      },
+      "b": {
+       "exact": "7/1",
+       "float": 7.0
+      },
+      "E_by_table": {
+       "exact": "7/1",
+       "float": 7.0
+      },
+      "V_by_table": {
+       "exact": "0/1",
+       "float": 0.0
+      },
+      "mutants": {
+       "V_missing_square": {
+        "exact": "0/1",
+        "float": 0.0
+       },
+       "V_keeps_b": {
+        "exact": "7/1",
+        "float": 7.0
+       }
+      }
+     }
+    ],
+    "standardize": {
+     "sigma": {
+      "float": 1.707825127659933
+     },
+     "z": [
+      {
+       "x": {
+        "exact": "1/1",
+        "float": 1.0
+       },
+       "z": {
+        "float": -1.4638501094227998
+       }
+      },
+      {
+       "x": {
+        "exact": "2/1",
+        "float": 2.0
+       },
+       "z": {
+        "float": -0.8783100656536799
+       }
+      },
+      {
+       "x": {
+        "exact": "3/1",
+        "float": 3.0
+       },
+       "z": {
+        "float": -0.29277002188455997
+       }
+      },
+      {
+       "x": {
+        "exact": "4/1",
+        "float": 4.0
+       },
+       "z": {
+        "float": 0.29277002188455997
+       }
+      },
+      {
+       "x": {
+        "exact": "5/1",
+        "float": 5.0
+       },
+       "z": {
+        "float": 0.8783100656536799
+       }
+      },
+      {
+       "x": {
+        "exact": "6/1",
+        "float": 6.0
+       },
+       "z": {
+        "float": 1.4638501094227998
+       }
+      }
+     ],
+     "E_Z_numerator": {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     "V_Z": {
+      "exact": "1/1",
+      "float": 1.0
+     },
+     "mutants": {
+      "V_Z_divided_by_sigma_not_squared": {
+       "float": 1.707825127659933
+      }
+     }
+    }
+   },
+   "properties": {
+    "同値": "var_by_definition = var_by_moments（V(X) の2つの形）",
+    "線形": "E_by_table = aμ+b",
+    "不変": "V_by_table = a²V(X)（b によらない）",
+    "非負": "V ≥ 0",
+    "正規化": "E(Z)=0・V(Z)=1"
+   },
+   "tolerance": {
+    "mu": "exact",
+    "var_by_definition": "exact",
+    "var_by_moments": "exact",
+    "linear": "exact",
+    "sigma": "derived",
+    "z": "derived",
+    "V_Z": "exact"
+   }
+  },
+  {
+   "id": "table-skew",
+   "formula_ids": [
+    "F-expect-def",
+    "F-expect-mu",
+    "F-expect-linear",
+    "F-var-def",
+    "F-var-linear",
+    "F-std-def",
+    "F-std-mean",
+    "F-std-var"
+   ],
+   "representative": "期待値・分散・標準化",
+   "method": "値の表から定義の和（Σ x p(x)・Σ (x−μ)² p(x)）で求める。aX+b は表の値を置き換えた別の表で求める（線形の式を使わない）",
+   "note": "偏った表（負の値と重みの違いを含む）",
+   "inputs": {
+    "rows": [
+     {
+      "x": -2,
+      "weight": 1
+     },
+     {
+      "x": 0,
+      "weight": 3
+     },
+     {
+      "x": 1,
+      "weight": 4
+     },
+     {
+      "x": 5,
+      "weight": 2
+     }
+    ]
+   },
+   "values": {
+    "mu": {
+     "exact": "6/5",
+     "float": 1.2
+    },
+    "var_by_definition": {
+     "exact": "109/25",
+     "float": 4.36
+    },
+    "var_by_moments": {
+     "exact": "109/25",
+     "float": 4.36
+    },
+    "linear": [
+     {
+      "a": {
+       "exact": "2/1",
+       "float": 2.0
+      },
+      "b": {
+       "exact": "3/1",
+       "float": 3.0
+      },
+      "E_by_table": {
+       "exact": "27/5",
+       "float": 5.4
+      },
+      "V_by_table": {
+       "exact": "436/25",
+       "float": 17.44
+      },
+      "mutants": {
+       "V_missing_square": {
+        "exact": "218/25",
+        "float": 8.72
+       },
+       "V_keeps_b": {
+        "exact": "511/25",
+        "float": 20.44
+       }
+      }
+     },
+     {
+      "a": {
+       "exact": "-1/1",
+       "float": -1.0
+      },
+      "b": {
+       "exact": "0/1",
+       "float": 0.0
+      },
+      "E_by_table": {
+       "exact": "-6/5",
+       "float": -1.2
+      },
+      "V_by_table": {
+       "exact": "109/25",
+       "float": 4.36
+      },
+      "mutants": {
+       "V_missing_square": {
+        "exact": "-109/25",
+        "float": -4.36
+       },
+       "V_keeps_b": {
+        "exact": "109/25",
+        "float": 4.36
+       }
+      }
+     },
+     {
+      "a": {
+       "exact": "1/2",
+       "float": 0.5
+      },
+      "b": {
+       "exact": "-4/1",
+       "float": -4.0
+      },
+      "E_by_table": {
+       "exact": "-17/5",
+       "float": -3.4
+      },
+      "V_by_table": {
+       "exact": "109/100",
+       "float": 1.09
+      },
+      "mutants": {
+       "V_missing_square": {
+        "exact": "109/50",
+        "float": 2.18
+       },
+       "V_keeps_b": {
+        "exact": "-291/100",
+        "float": -2.91
+       }
+      }
+     },
+     {
+      "a": {
+       "exact": "0/1",
+       "float": 0.0
+      },
+      "b": {
+       "exact": "7/1",
+       "float": 7.0
+      },
+      "E_by_table": {
+       "exact": "7/1",
+       "float": 7.0
+      },
+      "V_by_table": {
+       "exact": "0/1",
+       "float": 0.0
+      },
+      "mutants": {
+       "V_missing_square": {
+        "exact": "0/1",
+        "float": 0.0
+       },
+       "V_keeps_b": {
+        "exact": "7/1",
+        "float": 7.0
+       }
+      }
+     }
+    ],
+    "standardize": {
+     "sigma": {
+      "float": 2.08806130178211
+     },
+     "z": [
+      {
+       "x": {
+        "exact": "-2/1",
+        "float": -2.0
+       },
+       "z": {
+        "float": -1.5325220563538422
+       }
+      },
+      {
+       "x": {
+        "exact": "0/1",
+        "float": 0.0
+       },
+       "z": {
+        "float": -0.5746957711326908
+       }
+      },
+      {
+       "x": {
+        "exact": "1/1",
+        "float": 1.0
+       },
+       "z": {
+        "float": -0.09578262852211514
+       }
+      },
+      {
+       "x": {
+        "exact": "5/1",
+        "float": 5.0
+       },
+       "z": {
+        "float": 1.8198699419201876
+       }
+      }
+     ],
+     "E_Z_numerator": {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     "V_Z": {
+      "exact": "1/1",
+      "float": 1.0
+     },
+     "mutants": {
+      "V_Z_divided_by_sigma_not_squared": {
+       "float": 2.08806130178211
+      }
+     }
+    }
+   },
+   "properties": {
+    "同値": "var_by_definition = var_by_moments（V(X) の2つの形）",
+    "線形": "E_by_table = aμ+b",
+    "不変": "V_by_table = a²V(X)（b によらない）",
+    "非負": "V ≥ 0",
+    "正規化": "E(Z)=0・V(Z)=1"
+   },
+   "tolerance": {
+    "mu": "exact",
+    "var_by_definition": "exact",
+    "var_by_moments": "exact",
+    "linear": "exact",
+    "sigma": "derived",
+    "z": "derived",
+    "V_Z": "exact"
+   }
+  },
+  {
+   "id": "table-two-point",
+   "formula_ids": [
+    "F-expect-def",
+    "F-expect-mu",
+    "F-expect-linear",
+    "F-var-def",
+    "F-var-linear",
+    "F-std-def",
+    "F-std-mean",
+    "F-std-var"
+   ],
+   "representative": "期待値・分散・標準化",
+   "method": "値の表から定義の和（Σ x p(x)・Σ (x−μ)² p(x)）で求める。aX+b は表の値を置き換えた別の表で求める（線形の式を使わない）",
+   "note": "2点（0 と 10 が 3:1）",
+   "inputs": {
+    "rows": [
+     {
+      "x": 0,
+      "weight": 3
+     },
+     {
+      "x": 10,
+      "weight": 1
+     }
+    ]
+   },
+   "values": {
+    "mu": {
+     "exact": "5/2",
+     "float": 2.5
+    },
+    "var_by_definition": {
+     "exact": "75/4",
+     "float": 18.75
+    },
+    "var_by_moments": {
+     "exact": "75/4",
+     "float": 18.75
+    },
+    "linear": [
+     {
+      "a": {
+       "exact": "2/1",
+       "float": 2.0
+      },
+      "b": {
+       "exact": "3/1",
+       "float": 3.0
+      },
+      "E_by_table": {
+       "exact": "8/1",
+       "float": 8.0
+      },
+      "V_by_table": {
+       "exact": "75/1",
+       "float": 75.0
+      },
+      "mutants": {
+       "V_missing_square": {
+        "exact": "75/2",
+        "float": 37.5
+       },
+       "V_keeps_b": {
+        "exact": "78/1",
+        "float": 78.0
+       }
+      }
+     },
+     {
+      "a": {
+       "exact": "-1/1",
+       "float": -1.0
+      },
+      "b": {
+       "exact": "0/1",
+       "float": 0.0
+      },
+      "E_by_table": {
+       "exact": "-5/2",
+       "float": -2.5
+      },
+      "V_by_table": {
+       "exact": "75/4",
+       "float": 18.75
+      },
+      "mutants": {
+       "V_missing_square": {
+        "exact": "-75/4",
+        "float": -18.75
+       },
+       "V_keeps_b": {
+        "exact": "75/4",
+        "float": 18.75
+       }
+      }
+     },
+     {
+      "a": {
+       "exact": "1/2",
+       "float": 0.5
+      },
+      "b": {
+       "exact": "-4/1",
+       "float": -4.0
+      },
+      "E_by_table": {
+       "exact": "-11/4",
+       "float": -2.75
+      },
+      "V_by_table": {
+       "exact": "75/16",
+       "float": 4.6875
+      },
+      "mutants": {
+       "V_missing_square": {
+        "exact": "75/8",
+        "float": 9.375
+       },
+       "V_keeps_b": {
+        "exact": "11/16",
+        "float": 0.6875
+       }
+      }
+     },
+     {
+      "a": {
+       "exact": "0/1",
+       "float": 0.0
+      },
+      "b": {
+       "exact": "7/1",
+       "float": 7.0
+      },
+      "E_by_table": {
+       "exact": "7/1",
+       "float": 7.0
+      },
+      "V_by_table": {
+       "exact": "0/1",
+       "float": 0.0
+      },
+      "mutants": {
+       "V_missing_square": {
+        "exact": "0/1",
+        "float": 0.0
+       },
+       "V_keeps_b": {
+        "exact": "7/1",
+        "float": 7.0
+       }
+      }
+     }
+    ],
+    "standardize": {
+     "sigma": {
+      "float": 4.330127018922194
+     },
+     "z": [
+      {
+       "x": {
+        "exact": "0/1",
+        "float": 0.0
+       },
+       "z": {
+        "float": -0.5773502691896257
+       }
+      },
+      {
+       "x": {
+        "exact": "10/1",
+        "float": 10.0
+       },
+       "z": {
+        "float": 1.7320508075688772
+       }
+      }
+     ],
+     "E_Z_numerator": {
+      "exact": "0/1",
+      "float": 0.0
+     },
+     "V_Z": {
+      "exact": "1/1",
+      "float": 1.0
+     },
+     "mutants": {
+      "V_Z_divided_by_sigma_not_squared": {
+       "float": 4.330127018922193
+      }
+     }
+    }
+   },
+   "properties": {
+    "同値": "var_by_definition = var_by_moments（V(X) の2つの形）",
+    "線形": "E_by_table = aμ+b",
+    "不変": "V_by_table = a²V(X)（b によらない）",
+    "非負": "V ≥ 0",
+    "正規化": "E(Z)=0・V(Z)=1"
+   },
+   "tolerance": {
+    "mu": "exact",
+    "var_by_definition": "exact",
+    "var_by_moments": "exact",
+    "linear": "exact",
+    "sigma": "derived",
+    "z": "derived",
+    "V_Z": "exact"
+   }
+  },
+  {
+   "id": "ols-tiny",
+   "formula_ids": [],
+   "formula_ids_note": "教材に回帰の式の原本がまだない（TERM-ols・TERM-regcoef・TERM-slr・TERM-resid・TERM-r2 は骨格）。式を足したら ID を書く",
+   "representative": "回帰",
+   "method": "正規方程式を Fraction で解く（偏差の積和 Sxy/Sxx の式は使わない）。決定係数は 1−SSE/SST と相関係数の2乗の2通りで照らす",
+   "inputs": {
+    "x": [
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "y": [
+     2,
+     4,
+     5,
+     4,
+     5
+    ]
+   },
+   "values": {
+    "b0": {
+     "exact": "11/5",
+     "float": 2.2
+    },
+    "b1": {
+     "exact": "3/5",
+     "float": 0.6
+    },
+    "residual_sum": {
+     "exact": "0/1",
+     "float": 0.0
+    },
+    "residual_dot_x": {
+     "exact": "0/1",
+     "float": 0.0
+    },
+    "sse": {
+     "exact": "12/5",
+     "float": 2.4
+    },
+    "sst": {
+     "exact": "6/1",
+     "float": 6.0
+    },
+    "r2": {
+     "exact": "3/5",
+     "float": 0.6
+    },
+    "line_through_means": {
+     "exact": "0/1",
+     "float": 0.0
+    },
+    "mutants": {
+     "b1_swapped_xy": {
+      "exact": "1/1",
+      "float": 1.0
+     }
+    }
+   },
+   "properties": {
+    "同値": "r2 = 1−SSE/SST = r²",
+    "正規化": "残差の和 0・残差と x の積和 0",
+    "有界": "0 ≦ r2 ≦ 1",
+    "再現": "直線は (x̄, ȳ) を通る"
+   },
+   "tolerance": {
+    "*": "exact"
+   }
+  },
+  {
+   "id": "ols-exact-line",
+   "formula_ids": [],
+   "formula_ids_note": "教材に回帰の式の原本がまだない（TERM-ols・TERM-regcoef・TERM-slr・TERM-resid・TERM-r2 は骨格）。式を足したら ID を書く",
+   "representative": "回帰",
+   "method": "正規方程式を Fraction で解く（偏差の積和 Sxy/Sxx の式は使わない）。決定係数は 1−SSE/SST と相関係数の2乗の2通りで照らす",
+   "inputs": {
+    "x": [
+     0,
+     1,
+     2,
+     3
+    ],
+    "y": [
+     1,
+     3,
+     5,
+     7
+    ]
+   },
+   "values": {
+    "b0": {
+     "exact": "1/1",
+     "float": 1.0
+    },
+    "b1": {
+     "exact": "2/1",
+     "float": 2.0
+    },
+    "residual_sum": {
+     "exact": "0/1",
+     "float": 0.0
+    },
+    "residual_dot_x": {
+     "exact": "0/1",
+     "float": 0.0
+    },
+    "sse": {
+     "exact": "0/1",
+     "float": 0.0
+    },
+    "sst": {
+     "exact": "20/1",
+     "float": 20.0
+    },
+    "r2": {
+     "exact": "1/1",
+     "float": 1.0
+    },
+    "line_through_means": {
+     "exact": "0/1",
+     "float": 0.0
+    },
+    "mutants": {
+     "b1_swapped_xy": {
+      "exact": "1/2",
+      "float": 0.5
+     }
+    }
+   },
+   "properties": {
+    "同値": "r2 = 1−SSE/SST = r²",
+    "正規化": "残差の和 0・残差と x の積和 0",
+    "有界": "0 ≦ r2 ≦ 1",
+    "再現": "直線は (x̄, ȳ) を通る"
+   },
+   "tolerance": {
+    "*": "exact"
+   }
+  },
+  {
+   "id": "ols-negative",
+   "formula_ids": [],
+   "formula_ids_note": "教材に回帰の式の原本がまだない（TERM-ols・TERM-regcoef・TERM-slr・TERM-resid・TERM-r2 は骨格）。式を足したら ID を書く",
+   "representative": "回帰",
+   "method": "正規方程式を Fraction で解く（偏差の積和 Sxy/Sxx の式は使わない）。決定係数は 1−SSE/SST と相関係数の2乗の2通りで照らす",
+   "inputs": {
+    "x": [
+     -2,
+     -1,
+     0,
+     1,
+     2,
+     3
+    ],
+    "y": [
+     7,
+     4,
+     4,
+     1,
+     0,
+     -2
+    ]
+   },
+   "values": {
+    "b0": {
+     "exact": "67/21",
+     "float": 3.1904761904761907
+    },
+    "b1": {
+     "exact": "-12/7",
+     "float": -1.7142857142857142
+    },
+    "residual_sum": {
+     "exact": "0/1",
+     "float": 0.0
+    },
+    "residual_dot_x": {
+     "exact": "0/1",
+     "float": 0.0
+    },
+    "sse": {
+     "exact": "40/21",
+     "float": 1.9047619047619047
+    },
+    "sst": {
+     "exact": "160/3",
+     "float": 53.333333333333336
+    },
+    "r2": {
+     "exact": "27/28",
+     "float": 0.9642857142857143
+    },
+    "line_through_means": {
+     "exact": "0/1",
+     "float": 0.0
+    },
+    "mutants": {
+     "b1_swapped_xy": {
+      "exact": "-9/16",
+      "float": -0.5625
+     }
+    }
+   },
+   "properties": {
+    "同値": "r2 = 1−SSE/SST = r²",
+    "正規化": "残差の和 0・残差と x の積和 0",
+    "有界": "0 ≦ r2 ≦ 1",
+    "再現": "直線は (x̄, ȳ) を通る"
+   },
+   "tolerance": {
+    "*": "exact"
+   }
+  }
+ ],
+ "preconditions": [
+  {
+   "id": "std-sigma-zero",
+   "formula_ids": [
+    "F-std-def"
+   ],
+   "inputs": {
+    "rows": [
+     {
+      "x": 4,
+      "weight": 1
+     }
+    ]
+   },
+   "expect": "計算しない",
+   "reason": "σ＝0（標準偏差が0でない、が崩れる）",
+   "domain_ref": "F-std-def の sigma の domain（min 0・minOpen）"
+  },
+  {
+   "id": "binom-p-out",
+   "formula_ids": [
+    "F-binom-pmf"
+   ],
+   "inputs": {
+    "n": 5,
+    "k": 2,
+    "p": 1.5
+   },
+   "expect": "計算しない",
+   "reason": "p は 0以上1以下",
+   "domain_ref": "F-binom-pmf の p の domain"
+  },
+  {
+   "id": "binom-k-over-n",
+   "formula_ids": [
+    "F-binom-pmf"
+   ],
+   "inputs": {
+    "n": 5,
+    "k": 10,
+    "p": 0.5
+   },
+   "expect": "計算しない",
+   "reason": "k は 0以上 n 以下の整数",
+   "domain_ref": "F-binom-pmf の k の domain（max: n）"
+  },
+  {
+   "id": "binom-k-noninteger",
+   "formula_ids": [
+    "F-binom-pmf"
+   ],
+   "inputs": {
+    "n": 5,
+    "k": 2.5,
+    "p": 0.5
+   },
+   "expect": "計算しない",
+   "reason": "k は整数",
+   "domain_ref": "F-binom-pmf の k の domain（integer）"
+  },
+  {
+   "id": "geom-p-zero",
+   "formula_ids": [
+    "F-geom-pmf",
+    "F-geom-mean",
+    "F-geom-var"
+   ],
+   "inputs": {
+    "k": 1,
+    "p": 0
+   },
+   "expect": "計算しない",
+   "reason": "p は 0 より大きい（p＝0 だと E＝1/p が無限）",
+   "domain_ref": "F-geom-* の p の domain（min 0・minOpen）"
+  },
+  {
+   "id": "uniform-a-eq-b",
+   "formula_ids": [
+    "F-uniform-pdf",
+    "F-uniform-mean",
+    "F-uniform-var"
+   ],
+   "inputs": {
+    "x": 2,
+    "a": 2,
+    "b": 2
+   },
+   "expect": "計算しない",
+   "reason": "a＜b（a＝b だと 1/(b−a) が無限）",
+   "domain_ref": "F-uniform-* の b の domain（min: a・minOpen）"
+  },
+  {
+   "id": "hyper-k-over-M",
+   "formula_ids": [
+    "F-hyper-pmf"
+   ],
+   "inputs": {
+    "N": 10,
+    "M": 3,
+    "n": 5,
+    "k": 4
+   },
+   "expect": "計算しない",
+   "reason": "k ≦ M（当たりは3個しかない）",
+   "domain_ref": "F-hyper-pmf の契約の conditions（k ≦ M）"
+  },
+  {
+   "id": "hyper-k-too-small",
+   "formula_ids": [
+    "F-hyper-pmf"
+   ],
+   "inputs": {
+    "N": 10,
+    "M": 8,
+    "n": 5,
+    "k": 2
+   },
+   "expect": "計算しない",
+   "reason": "n−(N−M) ≦ k（外れは2個しかないので、5個引けば当たりは3個以上）",
+   "domain_ref": "F-hyper-pmf の契約の conditions（n−(N−M) ≦ k）"
+  },
+  {
+   "id": "ols-sxx-zero",
+   "formula_ids": [],
+   "inputs": {
+    "x": [
+     2,
+     2,
+     2
+    ],
+    "y": [
+     1,
+     2,
+     3
+    ]
+   },
+   "expect": "計算しない",
+   "reason": "x のばらつきが0（傾きが決まらない）",
+   "domain_ref": "まだない（回帰の式と条件が原本にない）"
+  }
+ ]
+}
