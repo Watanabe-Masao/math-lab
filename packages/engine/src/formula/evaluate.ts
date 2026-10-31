@@ -1,5 +1,6 @@
 // 式の木の値を求める・1段ずつ展開する（#72）。
 // 「確かめる」の段で、記号に今の実験の値を入れ、E(X)＝np → 10×0.3 → 3 のように、どの段で何をしたかを見せる。
+import { replaceFree } from "./scope";
 import { isNum, isOp, isSym, type FormulaNode, type OpNode } from "./types";
 
 /** 記号の値（数）と、関数の中身（E・V など、その場で決める関数）。e・π は入れなくても使える */
@@ -80,15 +81,9 @@ function bigOp(node: OpNode, env: Env): number | undefined {
   return r;
 }
 
-/** 動かす記号 v（Σ の中だけで使う記号）に値を入れる（内側で同じ記号を縛る Σ の中は入れない） */
+/** 動かす記号 v（Σ の中だけで使う記号）に値を入れる（内側で同じ記号を縛る Σ の中は入れない。決まりは replaceFree の1か所） */
 function substituteVar(node: FormulaNode, v: string, x: number): FormulaNode {
-  if (isSym(node)) return node.sym === v ? { num: x } : node;
-  if (isNum(node)) return node;
-  const inner = node.var === v;
-  const out: OpNode = { ...node, args: inner ? node.args : node.args.map((a) => substituteVar(a, v, x)) };
-  if (node.lower) out.lower = substituteVar(node.lower, v, x);
-  if (node.upper) out.upper = substituteVar(node.upper, v, x);
-  return out;
+  return replaceFree(node, (k) => (k === v ? { num: x } : undefined));
 }
 
 /** 値を求める（記号の値・関数がそろわない、または eq・∫ を含むときは undefined。Σ・Π は範囲が決まれば求める） */
@@ -102,16 +97,9 @@ export function evaluate(node: FormulaNode, env: Env = {}): number | undefined {
 }
 
 /** 記号に値を入れた木（値のない記号はそのまま。e・π は記号のまま残す）。
- *  Σ・Π・∫ の動かす記号（var）は、その中では外の同じ名前の値で置き換えない（束縛された記号。#142：Σ_{x=1}^{3} x を x＝10 で 30 にしていた）。
- *  端（lower・upper）は外の値で置き換える（端は Σ の外の記号） */
-export function substitute(node: FormulaNode, env: Env, bound: ReadonlySet<string> = new Set()): FormulaNode {
-  if (isSym(node)) { const x = bound.has(node.sym) ? undefined : env.values?.[node.sym]; return x === undefined ? node : { num: x }; }
-  if (isNum(node)) return node;
-  const inner = node.var ? new Set([...bound, node.var]) : bound;
-  const out: OpNode = { ...node, args: node.args.map((a) => substitute(a, env, inner)) };
-  if (node.lower) out.lower = substitute(node.lower, env, bound);
-  if (node.upper) out.upper = substitute(node.upper, env, bound);
-  return out;
+ *  Σ・Π・∫ の動かす記号は、その中では外の同じ名前の値で置き換えない（#142：Σ_{x=1}^{3} x を x＝10 で 30 にしていた）。決まりは replaceFree の1か所 */
+export function substitute(node: FormulaNode, env: Env): FormulaNode {
+  return replaceFree(node, (k) => { const x = env.values?.[k]; return x === undefined ? undefined : { num: x }; });
 }
 
 /** 引数がすべて数になった演算を、1段だけ計算する（同じ深さのものはいっしょに）。変わらなければ同じ木を返す */

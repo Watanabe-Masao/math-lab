@@ -4,6 +4,7 @@ import katex from "katex";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createRandom, emptySetRecord, runSets, type Mechanism, type SetRecord } from "@math-lab/engine";
 import { haptic, reduced, useTween } from "./motion";
+import { useRunner } from "./runner";
 import s from "./Experiment.module.css";
 
 export const STAGES = ["予測", "実験", "観察", "理由", "応用", "比べる"] as const;
@@ -147,9 +148,7 @@ export function usePairRuns(before: Mechanism, after: Mechanism, seed0?: number)
   const rngA = useRef(createRandom(seed)), rngB = useRef(createRandom(seed + 1));
   const [recs, setRecs] = useState(() => ({ before: emptySetRecord(seed, before), after: emptySetRecord(seed + 1, after) }));
   const [fresh, setFresh] = useState(0);
-  const stream = useRef<ReturnType<typeof setInterval> | null>(null);
-  const stop = () => { if (stream.current) { clearInterval(stream.current); stream.current = null; } };
-  useEffect(() => stop, []);
+  const { start, stop } = useRunner();   // 実行中の更新は1か所で止める（止めた後の更新は捨てる。#142）
   const key = JSON.stringify([before, after]);
   const first = useRef(true);
   useEffect(() => {
@@ -168,8 +167,7 @@ export function usePairRuns(before: Mechanism, after: Mechanism, seed0?: number)
     haptic(); stop();
     if (count === 1 || reduced()) { step(count); return; }
     let done = 0;
-    const tick = () => { const m = Math.min(per, count - done); step(m); done += m; if (done >= count) stop(); };
-    tick(); stream.current = setInterval(tick, 60);
+    start(() => { const m = Math.min(per, count - done); step(m); done += m; return done >= count; }, 60);
   };
   return { before: recs.before, after: recs.after, run, seed, fresh, sets: recs.after.sets };
 }

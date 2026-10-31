@@ -7,6 +7,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createRandom, emptySetRecord, expand, modelMoments, modelPmf, runSets, summarize, supportOf, toTex, type Card, type CardMechanism, type FormulaNode, type SetRecord } from "@math-lab/engine";
 import { nudge } from "./nudge";
+import { useRunner } from "./runner";
 import { haptic, reduced, useTween } from "./motion";
 import { Sheet } from "./Sheet";
 import type { FormulaData } from "./Formula";
@@ -54,17 +55,14 @@ function useDraws(values: number[], weights: number[]) {
   const [seed, setSeed] = useState(() => Date.now() % 100000);
   const rng = useRef(createRandom(seed));
   const [rec, setRec] = useState<SetRecord>(() => emptySetRecord(seed, tbl(values, weights)));
-  const stream = useRef<ReturnType<typeof setInterval> | null>(null);
-  const stop = () => { if (stream.current) { clearInterval(stream.current); stream.current = null; } };
-  useEffect(() => stop, []);
+  const { start, stop } = useRunner();   // 実行中の更新は1か所で止める（止めた後の更新は捨てる。#142）
   const key = `${values.join(",")}|${weights.join(",")}`;
   useEffect(() => { stop(); const sd = Date.now() % 100000; setSeed(sd); rng.current = createRandom(sd); setRec(emptySetRecord(sd, tbl(values, weights))); }, [key]);   // eslint-disable-line react-hooks/exhaustive-deps
   const run = (count: number, per = 10) => {
     haptic(); stop();
     if (count === 1 || reduced()) { setRec(runSets(rng.current, rec, count)); return; }   // 更新の関数の中で乱数を進めない
     let cur = rec, done = 0;
-    const tick = () => { const m = Math.min(per, count - done); cur = runSets(rng.current, cur, m); done += m; setRec(cur); if (done >= count) stop(); };
-    tick(); stream.current = setInterval(tick, 60);
+    start(() => { const m = Math.min(per, count - done); cur = runSets(rng.current, cur, m); done += m; setRec(cur); return done >= count; }, 60);
   };
   return { rec, run, seed };
 }

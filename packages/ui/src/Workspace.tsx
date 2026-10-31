@@ -11,6 +11,7 @@ import {
   type Definition, type Formula as EngineFormula, type FormulaNode, type FormulaPart, type FormulaSymbol,
 } from "@math-lab/engine";
 import { flash, haptic, reduced, tokenMs, useTween } from "./motion";
+import { useRunner } from "./runner";
 import type { FormulaData } from "./Formula";
 import s from "./Workspace.module.css";
 
@@ -211,9 +212,7 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
   const cond = JSON.stringify(vary.map((k) => values[k]));
   useEffect(() => { stop(); setRec(emptyRecord()); setLastDraw(null); }, [cond]);   // eslint-disable-line react-hooks/exhaustive-deps
   // 100回は10回ずつ続けて引き、点が棒に近づいていくのを見せる（同じ種なら一度に引いたのと同じ結果）。1回は玉が落ちる
-  const stream = useRef<ReturnType<typeof setInterval> | null>(null);
-  const stop = () => { if (stream.current) { clearInterval(stream.current); stream.current = null; } };
-  useEffect(() => stop, []);
+  const { start: startRun, stop } = useRunner();   // 実行中の更新は1か所で止める（止めた後の更新は捨てる。#142）
   const run = (count: number) => {
     haptic(); stop();
     if (count === 1 || reduced()) {
@@ -224,14 +223,12 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
     let cur = rec, done = 0;
     const per = Math.max(1, Math.ceil(count / 10)), d0 = dist;
     setLastDraw(null);
-    const tick = () => {
+    startRun(() => {
       const m = Math.min(per, count - done);
       cur = runTrials(rng.current, d0, m, cur); done += m; setRec(cur);
-      if (done >= count) stop();
-    };
-    tick();
-    stream.current = setInterval(tick, 45);
-  };;
+      return done >= count;
+    }, 45);
+  };
   const clearRec = () => { stop(); const s2 = Date.now() % 100000; setSeed(s2); rng.current = createRandom(s2); setRec(emptyRecord()); setLastDraw(null); };
   const freq = frequencies(rec);
 

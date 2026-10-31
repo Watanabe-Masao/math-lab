@@ -7,7 +7,7 @@
 //   属する記号の定義が見つからなければ開かない（意味の違う μ が残るため）。
 // - 定義の中の Σ・∫ の動かす記号が、開く先の式の記号と同じ名前なら付け替える（取り込まれないように。α 変換）。
 import { isNum, isOp, isSym, type Formula, type FormulaNode, type FormulaSymbol, type OpNode } from "./types";
-import { boundSymbols, freeSymbols, freshName, renameBound } from "./scope";
+import { boundSymbols, freeSymbols, freshName, renameBound, replaceFree } from "./scope";
 
 /** 開き方の候補：定義の式（概念の式）と、＝が続く式のどの辺で開くか（1 が最初の右辺） */
 export type Definition = { formula: Formula; side: number };
@@ -29,13 +29,7 @@ const clone = <T extends FormulaNode>(n: T): T => JSON.parse(JSON.stringify(n)) 
 
 /** 自由な記号の葉を別の木に置き換える（Σ・∫ で縛られた所は置き換えない） */
 export function substituteFree(node: FormulaNode, map: ReadonlyMap<string, FormulaNode>): FormulaNode {
-  if (isSym(node)) { const r = map.get(node.sym); return r ? clone(r) : node; }
-  if (isNum(node)) return node;
-  const inner = node.var && map.has(node.var) ? new Map([...map].filter(([k]) => k !== node.var)) : map;
-  const out: OpNode = { ...node, args: node.args.map((a) => substituteFree(a, inner)) };
-  if (node.lower) out.lower = substituteFree(node.lower, map);
-  if (node.upper) out.upper = substituteFree(node.upper, map);
-  return out;
+  return replaceFree(node, (k) => { const r = map.get(k); return r ? clone(r) : undefined; });   // 決まりは replaceFree の1か所（#142）
 }
 
 export type OpenOptions = {

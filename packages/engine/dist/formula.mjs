@@ -213,6 +213,96 @@ function toTex(node, opt = {}) {
 	};
 	return go(node).t;
 }
+// packages/engine/src/formula/scope.ts
+/** 自由な記号（縛られていない記号の葉）。関数の名前は入れない */
+function freeSymbols(node, bound = /* @__PURE__ */ new Set()) {
+	const out = /* @__PURE__ */ new Set();
+	const walk = (n, b) => {
+		if (isSym(n)) {
+			if (!b.has(n.sym)) out.add(n.sym);
+			return;
+		}
+		if (isNum(n)) return;
+		if (n.lower) walk(n.lower, b);
+		if (n.upper) walk(n.upper, b);
+		const inner = n.var ? /* @__PURE__ */ new Set([...b, n.var]) : b;
+		n.args.forEach((a) => walk(a, inner));
+	};
+	walk(node, bound);
+	return out;
+}
+/** 木の中で縛る記号（var）の一覧 */
+function boundSymbols(node) {
+	const out = /* @__PURE__ */ new Set();
+	const walk = (n) => {
+		if (isSym(n) || isNum(n)) return;
+		if (n.var) out.add(n.var);
+		n.args.forEach(walk);
+		if (n.lower) walk(n.lower);
+		if (n.upper) walk(n.upper);
+	};
+	walk(node);
+	return out;
+}
+/** 縛られた記号 from を to に付け替える（その Σ・∫ の中だけ。中でさらに同じ名前で縛られていればそこは変えない） */
+function renameBound(node, from, to) {
+	const sub = (n) => {
+		if (isSym(n)) return n.sym === from ? { sym: to } : n;
+		if (isNum(n)) return n;
+		if (n.var === from) return n;
+		return {
+			...n,
+			args: n.args.map(sub),
+			...n.lower ? { lower: sub(n.lower) } : {},
+			...n.upper ? { upper: sub(n.upper) } : {}
+		};
+	};
+	const walk = (n) => {
+		if (isSym(n) || isNum(n)) return n;
+		if (n.var === from) {
+			const out = {
+				...n,
+				var: to,
+				args: n.args.map(sub)
+			};
+			if (n.lower) out.lower = walk(n.lower);
+			if (n.upper) out.upper = walk(n.upper);
+			return out;
+		}
+		return {
+			...n,
+			args: n.args.map(walk),
+			...n.lower ? { lower: walk(n.lower) } : {},
+			...n.upper ? { upper: walk(n.upper) } : {}
+		};
+	};
+	return walk(node);
+}
+/** used にない新しい名前（x → x2 → x3 …） */
+function freshName(base, used) {
+	for (let i = 2;; i++) {
+		const k = `${base}${i}`;
+		if (!used.has(k)) return k;
+	}
+}
+/**
+* 自由な記号の葉だけを置き換える（記号の有効な範囲を守る1つの決まり。stats2-course #142）。
+* Σ・Π・∫ の動かす記号（var）は中身（args）では縛られていて、置き換えない。端（lower・upper）は外側の記号なので置き換える。
+* 値を入れる（substitute）・動かす記号に1つずつ値を入れる（Σ を項に開く）・記号を式で開く（substituteFree）は、どれもこれを使う。
+* f が undefined を返す記号はそのまま残す。
+*/
+function replaceFree(node, f, bound = /* @__PURE__ */ new Set()) {
+	if (isSym(node)) return bound.has(node.sym) ? node : f(node.sym) ?? node;
+	if (isNum(node)) return node;
+	const inner = node.var ? /* @__PURE__ */ new Set([...bound, node.var]) : bound;
+	const out = {
+		...node,
+		args: node.args.map((a) => replaceFree(a, f, inner))
+	};
+	if (node.lower) out.lower = replaceFree(node.lower, f, bound);
+	if (node.upper) out.upper = replaceFree(node.upper, f, bound);
+	return out;
+}
 // packages/engine/src/formula/evaluate.ts
 const CONST = {
 	e: Math.E,
@@ -296,18 +386,9 @@ function bigOp(node, env) {
 	}
 	return r;
 }
-/** 動かす記号 v（Σ の中だけで使う記号）に値を入れる（内側で同じ記号を縛る Σ の中は入れない） */
+/** 動かす記号 v（Σ の中だけで使う記号）に値を入れる（内側で同じ記号を縛る Σ の中は入れない。決まりは replaceFree の1か所） */
 function substituteVar(node, v, x) {
-	if (isSym(node)) return node.sym === v ? { num: x } : node;
-	if (isNum(node)) return node;
-	const inner = node.var === v;
-	const out = {
-		...node,
-		args: inner ? node.args : node.args.map((a) => substituteVar(a, v, x))
-	};
-	if (node.lower) out.lower = substituteVar(node.lower, v, x);
-	if (node.upper) out.upper = substituteVar(node.upper, v, x);
-	return out;
+	return replaceFree(node, (k) => k === v ? { num: x } : void 0);
 }
 /** 値を求める（記号の値・関数がそろわない、または eq・∫ を含むときは undefined。Σ・Π は範囲が決まれば求める） */
 function evaluate(node, env = {}) {
@@ -323,22 +404,12 @@ function evaluate(node, env = {}) {
 	return apply(node, v, env);
 }
 /** 記号に値を入れた木（値のない記号はそのまま。e・π は記号のまま残す）。
-*  Σ・Π・∫ の動かす記号（var）は、その中では外の同じ名前の値で置き換えない（束縛された記号。#142：Σ_{x=1}^{3} x を x＝10 で 30 にしていた）。
-*  端（lower・upper）は外の値で置き換える（端は Σ の外の記号） */
-function substitute(node, env, bound = /* @__PURE__ */ new Set()) {
-	if (isSym(node)) {
-		const x = bound.has(node.sym) ? void 0 : env.values?.[node.sym];
-		return x === void 0 ? node : { num: x };
-	}
-	if (isNum(node)) return node;
-	const inner = node.var ? /* @__PURE__ */ new Set([...bound, node.var]) : bound;
-	const out = {
-		...node,
-		args: node.args.map((a) => substitute(a, env, inner))
-	};
-	if (node.lower) out.lower = substitute(node.lower, env, bound);
-	if (node.upper) out.upper = substitute(node.upper, env, bound);
-	return out;
+*  Σ・Π・∫ の動かす記号は、その中では外の同じ名前の値で置き換えない（#142：Σ_{x=1}^{3} x を x＝10 で 30 にしていた）。決まりは replaceFree の1か所 */
+function substitute(node, env) {
+	return replaceFree(node, (k) => {
+		const x = env.values?.[k];
+		return x === void 0 ? void 0 : { num: x };
+	});
 }
 /** 引数がすべて数になった演算を、1段だけ計算する（同じ深さのものはいっしょに）。変わらなければ同じ木を返す */
 function stepOnce(node, env) {
@@ -455,78 +526,6 @@ function validateFormula(f) {
 	walk(f.tree, /* @__PURE__ */ new Set());
 	return bad;
 }
-// packages/engine/src/formula/scope.ts
-/** 自由な記号（縛られていない記号の葉）。関数の名前は入れない */
-function freeSymbols(node, bound = /* @__PURE__ */ new Set()) {
-	const out = /* @__PURE__ */ new Set();
-	const walk = (n, b) => {
-		if (isSym(n)) {
-			if (!b.has(n.sym)) out.add(n.sym);
-			return;
-		}
-		if (isNum(n)) return;
-		if (n.lower) walk(n.lower, b);
-		if (n.upper) walk(n.upper, b);
-		const inner = n.var ? /* @__PURE__ */ new Set([...b, n.var]) : b;
-		n.args.forEach((a) => walk(a, inner));
-	};
-	walk(node, bound);
-	return out;
-}
-/** 木の中で縛る記号（var）の一覧 */
-function boundSymbols(node) {
-	const out = /* @__PURE__ */ new Set();
-	const walk = (n) => {
-		if (isSym(n) || isNum(n)) return;
-		if (n.var) out.add(n.var);
-		n.args.forEach(walk);
-		if (n.lower) walk(n.lower);
-		if (n.upper) walk(n.upper);
-	};
-	walk(node);
-	return out;
-}
-/** 縛られた記号 from を to に付け替える（その Σ・∫ の中だけ。中でさらに同じ名前で縛られていればそこは変えない） */
-function renameBound(node, from, to) {
-	const sub = (n) => {
-		if (isSym(n)) return n.sym === from ? { sym: to } : n;
-		if (isNum(n)) return n;
-		if (n.var === from) return n;
-		return {
-			...n,
-			args: n.args.map(sub),
-			...n.lower ? { lower: sub(n.lower) } : {},
-			...n.upper ? { upper: sub(n.upper) } : {}
-		};
-	};
-	const walk = (n) => {
-		if (isSym(n) || isNum(n)) return n;
-		if (n.var === from) {
-			const out = {
-				...n,
-				var: to,
-				args: n.args.map(sub)
-			};
-			if (n.lower) out.lower = walk(n.lower);
-			if (n.upper) out.upper = walk(n.upper);
-			return out;
-		}
-		return {
-			...n,
-			args: n.args.map(walk),
-			...n.lower ? { lower: walk(n.lower) } : {},
-			...n.upper ? { upper: walk(n.upper) } : {}
-		};
-	};
-	return walk(node);
-}
-/** used にない新しい名前（x → x2 → x3 …） */
-function freshName(base, used) {
-	for (let i = 2;; i++) {
-		const k = `${base}${i}`;
-		if (!used.has(k)) return k;
-	}
-}
 // packages/engine/src/formula/open.ts
 /** 記号 key（記号の葉か関数の名前）の定義になれる式を探す。左辺の頭が同じ記号・関数で、関数なら定義の引数がすべて記号のもの */
 function definitionsFor(key, formulas) {
@@ -545,19 +544,10 @@ function definitionsFor(key, formulas) {
 const clone = (n) => JSON.parse(JSON.stringify(n));
 /** 自由な記号の葉を別の木に置き換える（Σ・∫ で縛られた所は置き換えない） */
 function substituteFree(node, map) {
-	if (isSym(node)) {
-		const r = map.get(node.sym);
-		return r ? clone(r) : node;
-	}
-	if (isNum(node)) return node;
-	const inner = node.var && map.has(node.var) ? new Map([...map].filter(([k]) => k !== node.var)) : map;
-	const out = {
-		...node,
-		args: node.args.map((a) => substituteFree(a, inner))
-	};
-	if (node.lower) out.lower = substituteFree(node.lower, map);
-	if (node.upper) out.upper = substituteFree(node.upper, map);
-	return out;
+	return replaceFree(node, (k) => {
+		const r = map.get(k);
+		return r ? clone(r) : void 0;
+	});
 }
 const sub = (s) => s.replace(/_\{?([^}]*)\}?$/, "").trim();
 /**
@@ -785,4 +775,4 @@ function distribution(tree, over, lo, hi, env = {}) {
 	}
 	return out;
 }
-export { COMMON_FNS, applyOpens, boundSymbols, checkDomain, comb, definitionsFor, describeDomain, distribution, evaluate, expand, factorial, fnsIn, formatNum, freeSymbols, freshName, inDomain, isNum, isOp, isSym, lhsOf, nodeAt, openSymbol, renameBound, rhsOf, sliderRange, stopReason, substitute, substituteFree, symbolTex, symbolsIn, toTex, validateFormula };
+export { COMMON_FNS, applyOpens, boundSymbols, checkDomain, comb, definitionsFor, describeDomain, distribution, evaluate, expand, factorial, fnsIn, formatNum, freeSymbols, freshName, inDomain, isNum, isOp, isSym, lhsOf, nodeAt, openSymbol, renameBound, replaceFree, rhsOf, sliderRange, stopReason, substitute, substituteFree, symbolTex, symbolsIn, toTex, validateFormula };

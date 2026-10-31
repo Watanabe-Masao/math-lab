@@ -90,7 +90,9 @@ export function drawSet(rng: Random, m: Mechanism): number[] {
 const lnFact = (() => { const t = [0]; return (k: number) => { for (let i = t.length; i <= k; i++) t[i] = t[i - 1]! + Math.log(i); return t[k]!; }; })();
 const lnComb = (n: number, k: number) => (k < 0 || k > n ? -Infinity : lnFact(n) - lnFact(k) - lnFact(n - k));
 
-const key = (v: number) => Math.round(v * 1e9) / 1e9;
+// 足した値の丸め（0.1+0.2 を 0.3 にそろえる）。桁数で丸める：小数点以下9桁で丸めると、大きな値（|v|＞約900万）で v×1e9 が倍精度の整数の範囲を越え、
+// 値がずれていた（1e12＋14 などで分散が変わる。#142 の性質のテストで見つけた）
+const key = (v: number) => Number(v.toPrecision(15));
 
 /** 値の表を n 回引いて足した値の分布（たたみこみ）：とる値（小さい順）と確率 */
 function tableSum(m: { n: number; values: number[]; weights: number[] }): { support: number[]; probs: number[] } {
@@ -183,8 +185,9 @@ export function runSets(rng: Random, rec: SetRecord, count: number): SetRecord {
 export function summarize(rec: SetRecord): { mean: number | undefined; variance: number | undefined; freq: number[] } {
   const n = rec.sets;
   if (!n) return { mean: undefined, variance: undefined, freq: rec.counts.map(() => 0) };
-  const mean = rec.sum / n;
-  // 分散は値の一覧（ks）から平均のずれで求める（sumSq/n − 平均² は大きな値で桁が落ちる。#142）
+  // 平均と分散は値の一覧（ks）から、最初の値からのずれで求める（大きな値の足し算・sumSq/n − 平均² の引き算は桁が落ちる。#142）
+  const k0 = rec.ks[0] ?? 0;
+  const mean = k0 + rec.ks.reduce((s, k) => s + (k - k0), 0) / n;
   const variance = rec.ks.reduce((s, k) => s + (k - mean) ** 2, 0) / n;
   return { mean, variance, freq: rec.counts.map((c) => c / n) };
 }

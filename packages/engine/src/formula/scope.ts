@@ -51,3 +51,19 @@ export function renameBound(node: FormulaNode, from: string, to: string): Formul
 export function freshName(base: string, used: ReadonlySet<string>): string {
   for (let i = 2; ; i++) { const k = `${base}${i}`; if (!used.has(k)) return k; }
 }
+
+/**
+ * 自由な記号の葉だけを置き換える（記号の有効な範囲を守る1つの決まり。stats2-course #142）。
+ * Σ・Π・∫ の動かす記号（var）は中身（args）では縛られていて、置き換えない。端（lower・upper）は外側の記号なので置き換える。
+ * 値を入れる（substitute）・動かす記号に1つずつ値を入れる（Σ を項に開く）・記号を式で開く（substituteFree）は、どれもこれを使う。
+ * f が undefined を返す記号はそのまま残す。
+ */
+export function replaceFree(node: FormulaNode, f: (sym: string) => FormulaNode | undefined, bound: ReadonlySet<string> = new Set()): FormulaNode {
+  if (isSym(node)) return bound.has(node.sym) ? node : f(node.sym) ?? node;
+  if (isNum(node)) return node;
+  const inner = node.var ? new Set([...bound, node.var]) : bound;
+  const out: OpNode = { ...node, args: node.args.map((a) => replaceFree(a, f, inner)) };
+  if (node.lower) out.lower = replaceFree(node.lower, f, bound);
+  if (node.upper) out.upper = replaceFree(node.upper, f, bound);
+  return out;
+}
