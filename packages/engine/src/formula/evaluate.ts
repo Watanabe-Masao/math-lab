@@ -101,13 +101,16 @@ export function evaluate(node: FormulaNode, env: Env = {}): number | undefined {
   return apply(node, v, env);
 }
 
-/** 記号に値を入れた木（値のない記号はそのまま。e・π は記号のまま残す） */
-export function substitute(node: FormulaNode, env: Env): FormulaNode {
-  if (isSym(node)) { const x = env.values?.[node.sym]; return x === undefined ? node : { num: x }; }
+/** 記号に値を入れた木（値のない記号はそのまま。e・π は記号のまま残す）。
+ *  Σ・Π・∫ の動かす記号（var）は、その中では外の同じ名前の値で置き換えない（束縛された記号。#142：Σ_{x=1}^{3} x を x＝10 で 30 にしていた）。
+ *  端（lower・upper）は外の値で置き換える（端は Σ の外の記号） */
+export function substitute(node: FormulaNode, env: Env, bound: ReadonlySet<string> = new Set()): FormulaNode {
+  if (isSym(node)) { const x = bound.has(node.sym) ? undefined : env.values?.[node.sym]; return x === undefined ? node : { num: x }; }
   if (isNum(node)) return node;
-  const out: OpNode = { ...node, args: node.args.map((a) => substitute(a, env)) };
-  if (node.lower) out.lower = substitute(node.lower, env);
-  if (node.upper) out.upper = substitute(node.upper, env);
+  const inner = node.var ? new Set([...bound, node.var]) : bound;
+  const out: OpNode = { ...node, args: node.args.map((a) => substitute(a, env, inner)) };
+  if (node.lower) out.lower = substitute(node.lower, env, bound);
+  if (node.upper) out.upper = substitute(node.upper, env, bound);
   return out;
 }
 

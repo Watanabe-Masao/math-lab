@@ -322,19 +322,22 @@ function evaluate(node, env = {}) {
 	}
 	return apply(node, v, env);
 }
-/** 記号に値を入れた木（値のない記号はそのまま。e・π は記号のまま残す） */
-function substitute(node, env) {
+/** 記号に値を入れた木（値のない記号はそのまま。e・π は記号のまま残す）。
+*  Σ・Π・∫ の動かす記号（var）は、その中では外の同じ名前の値で置き換えない（束縛された記号。#142：Σ_{x=1}^{3} x を x＝10 で 30 にしていた）。
+*  端（lower・upper）は外の値で置き換える（端は Σ の外の記号） */
+function substitute(node, env, bound = /* @__PURE__ */ new Set()) {
 	if (isSym(node)) {
-		const x = env.values?.[node.sym];
+		const x = bound.has(node.sym) ? void 0 : env.values?.[node.sym];
 		return x === void 0 ? node : { num: x };
 	}
 	if (isNum(node)) return node;
+	const inner = node.var ? /* @__PURE__ */ new Set([...bound, node.var]) : bound;
 	const out = {
 		...node,
-		args: node.args.map((a) => substitute(a, env))
+		args: node.args.map((a) => substitute(a, env, inner))
 	};
-	if (node.lower) out.lower = substitute(node.lower, env);
-	if (node.upper) out.upper = substitute(node.upper, env);
+	if (node.lower) out.lower = substitute(node.lower, env, bound);
+	if (node.upper) out.upper = substitute(node.upper, env, bound);
 	return out;
 }
 /** 引数がすべて数になった演算を、1段だけ計算する（同じ深さのものはいっしょに）。変わらなければ同じ木を返す */

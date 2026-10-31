@@ -10,6 +10,10 @@ export type Card = { mechanism: CardMechanism; sets: number; seed: number };
 
 /** カード1枚が持てるセット数の上限（URL から大きすぎる数を入れられて画面が止まらないように） */
 export const MAX_CARD_SETS = 100000;
+/** 共有カードの1セットの回数（n）の上限と、作り直すときに起こす回の合計（n×セット数）の上限。
+ *  URL は誰でも書けるので、開いたときに大きな配列・計算で画面が固まらないようにする（#142：n＝10億が受理されていた） */
+export const MAX_CARD_N = 1000;
+export const MAX_CARD_DRAWS = 2_000_000;
 /** URL に入れるカードの数の上限 */
 export const MAX_CARDS = 8;
 
@@ -48,6 +52,7 @@ export function decodeCard(s: string, ctx: { values?: number[] } = {}): Card | u
     mechanism = { kind: "table", n: 1, values: ctx.values, weights: ws.map(Number) };
   } else return undefined;
   if (checkMechanism(mechanism as Mechanism)) return undefined;
+  if (mechanism.n > MAX_CARD_N || mechanism.n * sets > MAX_CARD_DRAWS) return undefined;
   return { mechanism, sets, seed };
 }
 
