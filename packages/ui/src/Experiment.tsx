@@ -9,7 +9,7 @@ import {
   type Mechanism, type SetRecord,
 } from "@math-lab/engine";
 import { haptic, reduced } from "./motion";
-import { Bars, LabShell, Replay, pct, peak, r2, tex, useStages } from "./labParts";
+import { Bars, LabShell, Replay, pct, peak, r2, tex, usePairRuns, useStages } from "./labParts";
 import { TableLab, type TableDef } from "./ExperimentTable";
 import { Sheet } from "./Sheet";
 import { Formula, type FormulaData } from "./Formula";
@@ -138,25 +138,11 @@ function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, con
   const [pred, setPred] = useState<{ dir?: number; peak: number }>({ peak: Math.round(mean(round.start)) });
   const [sheet, setSheet] = useState<"info" | "cond" | null>(null);
 
-  // 実験（種つき。同じ種なら同じ結果）。条件を変えたら記録を分ける
-  const [seed, setSeed] = useState(() => seed0 ?? Date.now() % 100000);
-  const rng = useRef(createRandom(seed));
+  // 実験（種つき。同じ種なら同じ結果）：前の条件と変えた条件を、同じセット数ずつ起こして比べる（#121）。条件を変えたら記録を分ける
   const mech = (c: Cond): Mechanism => ({ kind: "bernoulli", n: c.n, p: c.p });
-  const [rec, setRec] = useState<SetRecord>(() => emptySetRecord(seed, mech(cond)));
-  const [fresh, setFresh] = useState(0);   // 新しい並びが出た回（並びの動きをやり直す）
-  const stream = useRef<ReturnType<typeof setInterval> | null>(null);
-  const stop = () => { if (stream.current) { clearInterval(stream.current); stream.current = null; } };
-  useEffect(() => stop, []);
-  const reset = (c: Cond) => { stop(); const sd = Date.now() % 100000; setSeed(sd); rng.current = createRandom(sd); setRec(emptySetRecord(sd, mech(c))); };
-  const changeCond = (c: Cond) => { setCond(c); reset(c); };
-  const run = (count: number) => {
-    haptic(); stop();
-    if (count === 1 || reduced()) { setRec(runSets(rng.current, rec, count)); setFresh((f) => f + 1); return; }   // 更新の関数の中で乱数を進めない（二度呼ばれると種の結果がずれる）
-    let cur = rec, done = 0;
-    const tick = () => { cur = runSets(rng.current, cur, 10); done += 10; setRec(cur); setFresh((f) => f + 1); if (done >= count) stop(); };
-    tick(); stream.current = setInterval(tick, 60);
-  };
-  const sum = summarize(rec);
+  const { before: recB, after: rec, run, seed, fresh } = usePairRuns(mech(round.start), mech(cond), seed0);
+  const changeCond = (c: Cond) => setCond(c);
+  const sum = summarize(rec), sumB = summarize(recB);
   const theoryNow = useMemo(() => modelPmf({ kind: "binom", ...cond }), [cond.n, cond.p]);   // eslint-disable-line react-hooks/exhaustive-deps
   // 前の条件の山。次の条件で n が増えるときは、横軸を次の n まで伸ばす（予想の頂点を同じ図に置けるように）
   const theoryStart = useMemo(() => { const f = modelPmf({ kind: "binom", ...round.start }); return [...f, ...Array(Math.max(0, round.next.n - round.start.n)).fill(0)]; }, [round]);
@@ -177,6 +163,8 @@ function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, con
   }, [round, pred.peak, base]);
   const spread = (f: number[]) => { const m = f.reduce((a, v, k) => a + k * v, 0); return f.reduce((a, v, k) => a + (k - m) ** 2 * v, 0); };
   const k = rec.last ? rec.last.reduce((a, b) => a + b, 0) : undefined;
+  const kB = recB.last ? recB.last.reduce((a, b) => a + b, 0) : undefined;
+  const theoryB = useMemo(() => modelPmf({ kind: "binom", ...round.start }), [round]);
 
   // 反例を実験する：同じ n・p で、成り立つ条件を1つ崩した起き方にして、二項の理論と比べる
   const [cxId, setCxId] = useState<string | null>(null);
@@ -188,7 +176,7 @@ function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, con
     "【学習記録】実験室", `実験：${def.title}（${def.id}）`, `問い：${round.question}`, `テーマ：${theme.name}`,
     `条件：n＝${round.start.n}・p＝${round.start.p} → n＝${cond.n}・p＝${cond.p}`,
     `予想：${pred.dir !== undefined ? DIRS[pred.dir] : "—"}（山の頂点 k＝${pred.peak}）`,
-    `結果：${rec.sets} セット・平均 ${r2(sum.mean)}（理論 ${r2(mean(cond))}）・種 ${seed}`,
+    `結果：各 ${rec.sets} セット・平均 前 ${r2(sumB.mean)} → 後 ${r2(sum.mean)}（理論 ${r2(mean(round.start))} → ${r2(mean(cond))}）・種 ${seed}`,
     `メモ：${memo || "—"}`, `日時：${new Date().toISOString()}`,
     "→ この内容を Notion の学習記録（学習ログ）に記録してください。",
   ].join("\n");
@@ -239,25 +227,33 @@ function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, con
       <section className={s.card}>
         <p className={s.h}>いまの1セット<span>{theme.icon}＝{theme.success}</span></p>
         {theme.story && <p className={s.story}>{theme.story.replace("n ", `${cond.n} `)}</p>}
-        <div className={s.set} key={fresh} data-testid="exp-set">
-          {(rec.last ?? Array(cond.n).fill(null)).map((v, i) => (
-            <span key={i} className={v === null ? s.slot : v ? s.hit : s.miss} style={{ "--i": i } as CSSProperties} title={v === null ? "" : v ? theme.success : theme.failure}>
-              {v === null ? "" : v ? theme.icon : "・"}
-            </span>
+        <div className={s.lanes}>
+          {([["前", round.start, recB, kB, s.laneB, "exp-set-before"], ["後", cond, rec, k, s.laneA, "exp-set"]] as const).map(([tag, c, r, kk, cls, tid]) => (
+            <div key={tag} className={`${s.lane} ${cls}`}>
+              <div className={s.laneHead}><b>{tag}：p＝{pct(c.p)}・n＝{c.n}</b>{kk === undefined ? <span className={s.muted}>まだ</span> : <span>{c.n} {theme.unit ?? "回"}中 <em>{kk}</em> {theme.unit ?? "回"} {theme.success}</span>}</div>
+              <div className={s.set} key={fresh} data-testid={tid}>
+                {(r.last ?? Array(c.n).fill(null)).map((v, i) => (
+                  <span key={i} className={v === null ? s.slot : v ? s.hit : s.miss} style={{ "--i": i } as CSSProperties} title={v === null ? "" : v ? theme.success : theme.failure}>
+                    {v === null ? "" : v ? theme.icon : "・"}
+                  </span>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
-        <p className={s.big} aria-live="polite">{k === undefined ? <span className={s.muted}>「1セット」を押すと {cond.n} {theme.unit ?? "回"}起こる</span> : <>{cond.n} {theme.unit ?? "回"}中 <em>{k}</em> {theme.unit ?? "回"} {theme.success}</>}</p>
+        {k === undefined && <p className={s.muted}>「1セット」を押すと、前と後で {cond.n} {theme.unit ?? "回"}ずつ起こる</p>}
       </section>
       <section className={s.card}>
-        <p className={s.h}>{`${theme.success}の数ごとのセット数`}<span data-testid="exp-sets">{rec.sets} セット</span></p>
-        <Bars freq={sum.freq} hi={k} label="実験の結果の割合" />
+        <p className={s.h}>{`${theme.success}の数ごとのセット数`}<span data-testid="exp-sets">各 {rec.sets} セット</span></p>
+        <div className={s.legend}><span><i className={s.kBarB} />前 p＝{pct(round.start.p)}</span><span><i className={s.kBar} />後 p＝{pct(cond.p)}</span></div>
+        <Bars freq={sum.freq} pair={sumB.freq} hi={k} label="前と後の実験の結果の割合" />
       </section>
       <div className={s.conds}><span className={s.chip}>n＝{cond.n}</span><span className={`${s.chip} ${s.on}`}>p＝{r2(cond.p)}</span><button type="button" className={s.chip} onClick={() => setSheet("cond")}>条件を変える ▾</button></div>
     </>;
     cta = <>
       <div className={s.two}>
-        <button type="button" className={s.secondary} onClick={() => run(1)} data-testid="exp-run-1">1セット</button>
-        <button type="button" className={s.primary} onClick={() => run(100)} data-testid="exp-run-100">▶ 100セット</button>
+        <button type="button" className={s.secondary} onClick={() => run(1)} data-testid="exp-run-1">前と後 1セット</button>
+        <button type="button" className={s.primary} onClick={() => run(100)} data-testid="exp-run-100">▶ 各 100セット</button>
       </div>
       <button type="button" className={s.next} disabled={rec.sets < 20} onClick={() => go(2)}>{rec.sets < 20 ? `あと ${20 - rec.sets} セットで観察できる` : "観察する →"}</button>
     </>;
@@ -273,14 +269,14 @@ function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, con
         })()}
       </div>
       <section className={s.card}>
-        <div className={s.legend}><span><i className={s.kBar} />実験 {rec.sets} セット</span><span><i className={s.kDot} />理論</span><span><i className={s.kGhost} />前の条件</span><span><i className={s.kGuess} />あなたの予想</span></div>
-        <Bars freq={sum.freq} theory={theoryNow} ghost={theoryStart.slice(0, cond.n + 1)} guess={guess} hi={pk} height={170} label="実験と理論と前の条件とあなたの予想" />
+        <div className={s.legend}><span><i className={s.kBarB} />前の実験</span><span><i className={s.kBar} />後の実験</span><span><i className={s.kGhost} />前の理論</span><span><i className={s.kDot} />後の理論</span><span><i className={s.kGuess} />あなたの予想</span></div>
+        <Bars freq={sum.freq} pair={sumB.freq} theory={theoryNow} ghost={theoryB} guess={guess} hi={pk} height={170} label="前と後の実験と理論とあなたの予想" />
       </section>
       <div className={s.tiles}>
-        <div>平均（実験）<b>{r2(sum.mean)}</b><i>前の条件では {r2(mean(round.start))}</i></div>
-        <div>平均（理論）<b>{r2(mean(cond))}</b><i>n×p＝{cond.n}×{r2(cond.p)}</i></div>
+        <div data-testid="exp-tile-exp">平均（実験）<b>{r2(sumB.mean)} → {r2(sum.mean)}</b><i>差 {r2((sum.mean ?? 0) - (sumB.mean ?? 0))}・各 {rec.sets} セット</i></div>
+        <div data-testid="exp-tile-theory">平均（理論）<b>{r2(mean(round.start))} → {r2(mean(cond))}</b><i>差 {r2(mean(cond) - mean(round.start))}・n×p で求める</i></div>
       </div>
-      <Replay rec={rec} theory={theoryNow} />
+      <Replay rec={rec} theory={theoryNow} before={{ rec: recB, theory: theoryB }} />
     </>;
     cta = <button type="button" className={s.primary} onClick={() => go(3)}>なぜ {r2(mean(cond))} になる？ 理由を考える</button>;
   } else if (stage === 3) {
@@ -369,7 +365,7 @@ function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, con
           })}
           <p className={s.h}>テーマの p で試す</p>
           <div className={s.chips}>{def.themes.filter((t) => t.p !== undefined).map((t) => <button key={t.id} type="button" className={s.chip} onClick={() => { setTheme(t); changeCond({ ...cond, p: t.p! }); }}>{t.icon} {t.name}（{pct(t.p!)}）</button>)}</div>
-          <p className={s.muted}>条件を変えると、記録は新しく始まる（種 {seed}）。</p>
+          <p className={s.muted}>変えるのは「後」の条件。前の条件（p＝{pct(round.start.p)}・n＝{round.start.n}）はそのまま。条件を変えると、前と後の記録は新しく始まる（種 {seed}）。</p>
         </Sheet>
       )}
     </LabShell>

@@ -159,3 +159,20 @@
 .drawNew { background: var(--accent-soft); color: var(--accent); box-shadow: 0 0 0 1.5px var(--accent); animation: drawIn var(--dur) var(--ease); }
 @keyframes drawIn { from { transform: scale(.6); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .drawNew { animation: none; } .runDot { transition: none; } }
+/* 前の条件の実験（#121）：前の理論の点線と同じ色 */
+.barBefore { fill: var(--data-2); fill-opacity: .55; }
+.kBarB { width: 9px; height: 10px; border-radius: 2px 2px 0 0; background: var(--data-2); opacity: .55; }
+.bandB { fill: var(--data-2); fill-opacity: .1; }
+.meanLineB { stroke: var(--data-2); stroke-dasharray: 4 3; stroke-opacity: .8; }
+.runLineB { fill: none; stroke: var(--data-2); stroke-width: 2; stroke-linejoin: round; }
+.runDotB { fill: var(--data-2); stroke: var(--raised); stroke-width: 2; transition: cx var(--dur) var(--ease), cy var(--dur) var(--ease); }
+/* 前と後の1セット（実験の段） */
+.lanes { display: grid; gap: 10px; }
+.lane { display: grid; gap: 4px; }
+.laneHead { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; color: var(--ink-2); }
+.laneHead b { font-size: 13px; color: var(--ink); }
+.laneHead em { font-style: normal; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.laneB .laneHead b::before, .laneA .laneHead b::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: 1px; }
+.laneB .laneHead b::before { background: var(--data-2); }
+.laneA .laneHead b::before { background: var(--data-1); }
+@media (prefers-reduced-motion: reduce) { .runDotB { transition: none; } }
