@@ -9,7 +9,7 @@ import { createRandom, emptySetRecord, expand, modelMoments, modelPmf, runSets, 
 import { haptic, reduced, useTween } from "./motion";
 import { Sheet } from "./Sheet";
 import type { FormulaData } from "./Formula";
-import { Bars, LabShell, Replay, num3, r2, tex, useStages } from "./labParts";
+import { Bars, LabShell, Replay, num3, r2, tex, usePairRuns, useStages } from "./labParts";
 import type { Props } from "./Experiment";
 import s from "./Experiment.module.css";
 
@@ -122,10 +122,11 @@ export function TableLab({ def, reasonFormula, onConcept, conceptName, onSendMem
   const chooseDir = (i: number) => setPred((p) => (dirOfV(p.value) === i ? { ...p, dir: i } : { dir: i, value: i === 1 ? mStart : Math.min(hi, Math.max(lo, mStart + (i === 2 ? 1 : -1) * Math.max(step, (hi - lo) / 10))) }));
   const actual = Math.abs(mNext - mStart) < step / 2 ? 1 : mNext > mStart ? 2 : 0;
 
-  const { rec, run, seed } = useDraws(theme.values, theme.compare);
-  const sum = summarize(rec);
-  const [meanT] = useTween([sum.mean ?? 0]);
-  const last = rec.ks.slice(-10);
+  // 前の表と変えた表を、同じ回数ずつ引いて比べる（#121）
+  const { before: recB, after: rec, run, seed } = usePairRuns(startT, nextT);
+  const sum = summarize(rec), sumB = summarize(recB);
+  const [meanT, meanBT] = useTween([sum.mean ?? 0, sumB.mean ?? 0]);
+  const last = rec.ks.slice(-8), lastB = recB.ks.slice(-8);
   const [sheet, setSheet] = useState<"info" | null>(null);
   const [cxId, setCxId] = useState<string | null>(null);
   const [memo, setMemo] = useState("");
@@ -147,7 +148,7 @@ export function TableLab({ def, reasonFormula, onConcept, conceptName, onSendMem
   const memoText = () => [
     "【学習記録】実験室", `実験：${def.title}（${def.id}）`, `問い：${def.question}`, `テーマ：${theme.name}（${theme.change}）`,
     `予想：平均は${pred.dir !== undefined ? DIRS[pred.dir] : "—"}（${r2(pred.value)}${unit}）`,
-    `結果：${rec.sets} 回・平均 ${r2(sum.mean)}${unit}（期待値 ${r2(mNext)}${unit}）・種 ${seed}`,
+    `結果：各 ${rec.sets} 回・平均 前 ${r2(sumB.mean)} → 後 ${r2(sum.mean)}${unit}（期待値 ${r2(mStart)} → ${r2(mNext)}${unit}）・種 ${seed}`,
     `メモ：${memo || "—"}`, `日時：${new Date().toISOString()}`, "→ この内容を Notion の学習記録（学習ログ）に記録してください。",
   ].join("\n");
   const send = () => {
@@ -189,20 +190,28 @@ export function TableLab({ def, reasonFormula, onConcept, conceptName, onSendMem
     body = <>
       <section className={s.card}>
         <p className={s.h}>{theme.change}<span>{theme.icon} {theme.name}</span></p>
-        <div className={s.draws} data-testid="exp-draws" key={rec.sets}>
-          {last.length ? last.map((v, i) => <span key={`${rec.sets}-${i}`} className={i === last.length - 1 ? s.drawNew : s.draw}>{labelOf(v)}</span>) : <span className={s.muted}>「1回」を押すと、表から1つ引く</span>}
+        <div className={s.lanes}>
+          {([["前の表", lastB, meanBT, s.laneB, "exp-draws-before", "exp-mean-before"], ["変えた表", last, meanT, s.laneA, "exp-draws", "exp-mean"]] as const).map(([tag, ls, m, cls, tid, mid]) => (
+            <div key={tag} className={`${s.lane} ${cls}`}>
+              <div className={s.laneHead}><b>{tag}</b>{rec.sets ? <span>平均 <em data-testid={mid}>{r2(m)}</em>{unit}</span> : <span className={s.muted}>まだ</span>}</div>
+              <div className={s.draws} data-testid={tid} key={rec.sets}>
+                {ls.length ? ls.map((v, i) => <span key={`${rec.sets}-${i}`} className={i === ls.length - 1 ? s.drawNew : s.draw}>{labelOf(v)}</span>) : <span className={s.muted}>—</span>}
+              </div>
+            </div>
+          ))}
         </div>
-        <p className={s.big} aria-live="polite">{rec.sets ? <>平均 <em data-testid="exp-mean">{r2(rec.sets ? meanT : undefined)}</em>{unit}<small className={s.muted}>（{rec.sets} 回）</small></> : <span className={s.muted}>まだ引いていない</span>}</p>
+        {!rec.sets && <p className={s.muted}>「1回」を押すと、前の表と変えた表から1つずつ引く</p>}
       </section>
       <section className={s.card}>
-        <p className={s.h}>出た値の割合<span data-testid="exp-sets">{rec.sets} 回</span></p>
-        <Bars freq={summarize(rec).freq} labels={labels} hi={last.length ? support.indexOf(last.at(-1)!) : undefined} label="引いた値の割合" />
+        <p className={s.h}>出た値の割合<span data-testid="exp-sets">各 {rec.sets} 回</span></p>
+        <div className={s.legend}><span><i className={s.kBarB} />前の表</span><span><i className={s.kBar} />変えた表</span></div>
+        <Bars freq={sum.freq} pair={sumB.freq} labels={labels} hi={last.length ? support.indexOf(last.at(-1)!) : undefined} label="前と変えた表で引いた値の割合" />
       </section>
     </>;
     cta = <>
       <div className={s.two}>
-        <button type="button" className={s.secondary} onClick={() => run(1)} data-testid="exp-run-1">1回</button>
-        <button type="button" className={s.primary} onClick={() => run(100)} data-testid="exp-run-100">▶ 100回</button>
+        <button type="button" className={s.secondary} onClick={() => run(1)} data-testid="exp-run-1">前と後 1回</button>
+        <button type="button" className={s.primary} onClick={() => run(100)} data-testid="exp-run-100">▶ 各 100回</button>
       </div>
       <button type="button" className={s.next} disabled={rec.sets < 20} onClick={() => go(2)}>{rec.sets < 20 ? `あと ${20 - rec.sets} 回で観察できる` : "観察する →"}</button>
     </>;
@@ -215,14 +224,14 @@ export function TableLab({ def, reasonFormula, onConcept, conceptName, onSendMem
         {notAValue && <span className={s.shape}>形にも注目：期待値 {r2(mNext)}{unit} は、表の中の値としては<b>一度も出ない</b>。「よく出る値」ではなく、何度も引いたときの平均の行き着く先</span>}
       </div>
       <section className={s.card}>
-        <div className={s.legend}><span><i className={s.kBar} />引いた {rec.sets} 回</span><span><i className={s.kDot} />表の確率</span><span><i className={s.kGhost} />前の表</span><span><i className={s.kGuess} />あなたの予想</span></div>
-        <Bars freq={sum.freq} theory={thNext} ghost={thStart} labels={labels} marker={posOf(mNext, support)} mark={posOf(pred.value, support)} height={170} label="引いた割合と表の確率と前の表と予想" />
+        <div className={s.legend}><span><i className={s.kBarB} />前の表で引いた</span><span><i className={s.kBar} />変えた表で引いた</span><span><i className={s.kGhost} />前の表の確率</span><span><i className={s.kDot} />変えた表の確率</span><span><i className={s.kGuess} />あなたの予想</span></div>
+        <Bars freq={sum.freq} pair={sumB.freq} theory={thNext} ghost={thStart} labels={labels} marker={posOf(mNext, support)} mark={posOf(pred.value, support)} height={170} label="前と変えた表で引いた割合と表の確率と予想" />
       </section>
       <div className={s.tiles}>
-        <div>平均（引いた）<b>{r2(sum.mean)}{unit}</b><i>{rec.sets} 回</i></div>
-        <div>期待値（表から）<b>{r2(mNext)}{unit}</b><i>前の表では {r2(mStart)}{unit}</i></div>
+        <div data-testid="exp-tile-exp">平均（引いた）<b>{r2(sumB.mean)} → {r2(sum.mean)}{unit}</b><i>差 {r2((sum.mean ?? 0) - (sumB.mean ?? 0))}・各 {rec.sets} 回</i></div>
+        <div data-testid="exp-tile-theory">期待値（表から）<b>{r2(mStart)} → {r2(mNext)}{unit}</b><i>差 {r2(mNext - mStart)}</i></div>
       </div>
-      <Replay rec={rec} theory={thNext} labels={labels} unit={unit} />
+      <Replay rec={rec} theory={thNext} before={{ rec: recB, theory: thStart }} labels={labels} unit={unit} />
     </>;
     cta = <button type="button" className={s.primary} onClick={() => go(3)}>なぜ {r2(mNext)}{unit} になる？ 理由を考える</button>;
   } else if (stage === 3) {
