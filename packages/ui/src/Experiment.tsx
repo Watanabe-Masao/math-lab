@@ -6,11 +6,12 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import {
   expand, modelMoments, modelPmf, summarize, toTex,
-  type Mechanism, type SetRecord,
+  type CardMechanism, type Mechanism, type SetRecord,
 } from "@math-lab/engine";
 import { haptic } from "./motion";
 import { Bars, LabShell, Replay, pct, peak, r2, tex, usePairRuns, useStages } from "./labParts";
 import { TableLab, type TableDef } from "./ExperimentTable";
+import { CompareStage, copyHere, hereUrl, useCards } from "./Compare";
 import { Sheet } from "./Sheet";
 import { Formula, type FormulaData } from "./Formula";
 import { Workspace, type WorkspaceData } from "./Workspace";
@@ -52,6 +53,10 @@ export type Props = {
   definitions?: (conceptId: string) => FormulaData[];
   /** 理由の段に置く式の作業台（概念の workspace と同じもの。今の条件の値で始める） */
   workspace?: { formula: WorkspaceData; mean?: FormulaData; vary: string[]; over: string };
+  /** 比べるの記録カード（URL の cmp。あれば比べるの段から開く）。issue 122 */
+  cards?: string;
+  /** 記録カードが変わったとき（親が URL に書く） */
+  onCards?: (encoded: string) => void;
 };
 
 const DIRS = ["左へ動く", "動かない", "右へ動く"] as const;
@@ -126,8 +131,8 @@ export function Experiment(props: Props) {
   return props.def.model === "table" ? <TableLab {...props} def={props.def} /> : <BinomLab {...props} def={props.def} />;
 }
 
-function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, conceptName, onSendMemo, onBack, definitions, workspace }: Props & { def: BinomDef }) {
-  const { stage, reached, go } = useStages();
+function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, conceptName, onSendMemo, onBack, definitions, workspace, cards: cards0, onCards }: Props & { def: BinomDef }) {
+  const { stage, reached, go: go0 } = useStages(cards0 ? 5 : 0);
 
   // 問いの組（前の条件 → 変える条件）。応用の段の「次の問い」で入れ替わる
   const [round, setRound] = useState<{ question: string; start: Cond; next: Cond }>(() => ({ question: def.question, start: def.start, next: { ...def.start, ...def.compare } }));
@@ -164,6 +169,15 @@ function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, con
   const kB = recB.last ? recB.last.reduce((a, b) => a + b, 0) : undefined;
   const theoryB = useMemo(() => modelPmf({ kind: "binom", ...round.start }), [round]);
 
+  // 比べる（issue 122）：自分で決めた条件を記録カードに残し、いくつも重ねる。最初は前と後の実験のカードから始める
+  const deck = useCards({
+    storeKey: `math-lab:cards:${def.id}`, initial: cards0, onCards,
+    start: () => [{ mechanism: { kind: "bernoulli" as const, ...round.start }, sets: recB.sets, seed }, { mechanism: { kind: "bernoulli" as const, ...cond }, sets: rec.sets, seed: seed + 1 }].filter((c) => c.sets > 0),
+  });
+  const go = (i: number) => { if (i === 5) deck.ensure(); go0(i); };
+  const [draft, setDraft] = useState<Cond>(() => cond);
+  const describe = (m: CardMechanism) => (m.kind === "bernoulli" ? `n＝${m.n}・p＝${r2(m.p)}` : "");
+
   // 反例を実験する：同じ n・p で、成り立つ条件を1つ崩した起き方にして、二項の理論と比べる
   const [cxId, setCxId] = useState<string | null>(null);
 
@@ -175,6 +189,7 @@ function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, con
     `条件：n＝${round.start.n}・p＝${round.start.p} → n＝${cond.n}・p＝${cond.p}`,
     `予想：${pred.dir !== undefined ? DIRS[pred.dir] : "—"}（山の頂点 k＝${pred.peak}）`,
     `結果：各 ${rec.sets} セット・平均 前 ${r2(sumB.mean)} → 後 ${r2(sum.mean)}（理論 ${r2(mean(round.start))} → ${r2(mean(cond))}）・種 ${seed}`,
+    ...(deck.cards.length ? [`比べた条件：${deck.cards.map((c) => `${describe(c.mechanism)}（${c.sets} セット・種 ${c.seed}）`).join("、")}`, `再現の URL：${hereUrl()}`] : []),
     `メモ：${memo || "—"}`, `日時：${new Date().toISOString()}`,
     "→ この内容を Notion の学習記録（学習ログ）に記録してください。",
   ].join("\n");
@@ -309,6 +324,27 @@ function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, con
       ) : null}
     </>;
     cta = <button type="button" className={s.primary} onClick={() => go(4)}>別の条件で試す</button>;
+  } else if (stage === 5) {
+    body = <>
+      <CompareStage deck={deck} describe={describe} draft={{ kind: "bernoulli", ...draft }} onShare={() => copyHere()}
+        editor={(["n", "p"] as const).map((key) => {
+          const r = def.vary[key], v = draft[key];
+          return (
+            <label key={key} className={s.peak}>
+              <span>{key === "n" ? "回数 n" : "成功確率 p"}</span><b>{key === "p" ? r2(v) : v}</b>
+              <input type="range" min={r.min} max={r.max} step={r.step} value={v} onChange={(e) => setDraft({ ...draft, [key]: Number(e.target.value) })}
+                style={{ "--fill": `${((v - r.min) / (r.max - r.min)) * 100}%` } as CSSProperties} aria-label={`比べる条件の ${key}`} data-testid={`cmp-${key}`} />
+            </label>
+          );
+        })} />
+      <section className={s.card}>
+        <p className={s.h}>発見メモ<span>ChatGPT に渡して学習記録へ</span></p>
+        <textarea className={s.memo} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="気づいたこと・考えたこと（例：n を2倍にすると散らばりも2倍。p＝0.5 で散らばりがいちばん大きい）" aria-label="発見メモ" />
+        <p className={s.muted}>比べた条件と、同じ結果に戻れる URL もメモに入る。</p>
+      </section>
+      {def.links.concepts?.length ? <section className={s.card}><p className={s.h}>つながる概念</p>{chips(def.links.concepts)}</section> : null}
+    </>;
+    cta = <button type="button" className={s.primary} onClick={send} data-testid="exp-send">メモを ChatGPT に送る</button>;
   } else {
     const cx = cxId ? def.counterexamples?.find((x) => x.id === cxId) : undefined;
     body = <>
@@ -330,13 +366,8 @@ function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, con
           {cx && <CounterLab key={`${cx.id}-${cond.n}-${cond.p}`} cx={cx} cond={cond} theme={theme} onConcept={onConcept} name={name} />}
         </section>
       ) : null}
-      <section className={s.card}>
-        <p className={s.h}>発見メモ<span>ChatGPT に渡して学習記録へ</span></p>
-        <textarea className={s.memo} value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="気づいたこと・考えたこと（例：p を上げると山は右へ。中心は n×p）" aria-label="発見メモ" />
-      </section>
-      {def.links.concepts?.length ? <section className={s.card}><p className={s.h}>つながる概念</p>{chips(def.links.concepts)}</section> : null}
     </>;
-    cta = <button type="button" className={s.primary} onClick={send} data-testid="exp-send">メモを ChatGPT に送る</button>;
+    cta = <button type="button" className={s.primary} onClick={() => go(5)} data-testid="exp-to-compare">自分で条件を決めて比べる →</button>;
   }
 
   return (

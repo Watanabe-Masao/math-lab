@@ -6,7 +6,7 @@ import { createRandom, emptySetRecord, runSets, type Mechanism, type SetRecord }
 import { haptic, reduced, tokenMs, useTween } from "./motion";
 import s from "./Experiment.module.css";
 
-export const STAGES = ["予測", "実験", "観察", "理由", "応用"] as const;
+export const STAGES = ["予測", "実験", "観察", "理由", "応用", "比べる"] as const;
 export const tex = (t: string) => { try { return katex.renderToString(t, { throwOnError: false, output: "html" }); } catch { return t; } };
 export const pct = (v: number) => `${Math.round(v * 100)}%`;
 export const r2 = (v: number | undefined) => (v === undefined || !Number.isFinite(v) ? "—" : String(Number(v.toFixed(2))));
@@ -24,12 +24,15 @@ const padTo = (f: number[] | undefined, n: number) => (f ? [...f, ...Array(Math.
 
 /** 棒（実験の割合）・点（理論）・点線（前の条件）・線（あなたの予想）を重ねる図。横軸の文字は labels（なければ番号）。高さは前の値から動く。
  *  pair（前の条件の実験の割合）があると、各値に「前」と「後」の棒を左右に並べる（issue 121）。点線（前の理論）は前の棒、点（後の理論）は後の棒に乗る */
-export function Bars({ freq: freq0, pair: pair0, theory: theory0, ghost: ghost0, guess, hi, mark, markLabel = "予想", marker, labels, height = 150, label }: {
+export function Bars({ freq: freq0, pair: pair0, series, theory: theory0, ghost: ghost0, guess, hi, mark, markLabel = "予想", marker, labels, height = 150, label }: {
   freq?: number[]; pair?: number[]; theory?: number[]; ghost?: number[]; guess?: number[]; hi?: number;
+  /** 比べる（issue 122）：いくつかの実験の割合を、値ごとに左から並べる（4つまで。色は SERIES の順） */
+  series?: number[][];
   /** 縦の点線（位置は棒の番号。小数なら間に置く） */ mark?: number; markLabel?: string;
   /** 下の ▲（期待値など。位置は棒の番号。小数なら間に置く） */ marker?: number;
   labels?: (string | number)[]; height?: number; label: string;
 }) {
+  if (series) return <MultiBars series={series} labels={labels} height={height} label={label} />;
   const len = Math.max(freq0?.length ?? 0, pair0?.length ?? 0, theory0?.length ?? 0);
   const freq = padTo(freq0, len), pair = padTo(pair0, len), theory = padTo(theory0, len), ghost = padTo(ghost0, len);
   const base = freq ?? theory ?? [];
@@ -73,6 +76,33 @@ export function Bars({ freq: freq0, pair: pair0, theory: theory0, ghost: ghost0,
   );
 }
 
+/** 比べるの系列の色（データの色の順。4つまで） */
+export const SERIES = [s.ser1, s.ser2, s.ser3, s.ser4] as const;
+
+function MultiBars({ series, labels, height, label }: { series: number[][]; labels?: (string | number)[]; height: number; label: string }) {
+  const len = Math.max(1, ...series.map((f) => f.length));
+  const W = 340, B = height - 20, R = 30, n = len - 1;
+  const raw = Math.max(1e-9, ...series.flat());
+  const tick = [0.05, 0.1, 0.2, 0.25, 0.5, 1].find((t) => raw / t <= 4) ?? 1;
+  const top = Math.ceil(raw / tick - 1e-9) * tick;
+  const y = (v: number) => B - (v / top) * (B - 12);
+  const bw = (W - R) / (n + 1), k = series.length, wid = (bw * 0.8) / Math.max(1, k);
+  const x0 = (i: number, j: number) => i * bw + bw * 0.1 + j * wid;
+  const every = n <= 12 ? 1 : n <= 30 ? 5 : 10;
+  return (
+    <svg viewBox={`0 0 ${W} ${height}`} className={s.svg} role="img" aria-label={label} data-testid="exp-multibars">
+      {Array.from({ length: Math.round(top / tick) }, (_, i) => (i + 1) * tick).map((t) => (
+        <g key={t}><line x1={0} x2={W - R + 4} y1={y(t)} y2={y(t)} className={s.grid} /><text x={W} y={y(t) + 3.5} textAnchor="end" className={s.tick}>{pct(t)}</text></g>
+      ))}
+      {series.map((f, j) => f.map((v, i) => (v > 0 && B - y(v) > 0.3) && (
+        <rect key={`${j}-${i}`} x={x0(i, j)} y={y(v)} width={Math.max(1, wid - 1)} height={B - y(v)} rx={Math.min(2, wid * 0.2)} className={SERIES[j % SERIES.length]} />
+      )))}
+      <line x1={0} x2={W - R + 4} y1={B} y2={B} className={s.base} />
+      {Array.from({ length: len }, (_, i) => i % every === 0 && <text key={i} x={i * bw + bw / 2} y={B + 14} textAnchor="middle" className={s.tick}>{labels?.[i] ?? i}</text>)}
+    </svg>
+  );
+}
+
 /** 実験室の枠：上（戻る・題・ⓘ・段の列・今回の問い）、中（1つの段の中身）、下（押す所） */
 export function LabShell({ title, question, stage, reached, go, onBack, onInfo, body, cta, children }: {
   title: string; question: string; stage: number; reached: number; go: (i: number) => void;
@@ -98,9 +128,9 @@ export function LabShell({ title, question, stage, reached, go, onBack, onInfo, 
 }
 
 /** 段の移り方（行ったことのある段へは戻れる・上へ戻す） */
-export function useStages() {
-  const [stage, setStage] = useState(0);
-  const [reached, setReached] = useState(0);
+export function useStages(initial = 0) {
+  const [stage, setStage] = useState(initial);
+  const [reached, setReached] = useState(initial);
   const go = (i: number) => {
     haptic(); setStage(i); setReached((r) => Math.max(r, i));
     document.getElementById("exp-top")?.scrollIntoView?.({ block: "start", behavior: reduced() ? "auto" : "smooth" });
