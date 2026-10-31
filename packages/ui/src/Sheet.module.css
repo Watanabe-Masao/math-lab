@@ -1,7 +1,7 @@
 /* 下から開く面。高さは Sheet.tsx が段（半分・全体）と指の位置から決める */
 .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 11; display: flex; flex-direction: column;
   background: var(--raised); border-top: 1px solid var(--line); border-radius: 22px 22px 0 0; box-shadow: var(--shadow-raised);
-  transition: height var(--dur-sheet) var(--ease-sheet), transform var(--dur-sheet) var(--ease-sheet);
+  transition: height var(--dur-spring) var(--ease-spring), transform var(--dur-spring) var(--ease-spring);
   animation: rise var(--dur-sheet) var(--ease-sheet); touch-action: none; }
 @media (min-width: 760px) { .sheet { left: calc(50% - 380px); right: calc(50% - 380px); } }
 @keyframes rise { from { transform: translateY(100%); } }
@@ -11,8 +11,8 @@
 .bar { display: grid; grid-template-columns: var(--tap) 1fr var(--tap); align-items: center; gap: var(--sp-2); }
 .close { all: unset; width: var(--tap); height: var(--tap); border-radius: 50%; display: grid; place-items: center; cursor: pointer;
   background: var(--surface-2); color: var(--ink-2); font-size: 17px; box-shadow: 0 0 0 1px var(--line);
-  transition: transform var(--dur-press) var(--ease); }
-.close:active { transform: scale(var(--press-scale)); }
+  transition: transform var(--dur-spring) var(--ease-bounce); }
+.close:active { transform: scale(var(--press-scale)); transition-duration: var(--dur-press); }
 .close:focus-visible, .grab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .title { text-align: center; font-weight: 600; font-size: var(--fs-head); color: var(--ink); min-width: 0; }
 .spacer { width: var(--tap); }

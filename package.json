@@ -7,7 +7,8 @@
     "packages/*"
   ],
   "scripts": {
-    "tokens": "node packages/ui/scripts/tokens.mjs",
+    "springs": "node packages/ui/scripts/spring.mjs",
+    "tokens": "node packages/ui/scripts/spring.mjs && node packages/ui/scripts/tokens.mjs",
     "design": "node scripts/check-design.mjs",
     "typecheck": "tsc -p packages/engine --noEmit && tsc -p packages/ui --noEmit",
     "test": "vitest run",
