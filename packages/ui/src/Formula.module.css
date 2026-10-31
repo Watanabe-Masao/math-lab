@@ -36,3 +36,7 @@
 .opened { display: flex; flex-wrap: wrap; gap: 4px; margin-top: var(--sp-1); }
 .warn { margin: var(--sp-2) 0 0; padding: var(--sp-2) var(--sp-3); list-style: none; border-radius: var(--r-m); background: var(--accent-soft); color: var(--ink); font-size: var(--fs-small); border-left: 3px solid var(--bad); }
 .input input::placeholder { color: var(--ink-3); font-size: 13px; }
+/* 検証の印（#118 D4）：中立の色の小さな札。押す所ではない */
+.labelRow { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.labelRow .label { margin-right: auto; }
+.mark { font-size: var(--fs-tag); color: var(--ink-3); border: 1px solid var(--line-strong); border-radius: var(--r-pill); padding: 0 8px; line-height: 1.6; }
