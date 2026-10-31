@@ -14,7 +14,7 @@
   transition: transform var(--dur-press) var(--ease); }
 .close:active { transform: scale(var(--press-scale)); }
 .close:focus-visible, .grab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.title { text-align: center; font-weight: 700; font-size: var(--fs-head); color: var(--ink); min-width: 0; }
+.title { text-align: center; font-weight: 600; font-size: var(--fs-head); color: var(--ink); min-width: 0; }
 .spacer { width: var(--tap); }
 .body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y;
   padding: 0 var(--sp-4) calc(14px + env(safe-area-inset-bottom)); }

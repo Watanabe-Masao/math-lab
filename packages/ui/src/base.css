@@ -5,7 +5,7 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: var(--fs-body)
   font-variant-numeric: tabular-nums; -webkit-tap-highlight-color: transparent; }   /* 数字の幅をそろえる（数が変わっても横にずれない） */
 h1 { font-size: var(--fs-display); line-height: 1.3; margin: 0; letter-spacing: .01em; }
 h2 { font-size: var(--fs-title); line-height: 1.35; margin: 0; letter-spacing: .01em; }
-h3 { font-size: var(--fs-label); font-weight: 700; letter-spacing: .06em; color: var(--ink-3); margin: var(--sp-5) 0 var(--sp-2); }
+h3 { font-size: var(--fs-label); font-weight: 600; letter-spacing: .06em; color: var(--ink-3); margin: var(--sp-5) 0 var(--sp-2); }
 h4 { font-size: var(--fs-body); font-weight: 600; margin: var(--sp-3) 0 var(--sp-1); }
 p { margin: var(--sp-1) 0; }
 a { color: var(--accent); text-underline-offset: 3px; }
