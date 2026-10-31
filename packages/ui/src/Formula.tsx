@@ -6,12 +6,13 @@
 // 式は木（tree）から作る。木がない式は、元の TeX をそのまま出す（押せない）。
 import katex from "katex";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { applyOpens, checkDomain, definitionsFor, describeDomain, expand, openSymbol, stopReason, symbolsIn, toTex, type Definition, type Formula as EngineFormula, type FormulaNode, type FormulaSymbol } from "@math-lab/engine";
+import { applyOpens, checkDomain, definitionsFor, describeDomain, expand, openSymbol, stopReason, symbolsIn, toTex, type Definition, type Formula as EngineFormula, type FormulaCondition, type FormulaNode, type FormulaSymbol } from "@math-lab/engine";
 import { Button } from "./Button";
 import { change, flash } from "./motion";
 import s from "./Formula.module.css";
 
-export type FormulaData = { tex?: string; label?: string; symbols?: FormulaSymbol[]; tree?: FormulaNode };
+/** conditions：記号どうしの条件（満たさない値では計算しない）。unverified・review_pending：検証の印（教材の #118 D4。true のときだけ） */
+export type FormulaData = { tex?: string; label?: string; symbols?: FormulaSymbol[]; tree?: FormulaNode; conditions?: FormulaCondition[]; unverified?: boolean; review_pending?: boolean };
 
 type Props = {
   formula: FormulaData;
@@ -66,7 +67,7 @@ export function Formula({ formula: original, values, editable = false, onConcept
   const inputs = useMemo(() => (rhs ? symbolsIn(rhs) : []).map((k) => symbols.find((x) => x.key === k)).filter((x): x is FormulaSymbol => !!x && ["param", "value", "const"].includes(x.kind ?? "") && !["e", "pi"].includes(x.key)), [rhs, symbols]);
   const vals = { ...own, ...values };
   // 定義域の外の値では計算しない（#109）。計算が途中で止まったら理由を出す
-  const outside = checkDomain(vals, symbols);
+  const outside = checkDomain(vals, symbols, f.conditions ?? []);   // 記号どうしの条件（超幾何の k ≦ M など）も
   const expansion = useMemo(() => (f.tree && Object.keys(vals).length && !outside.length ? expand(f.tree, { values: vals }) : []), [f.tree, JSON.stringify(vals), outside.length]);
   const lastStep = expansion[expansion.length - 1];
   const stopped = lastStep && inputs.every((x) => vals[x.key] !== undefined) && !("num" in lastStep) ? stopReason(lastStep) : undefined;
@@ -105,7 +106,14 @@ export function Formula({ formula: original, values, editable = false, onConcept
 
   return (
     <div className={s.formula} data-testid="formula">
-      {f.label && <h4 className={s.label}>{f.label}</h4>}
+      {(f.label || f.unverified || f.review_pending) && (
+        <div className={s.labelRow}>
+          {f.label && <h4 className={s.label}>{f.label}</h4>}
+          {/* 検証の印（#118 D4）：色は使わず、文字で状態だけを言う */}
+          {f.unverified && <span className={s.mark} data-testid="mark-unverified" title="独立な見本で、まだ値を確かめていない式">未検証</span>}
+          {f.review_pending && <span className={s.mark} data-testid="mark-review" title="数では確かめられない観点（前提・単位など）の確かめがまだの式">レビュー前</span>}
+        </div>
+      )}
       <div ref={box} className={`${s.tex}${f.tree ? ` ${s.live}` : ""}`} onClick={(e) => { const el = (e.target as HTMLElement).closest<HTMLElement>("[data-sym]"); if (el?.dataset.sym) pick(el.dataset.sym); }}
         dangerouslySetInnerHTML={{ __html: html }} />
       {order.length > 0 && (
