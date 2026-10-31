@@ -176,3 +176,25 @@
 .laneB .laneHead b::before { background: var(--data-2); }
 .laneA .laneHead b::before { background: var(--data-1); }
 @media (prefers-reduced-motion: reduce) { .runDotB { transition: none; } }
+/* 比べる（issue 122）：系列の色はデータの色の順。凡例の印にも使う */
+.ser1 { fill: var(--data-1); background: var(--data-1); }
+.ser2 { fill: var(--data-2); background: var(--data-2); }
+.ser3 { fill: var(--data-3); background: var(--data-3); }
+.ser4 { fill: var(--data-hi); background: var(--data-hi); }
+.cards { display: grid; gap: 6px; }
+.cardRow { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; min-height: var(--tap); padding: 0 4px 0 10px; border-radius: var(--r-m); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
+.cardRow[aria-checked="true"] { box-shadow: inset 0 0 0 1.5px var(--accent); background: var(--accent-soft); }
+.cardPick { all: unset; display: grid; grid-template-columns: 14px 1fr; align-items: center; gap: 8px; min-height: var(--tap); cursor: pointer; grid-column: 1 / 3; font-size: 13px; }
+.cardPick small { display: block; color: var(--ink-3); font-size: 11.5px; }
+.cardPick:focus-visible, .cardDel:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.swatch { width: 12px; height: 12px; border-radius: 3px; box-shadow: inset 0 0 0 1.5px var(--line-strong); }
+.cardDel { all: unset; width: var(--tap); height: var(--tap); display: grid; place-items: center; color: var(--ink-3); cursor: pointer; border-radius: var(--r-m); }
+.cmpTable { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.cmpTable th, .cmpTable td { padding: 6px 4px; border-bottom: 1px solid var(--line); text-align: right; vertical-align: top; }
+.cmpTable th:first-child, .cmpTable td:first-child { text-align: left; }
+.cmpTable thead th { font-size: 11.5px; font-weight: 600; color: var(--ink-3); }
+.cmpTable td small { display: block; color: var(--ink-3); font-size: 11px; }
+.stepper { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 6px; font-size: 13px; }
+.stepper button { all: unset; width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--r-m); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); cursor: pointer; font-weight: 700; }
+.stepper button:disabled { opacity: .35; cursor: default; }
+.stepper b { min-width: 2.5em; text-align: center; font-variant-numeric: tabular-nums; }
