@@ -122,7 +122,7 @@ function TableCompare({ def, theme, labels, unit, cards0, seed, sets, onCards, o
   return (
     <CompareStage deck={deck} describe={describe} draft={tbl(theme.values, w)} unit={unit} labels={labels} onShare={() => copyHere()}
       editor={<div className={s.cards}>{theme.values.map((v, i) => (
-        <div key={v} className={s.stepper}>
+        <div key={v} className={s.wstep}>
           <span>{labels[i]}</span>
           <button type="button" aria-label={`${labels[i]} の重みを減らす`} disabled={w[i]! <= 0 || w.reduce((a, b) => a + b, 0) - Math.min(stepOf, w[i]!) <= 0} onClick={() => { haptic(); setW(w.map((x, j) => (j === i ? Math.max(0, x - stepOf) : x))); }}>−</button>
           <b data-testid={`cmp-w-${i}`}>{num3(w[i])}</b>

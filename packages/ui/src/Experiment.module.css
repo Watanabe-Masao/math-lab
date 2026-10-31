@@ -8,8 +8,8 @@
 .info::before { content: ""; position: absolute; inset: -4px; }
 .info:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* 段の列：済んだ段は ✓、今の段は強い色。行ったことのある段へは戻れる */
-.stepper { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); position: relative; }
-.stepper::before { content: ""; position: absolute; left: 10%; right: 10%; top: 11px; height: 2px; background: var(--line-strong); }
+.stepper { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, 1fr); position: relative; }
+.stepper::before { content: ""; position: absolute; left: 8.3%; right: 8.3%; top: 11px; height: 2px; background: var(--line-strong); }
 .stepper button { all: unset; position: relative; display: grid; justify-items: center; gap: 2px; width: 100%; font-size: 11px; color: var(--ink-3); cursor: pointer; min-height: 40px; }
 .stepper button:disabled { cursor: default; }
 .stepper i { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 11px; font-weight: 700;
@@ -182,9 +182,9 @@
 .ser3 { fill: var(--data-3); background: var(--data-3); }
 .ser4 { fill: var(--data-hi); background: var(--data-hi); }
 .cards { display: grid; gap: 6px; }
-.cardRow { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; min-height: var(--tap); padding: 0 4px 0 10px; border-radius: var(--r-m); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
+.cardRow { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px; min-height: var(--tap); padding: 0 4px 0 10px; border-radius: var(--r-m); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
 .cardRow[aria-checked="true"] { box-shadow: inset 0 0 0 1.5px var(--accent); background: var(--accent-soft); }
-.cardPick { all: unset; display: grid; grid-template-columns: 14px 1fr; align-items: center; gap: 8px; min-height: var(--tap); cursor: pointer; grid-column: 1 / 3; font-size: 13px; }
+.cardPick { all: unset; display: grid; grid-template-columns: 14px 1fr; align-items: center; gap: 8px; min-height: var(--tap); cursor: pointer; font-size: 13px; }
 .cardPick small { display: block; color: var(--ink-3); font-size: 11.5px; }
 .cardPick:focus-visible, .cardDel:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .swatch { width: 12px; height: 12px; border-radius: 3px; box-shadow: inset 0 0 0 1.5px var(--line-strong); }
@@ -194,7 +194,10 @@
 .cmpTable th:first-child, .cmpTable td:first-child { text-align: left; }
 .cmpTable thead th { font-size: 11.5px; font-weight: 600; color: var(--ink-3); }
 .cmpTable td small { display: block; color: var(--ink-3); font-size: 11px; }
-.stepper { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 6px; font-size: 13px; }
-.stepper button { all: unset; width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--r-m); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); cursor: pointer; font-weight: 700; }
-.stepper button:disabled { opacity: .35; cursor: default; }
-.stepper b { min-width: 2.5em; text-align: center; font-variant-numeric: tabular-nums; }
+.wstep { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 6px; font-size: 13px; }
+.wstep button { all: unset; width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--r-m); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); cursor: pointer; font-weight: 700; }
+.wstep button:disabled { opacity: .35; cursor: default; }
+.wstep b { min-width: 2.5em; text-align: center; font-variant-numeric: tabular-nums; }
+.share { all: unset; box-sizing: border-box; display: grid; gap: 2px; padding: 12px; border-radius: var(--r-l); background: var(--raised); border: 1px solid var(--accent-line); cursor: pointer; font-weight: 700; color: var(--accent); min-height: var(--tap); }
+.share span { font-weight: 400; font-size: var(--fs-small); color: var(--ink-3); }
+.share:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

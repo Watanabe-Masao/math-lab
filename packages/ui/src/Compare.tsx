@@ -124,7 +124,7 @@ export function CompareStage({ deck, describe, editor, draft, unit = "", labels,
           </tbody>
         </table>
         <p className={s.note}>散らばりは分散（ずれの2乗の平均）。条件を1つずつ変えたカードを並べると、平均と散らばりがどう動くかの決まりが見えてくる。</p>
-        {onShare && <button type="button" className={s.rowBtn} onClick={() => { onShare(); setCopied(true); setTimeout(() => setCopied(false), 2000); }} data-testid="cmp-share" aria-live="polite">{copied ? "✓ コピーした" : "この組を URL でコピー"}<span className={s.muted}>開けば同じ結果に戻る</span></button>}
+        {onShare && <button type="button" className={s.share} onClick={() => { onShare(); setCopied(true); setTimeout(() => setCopied(false), 2000); }} data-testid="cmp-share" aria-live="polite">{copied ? "✓ コピーした" : "この組を URL でコピー"}<span>開けば同じ結果に戻る</span></button>}
       </section>
     )}
   </>;
