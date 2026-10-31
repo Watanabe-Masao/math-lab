@@ -95,6 +95,7 @@ function CounterLab({ cx, cond, theme, onConcept, name }: { cx: Counter; cond: C
       <p className={s.how}><b>起き方</b>{how}</p>
       <table className={s.cmp} data-testid="exp-cx-compare">
         <caption>条件を比べる</caption>
+        <colgroup><col className={s.cmpC1} /><col className={s.cmpC2} /><col /></colgroup>
         <thead><tr><th scope="col">成り立つ条件</th><th scope="col">条件どおり</th><th scope="col">{cx.name}</th></tr></thead>
         <tbody>
           {rows.map((r) => (
