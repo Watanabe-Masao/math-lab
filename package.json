@@ -12,7 +12,8 @@
     "design": "node scripts/check-design.mjs",
     "typecheck": "tsc -p packages/engine --noEmit && tsc -p packages/ui --noEmit",
     "test": "vitest run",
-    "check": "npm run design && npm run typecheck && npm run test"
+    "check": "npm run design && npm run typecheck && node scripts/bundle-formula.mjs --check && npm run test",
+    "bundle": "node scripts/bundle-formula.mjs"
   },
   "devDependencies": {
     "@radix-ui/react-toggle-group": "1.2.1",
@@ -22,6 +23,7 @@
     "katex": "0.19.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
+    "rolldown": "1.2.16",
     "typescript": "5.9.3",
     "vitest": "5.0.5"
   }
