@@ -8,6 +8,7 @@ import {
   expand, modelMoments, modelPmf, summarize, toTex,
   type CardMechanism, type Mechanism, type SetRecord,
 } from "@math-lab/engine";
+import { nudge } from "./nudge";
 import { haptic } from "./motion";
 import { Bars, LabShell, Replay, pct, peak, r2, tex, usePairRuns, useStages } from "./labParts";
 import { TableLab, type TableDef } from "./ExperimentTable";
@@ -152,11 +153,7 @@ function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, con
   // 予想は1つの答えにそろえる：向きと山の頂点は連動する（右へ＝頂点が今の頂点より右）。どちらを触っても、もう一方が合わせて動く
   const base = peak(modelPmf({ kind: "binom", ...round.start }));
   const dirOfPeak = (k: number) => (k > base ? 2 : k < base ? 0 : 1);
-  const chooseDir = (i: number) => setPred((p) => {
-    const ok = dirOfPeak(p.peak) === i;
-    const pk = ok ? p.peak : i === 1 ? base : i === 2 ? Math.min(round.next.n, base + 1) : Math.max(0, base - 1);
-    return { dir: i, peak: pk };
-  });
+  const chooseDir = (i: number) => setPred((p) => ({ dir: i, peak: nudge(i, p.peak, base, 1, 0, round.next.n) }));
   const choosePeak = (k: number) => setPred({ dir: dirOfPeak(k), peak: k });
   // あなたの予想の山：前の山の形のまま、頂点を予想の位置へずらす（形は変わらないと仮定した予想）。観察で理論と重ね、形の変化に気づく
   const guess = useMemo(() => {

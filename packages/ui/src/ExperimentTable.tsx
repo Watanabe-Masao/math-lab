@@ -6,6 +6,7 @@
 // - 応用：反例を実験する（成り立つ条件「和が有限」を崩した表：平均が落ち着かない）。答えは表（モデル）から求める
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createRandom, emptySetRecord, expand, modelMoments, modelPmf, runSets, summarize, supportOf, toTex, type Card, type CardMechanism, type FormulaNode, type SetRecord } from "@math-lab/engine";
+import { nudge } from "./nudge";
 import { haptic, reduced, useTween } from "./motion";
 import { Sheet } from "./Sheet";
 import type { FormulaData } from "./Formula";
@@ -150,7 +151,7 @@ export function TableLab({ def, reasonFormula, onConcept, conceptName, onSendMem
   const [pred, setPred] = useState<{ dir?: number; value: number }>({ value: mStart });
   useEffect(() => { setPred({ value: meanOf(theme.values, theme.start) }); }, [theme]);
   const dirOfV = (v: number) => (Math.abs(v - mStart) < step / 2 ? 1 : v > mStart ? 2 : 0);
-  const chooseDir = (i: number) => setPred((p) => (dirOfV(p.value) === i ? { ...p, dir: i } : { dir: i, value: i === 1 ? mStart : Math.min(hi, Math.max(lo, mStart + (i === 2 ? 1 : -1) * Math.max(step, (hi - lo) / 10))) }));
+  const chooseDir = (i: number) => setPred((p) => ({ dir: i, value: nudge(i, p.value, mStart, Math.max(step, (hi - lo) / 10), lo, hi) }));
   const actual = Math.abs(mNext - mStart) < step / 2 ? 1 : mNext > mStart ? 2 : 0;
 
   // 前の表と変えた表を、同じ回数ずつ引いて比べる（#121）
