@@ -39,6 +39,11 @@ export type BinomDef = {
   )[];
   /** 確率の値の問いの予想の目盛り（大きい順の境目） */
   prob_scale?: number[];
+  /** テーマ体系（stats2-course issue 163）：まとまり（A〜F）の下に問い（id は 教材名:概念-まとまり-番号。stats2:binom-A-01）を並べる。open は開く入口
+   *  （shift＝最初の問い・questions の id・break:反例の id・compare）。open のない問いは「作成中」として並べるだけ。
+   *  concept（主概念）・related（関連概念）は問いの側で持ち、サイトが概念で問いを絞るのに使う。predict・operate・judge は問いごとの予測・操作・理解判定。
+   *  開く先（実験の仕組み）は共有してよいが、open は問いごとに1つ（同じ画面を開くだけで別の問いにしない） */
+  catalog?: { id: string; title: string; items: { id: string; title: string; finds?: string; predict?: string; operate?: string; judge?: string; open?: string; concept?: string; related?: string[] }[] }[];
 };
 
 export type Props = {
@@ -62,6 +67,9 @@ export type Props = {
   cards?: string;
   /** 記録カードが変わったとき（親が URL に書く） */
   onCards?: (encoded: string) => void;
+  /** 入口を通さずに開く問い（stats2-course issue 163。shift・questions の id・break:反例の id・compare）。
+   *  外の一覧（サイトの実験室のタブ）から開いたときに使い、問いの「戻る」は onBack（外の一覧）へ */
+  open?: string;
 };
 
 
@@ -74,12 +82,13 @@ export function Experiment(props: Props) {
  *  比べる（記録カード）は実験室に1か所。URL にカード（cmp）があれば比べるから開く */
 function BinomEntry(props: Props & { def: BinomDef }) {
   const { def } = props;
-  const [pick, setPick] = useState<string | null>(props.cards ? "compare" : null);
+  const [pick, setPick] = useState<string | null>(props.open ?? (props.cards ? "compare" : null));
   const [info, setInfo] = useState(false);
+  const [grp, setGrp] = useState<string | null>(null);   // 入口で選んだまとまり（問いから戻ったときも同じまとまりを出す）
   const name = (id: string) => props.conceptName?.(id) ?? id;
   const ws = props.workspace;
   const deck = useCards({ storeKey: `math-lab:cards:${def.id}`, initial: props.cards, onCards: props.onCards, start: () => [] });
-  const menu = () => setPick(null);
+  const menu = () => (props.open ? props.onBack?.() : setPick(null));
   const infoSheet = info && (
     <LabInfo title={def.title} points={def.points} main={def.reason?.concept ?? def.links.concepts?.[0]} related={def.links.concepts} name={name} onConcept={props.onConcept} onClose={() => setInfo(false)}
       formula={ws ? <Workspace only="formula" formula={ws.formula} vary={ws.vary} over={ws.over} initial={{ n: def.start.n, p: def.start.p, [ws.over]: peak(modelPmf({ kind: "binom", ...def.start })) }} definitions={props.definitions} onConcept={props.onConcept} conceptName={props.conceptName} experiment={false} />
@@ -97,6 +106,13 @@ function BinomEntry(props: Props & { def: BinomDef }) {
     conceptLink: (id: string) => props.onConcept && <button type="button" className={s.link} onClick={() => props.onConcept!(id)}>{name(id)} を見る</button>,
   };
   if (pick === null) {
+    if (def.catalog?.length) {
+      const formOf = (open: string): MenuItem["form"] => open === "shift" ? "shift" : open.startsWith("break:") ? "break" : def.questions?.find((q) => q.id === open)?.form ?? "shift";
+      const short = (id: string) => id.replace(/^.*-([A-Z]-\d+)$/, "$1");   // stats2:binom-A-01 → A-01（まとまりの中の番号）
+      const groups = def.catalog.map((g) => ({ id: g.id, title: g.title, items: g.items.map((it): MenuItem => it.open ? { id: it.open, key: short(it.id), form: formOf(it.open), title: it.title } : { id: it.id, key: short(it.id), form: "shift", title: it.title, draft: true }) }));
+      const extra: MenuItem[] = [{ id: "compare", form: "compare", title: "自分で条件を決めて比べる", sub: `記録カード ${deck.cards.length} 枚。条件や起き方を変えて残し、4 つまで重ねる` }];
+      return <QuestionMenu title={def.title} groups={groups} extra={extra} group={grp ?? undefined} onGroup={setGrp} onPick={setPick} onBack={props.onBack} onInfo={() => setInfo(true)}>{infoSheet}</QuestionMenu>;
+    }
     const items: MenuItem[] = [
       { id: "shift", form: "shift", title: def.question },
       ...(def.questions ?? []).map((q) => ({ id: q.id, form: q.form, title: q.title, sub: q.question })),
@@ -106,7 +122,7 @@ function BinomEntry(props: Props & { def: BinomDef }) {
     return <QuestionMenu title={def.title} items={items} onPick={setPick} onBack={props.onBack} onInfo={() => setInfo(true)}>{infoSheet}</QuestionMenu>;
   }
   if (pick === "shift") return <ShiftQ {...common}>{infoSheet}</ShiftQ>;
-  if (pick === "break") return <BreakQ {...common}>{infoSheet}</BreakQ>;
+  if (pick === "break" || pick.startsWith("break:")) return <BreakQ key={pick} {...common} initial={pick.slice(6) || undefined}>{infoSheet}</BreakQ>;
   if (pick === "compare") return <BinomCompare def={def} deck={deck} onBack={menu} onInfo={() => setInfo(true)} onMemo={send}>{infoSheet}</BinomCompare>;
   const q = def.questions?.find((x) => x.id === pick);
   if (!q) return null;
