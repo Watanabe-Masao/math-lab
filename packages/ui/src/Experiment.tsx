@@ -39,10 +39,10 @@ export type BinomDef = {
   )[];
   /** 確率の値の問いの予想の目盛り（大きい順の境目） */
   prob_scale?: number[];
-  /** テーマ体系（stats2-course issue 163）：まとまり（A〜F）の下に問い（B01〜）を並べる。open は開く入口
+  /** テーマ体系（stats2-course issue 163）：まとまり（A〜F）の下に問い（id は 教材名:概念-まとまり-番号。stats2:binom-A-01）を並べる。open は開く入口
    *  （shift＝最初の問い・questions の id・break:反例の id・compare）。open のない問いは「作成中」として並べるだけ。
    *  concept（主概念）・related（関連概念）は問いの側で持ち、サイトが概念で問いを絞るのに使う */
-  catalog?: { id: string; title: string; items: { id: string; title: string; open?: string; concept?: string; related?: string[] }[] }[];
+  catalog?: { id: string; title: string; items: { id: string; title: string; finds?: string; open?: string; concept?: string; related?: string[] }[] }[];
 };
 
 export type Props = {
@@ -83,6 +83,7 @@ function BinomEntry(props: Props & { def: BinomDef }) {
   const { def } = props;
   const [pick, setPick] = useState<string | null>(props.open ?? (props.cards ? "compare" : null));
   const [info, setInfo] = useState(false);
+  const [grp, setGrp] = useState<string | null>(null);   // 入口で選んだまとまり（問いから戻ったときも同じまとまりを出す）
   const name = (id: string) => props.conceptName?.(id) ?? id;
   const ws = props.workspace;
   const deck = useCards({ storeKey: `math-lab:cards:${def.id}`, initial: props.cards, onCards: props.onCards, start: () => [] });
@@ -105,10 +106,11 @@ function BinomEntry(props: Props & { def: BinomDef }) {
   };
   if (pick === null) {
     if (def.catalog?.length) {
-      const formOf = (open: string): MenuItem["form"] => open === "shift" || open === "compare" ? open : open.startsWith("break:") ? "break" : def.questions?.find((q) => q.id === open)?.form ?? "shift";
-      const groups = [...def.catalog.map((g) => ({ id: g.id, title: `${g.id}　${g.title}`, items: g.items.map((it): MenuItem => it.open ? { id: it.open, key: it.id, form: formOf(it.open), title: it.title } : { id: it.id, key: it.id, form: "shift", title: it.title, draft: true }) })),
-        { id: "lab", title: "実験室", items: [{ id: "compare", form: "compare" as const, title: "自分で条件を決めて比べる", sub: `記録カード ${deck.cards.length} 枚。条件や起き方を変えて残し、4 つまで重ねる` }] }];
-      return <QuestionMenu title={def.title} groups={groups} onPick={setPick} onBack={props.onBack} onInfo={() => setInfo(true)}>{infoSheet}</QuestionMenu>;
+      const formOf = (open: string): MenuItem["form"] => open === "shift" ? "shift" : open.startsWith("break:") ? "break" : def.questions?.find((q) => q.id === open)?.form ?? "shift";
+      const short = (id: string) => id.replace(/^.*-([A-Z]-\d+)$/, "$1");   // stats2:binom-A-01 → A-01（まとまりの中の番号）
+      const groups = def.catalog.map((g) => ({ id: g.id, title: g.title, items: g.items.map((it): MenuItem => it.open ? { id: it.open, key: short(it.id), form: formOf(it.open), title: it.title } : { id: it.id, key: short(it.id), form: "shift", title: it.title, draft: true }) }));
+      const extra: MenuItem[] = [{ id: "compare", form: "compare", title: "自分で条件を決めて比べる", sub: `記録カード ${deck.cards.length} 枚。条件や起き方を変えて残し、4 つまで重ねる` }];
+      return <QuestionMenu title={def.title} groups={groups} extra={extra} group={grp ?? undefined} onGroup={setGrp} onPick={setPick} onBack={props.onBack} onInfo={() => setInfo(true)}>{infoSheet}</QuestionMenu>;
     }
     const items: MenuItem[] = [
       { id: "shift", form: "shift", title: def.question },

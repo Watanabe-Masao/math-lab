@@ -235,10 +235,17 @@
 .cmpTable th:first-child, .cmpTable td:first-child { width: 46%; overflow-wrap: anywhere; white-space: normal; }   /* base.css の td:first-child { nowrap } を打ち消す */
 .menuGroup { display: grid; gap: 8px; }
 .menuGroup + .menuGroup { margin-top: 8px; }
-.menuGroup h3 { margin: 0; display: flex; justify-content: space-between; align-items: baseline; font-size: 14px; color: var(--ink-2); }
-.menuGroup h3 span { font-size: var(--fs-small); color: var(--ink-3); font-weight: 400; font-variant-numeric: tabular-nums; }
 .qid { font-size: var(--fs-small); color: var(--ink-3); font-weight: 400; margin-right: 6px; font-variant-numeric: tabular-nums; }
 .draft { cursor: default; background: var(--surface-2); border-style: dashed; }
 .draft b { color: var(--ink-3); font-weight: 500; }
 .draft .form { color: var(--ink-3); border-color: var(--line-strong); }
 .draft:active { transform: none; }
+.groupPick { position: relative; }
+.groupBtn { all: unset; box-sizing: border-box; width: 100%; min-height: var(--tap); padding: 0 14px; border-radius: var(--r-m); border: 1.5px solid var(--line-strong); display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; cursor: pointer; font-size: 15px; font-weight: 600; }
+.groupBtn small, .groupList small { font-size: var(--fs-small); color: var(--ink-3); font-weight: 400; font-variant-numeric: tabular-nums; }
+.groupBtn i { font-style: normal; color: var(--ink-3); }
+.groupBtn:focus-visible, .groupList li:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.groupScrim { position: fixed; inset: 0; z-index: 4; }
+.groupList { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 5; margin: 0; padding: 4px; list-style: none; border-radius: var(--r-m); background: var(--raised); border: 1px solid var(--line-strong); box-shadow: var(--shadow-raised); }
+.groupList li { min-height: var(--tap); padding: 0 10px; border-radius: 8px; display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; cursor: pointer; font-size: 14.5px; }
+.groupList li[aria-selected="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }

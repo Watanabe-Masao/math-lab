@@ -29,8 +29,13 @@ const inEv = (e: Ev) => (k: number) => (e.op === "eq" ? k === e.k : e.op === "ge
 const probOf = (f: number[], e: Ev) => f.reduce((t, v, k) => t + (inEv(e)(k) ? v : 0), 0);
 const sumK = (ks: number[]) => ks.reduce((a, b) => a + b, 0);
 
-/** 入口：何を確かめたい？ */
-export function QuestionMenu({ title, items, groups, onPick, onBack, onInfo, children }: { title: string; items?: MenuItem[]; groups?: MenuGroup[]; onPick: (id: string) => void; onBack?: () => void; onInfo?: () => void; children?: ReactNode }) {
+/** 入口：何を確かめたい？ groups（テーマ体系）があれば、まとまり（A〜F）を上の選択で1つ選んで、その問いを並べる。extra（比べる）はいつも下に */
+export function QuestionMenu({ title, items, groups, extra, group, onGroup, onPick, onBack, onInfo, children }: { title: string; items?: MenuItem[]; groups?: MenuGroup[]; extra?: MenuItem[]; group?: string; onGroup?: (id: string) => void; onPick: (id: string) => void; onBack?: () => void; onInfo?: () => void; children?: ReactNode }) {
+  const [own, setOwn] = useState(groups?.[0]?.id ?? "");
+  const [open, setOpen] = useState(false);
+  const gid = group ?? own;
+  const g = groups?.find((x) => x.id === gid) ?? groups?.[0];
+  const choose = (id: string) => { haptic(); setOwn(id); onGroup?.(id); setOpen(false); };
   const row = (it: MenuItem) => it.draft
     ? <div key={it.key ?? it.id} className={`${s.menuItem} ${s.draft}`} aria-disabled="true" data-testid={`exp-q-${it.key ?? it.id}`}>
         <span className={s.form}>作成中</span><b>{it.key && <span className={s.qid}>{it.key}</span>}{it.title}</b>
@@ -38,14 +43,27 @@ export function QuestionMenu({ title, items, groups, onPick, onBack, onInfo, chi
     : <button key={it.key ?? it.id} type="button" className={s.menuItem} onClick={() => { haptic(); onPick(it.id); }} data-testid={`exp-q-${it.key ?? it.id}`}>
         <span className={s.form}>{FORM_NAMES[it.form]}</span><b>{it.key && <span className={s.qid}>{it.key}</span>}{it.title}</b>{it.sub && <small>{it.sub}</small>}
       </button>;
+  const ready = (x: MenuGroup) => x.items.filter((it) => !it.draft).length;
   return (
     <LabShell title={title} question="何を確かめたい？" qLabel="問いを選ぶ" stepper={false} stage={0} reached={0} go={() => {}} onBack={onBack} onInfo={onInfo}
-      body={groups
-        ? <div className={s.menu} data-testid="exp-menu">{groups.map((g) => (
-            <section key={g.id} className={s.menuGroup} aria-label={g.title} data-testid={`exp-group-${g.id}`}>
-              <h3>{g.title}<span>{g.items.filter((it) => !it.draft).length}／{g.items.length}</span></h3>
-              {g.items.map(row)}
-            </section>))}</div>
+      body={groups && g
+        ? <div className={s.menu} data-testid="exp-menu">
+            <div className={s.groupPick}>
+              <button type="button" className={s.groupBtn} aria-haspopup="listbox" aria-expanded={open} onClick={() => { haptic(); setOpen(!open); }} data-testid="exp-group-pick">
+                <span><span className={s.qid}>{g.id}</span>{g.title}</span><small>{ready(g)}／{g.items.length}</small><i aria-hidden="true">▾</i>
+              </button>
+              {open && <>
+                <div className={s.groupScrim} onClick={() => setOpen(false)} />
+                <ul className={s.groupList} role="listbox" aria-label="テーマのまとまり" data-testid="exp-group-list">
+                  {groups.map((x) => <li key={x.id} role="option" aria-selected={x.id === g.id} tabIndex={0} onClick={() => choose(x.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choose(x.id); } }} data-testid={`exp-group-${x.id}`}>
+                    <span><span className={s.qid}>{x.id}</span>{x.title}</span><small>{ready(x)}／{x.items.length}</small>
+                  </li>)}
+                </ul>
+              </>}
+            </div>
+            <section className={s.menuGroup} aria-label={`${g.id} ${g.title}`} data-testid={`exp-items-${g.id}`}>{g.items.map(row)}</section>
+            {extra?.length ? <section className={s.menuGroup} aria-label="実験室">{extra.map(row)}</section> : null}
+          </div>
         : <div className={s.menu} data-testid="exp-menu">{(items ?? []).map(row)}</div>}
       cta={null}>{children}</LabShell>
   );
