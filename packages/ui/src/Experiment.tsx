@@ -5,7 +5,7 @@
 // - 発見メモは ChatGPT に渡す（公開サイトは個人の記録を持たない。ChatGPT が Notion の学習記録へ書く）
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import {
-  expand, modelMoments, modelPmf, summarize, toTex,
+  expand, mechanismMoments, mixSpread, modelMoments, modelPmf, summarize, toTex,
   type CardMechanism, type Mechanism, type SetRecord,
 } from "@math-lab/engine";
 import { nudge } from "./nudge";
@@ -76,13 +76,14 @@ function CounterLab({ cx, cond, theme, onConcept, name }: { cx: Counter; cond: C
   // 起き方の説明（結果は言わない）
   const how = m.kind === "urn" ? `${total} 個の箱（${theme.success} ${m.success} 個）から、${cond.n} 個を戻さずに取る`
     : m.kind === "streak" ? `${theme.success}のあとは確率 ${r2(cond.p + m.carry * (1 - cond.p))}、${theme.failure}のあとは ${r2(cond.p - m.carry * cond.p)}（最初は ${r2(cond.p)}。どの回も平均すると ${r2(cond.p)}）`
-    : `セットごとに確率が ${r2(Math.max(0, cond.p - m.spread))} か ${r2(Math.min(1, cond.p + m.spread))} になる（平均は ${r2(cond.p)}）`;
+    : `セットごとに確率が ${r2(cond.p - mixSpread(m))} か ${r2(cond.p + mixSpread(m))} になり、そのセットの中は同じ確率（平均の確率は ${r2(cond.p)}${mixSpread(m) === 0 ? "。p が 0 か 1 なので、ずれ幅は 0" : ""}）`;
   const [guess, setGuess] = useState<number | undefined>();
   // 条件どおり（独立・毎回同じ p＝二項分布の前提）と、条件を1つ崩した起き方を、同じセット数ずつ起こして比べる（issue 121）
   const { before: recB, after: rec, run, fresh } = usePairRuns({ kind: "bernoulli", n: cond.n, p: cond.p }, m);
   const sm = summarize(rec), smB = summarize(recB), binom = modelPmf({ kind: "binom", ...cond }), bv = modelMoments({ kind: "binom", ...cond }).variance;
-  const ratio = sm.variance !== undefined && bv > 0 ? sm.variance / bv : undefined;
-  const actual = ratio === undefined ? undefined : ratio < 0.9 ? 0 : ratio > 1.1 ? 2 : 1;
+  // 予想の答えは実験の結果ではなく、起き方の理論の散らばり（mechanismMoments）と二項分布の理論で決める（実験の結果は毎回ゆれる。stats2-course #118 層5）
+  const mm = mechanismMoments(m);
+  const actual = Math.abs(mm.variance - bv) <= 1e-9 * Math.max(1, bv) ? 1 : mm.variance < bv ? 0 : 2;
   const enough = rec.sets >= 100;
   const kOf = (r: SetRecord) => r.last?.reduce((a, b) => a + b, 0);
   return (
@@ -113,10 +114,10 @@ function CounterLab({ cx, cond, theme, onConcept, name }: { cx: Counter; cond: C
         </div>
         {!enough ? <p className={s.muted}>あと {100 - rec.sets} セットで、二項分布と照らす</p> : <>
           <div className={guess === actual ? s.ok : s.ng} data-testid="exp-cx-verdict">
-            <b>{guess === actual ? "✓ 予想どおり" : "✗ 予想と違った"}</b>　山は二項分布より{actual !== undefined ? SPREAD[actual] : "—"}（散らばり：崩した {r2(sm.variance)}・条件どおり {r2(smB.variance)}・二項分布の理論 {r2(bv)}）
+            <b>{guess === actual ? "✓ 予想どおり" : "✗ 予想と違った"}</b>　山は二項分布より{SPREAD[actual]}（理論の散らばり：崩した起き方 {r2(mm.variance)}・二項分布 {r2(bv)}。実験：崩した {r2(sm.variance)}・条件どおり {r2(smB.variance)}）
           </div>
           <div className={s.tiles}>
-            <div>平均<b>{r2(smB.mean)} ・ {r2(sm.mean)}</b><i>条件どおり・崩した（理論 {r2(mean(cond))}）</i></div>
+            <div>平均<b>{r2(smB.mean)} ・ {r2(sm.mean)}</b><i>条件どおり・崩した（理論 {r2(mean(cond))}・{r2(mm.mean)}）</i></div>
             <div>散らばり<b>{r2(smB.variance)} ・ {r2(sm.variance)}</b><i>平均はほぼ同じでも、広がりが違う</i></div>
           </div>
           <p className={s.breaks}>崩した条件：{cx.breaks}</p>
