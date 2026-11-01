@@ -25,12 +25,15 @@ const padTo = (f: number[] | undefined, n: number) => (f ? [...f, ...Array(Math.
 
 /** 棒（実験の割合）・点（理論）・点線（前の条件）・線（あなたの予想）を重ねる図。横軸の文字は labels（なければ番号）。高さは前の値から動く。
  *  pair（前の条件の実験の割合）があると、各値に「前」と「後」の棒を左右に並べる（issue 121）。点線（前の理論）は前の棒、点（後の理論）は後の棒に乗る */
-export function Bars({ freq: freq0, pair: pair0, series, theory: theory0, ghost: ghost0, guess, hi, mark, markLabel = "予想", marker, labels, height = 150, label }: {
+export function Bars({ freq: freq0, pair: pair0, series, theory: theory0, ghost: ghost0, guess, hi, mark, markLabel = "予想", marker, at, labels, height = 150, label }: {
   freq?: number[]; pair?: number[]; theory?: number[]; ghost?: number[]; guess?: number[]; hi?: number;
   /** 比べる（issue 122）：いくつかの実験の割合を、値ごとに左から並べる（4つまで。色は SERIES の順） */
   series?: number[][];
   /** 縦の点線（位置は棒の番号。小数なら間に置く） */ mark?: number; markLabel?: string;
   /** 下の ▲（期待値など。位置は棒の番号。小数なら間に置く） */ marker?: number;
+  /** 棒ごとの値（stats2-course issue 158 A1）。あれば横の位置を値に比例させ、mark・marker も値で受ける（作業台の図と同じ置き方。
+   *  値の間が不ぞろいな表で、▲を番号の間に割って置くと重心からずれて見えるため）。棒が細くなりすぎる表では ▲・点線を出さない */
+  at?: number[];
   labels?: (string | number)[]; height?: number; label: string;
 }) {
   if (series) return <MultiBars series={series} labels={labels} height={height} label={label} />;
@@ -46,7 +49,16 @@ export function Bars({ freq: freq0, pair: pair0, series, theory: theory0, ghost:
   const bars0 = useTween(pair ?? base.map(() => 0));
   const [mk] = useTween([marker ?? 0]);
   const y = (v: number) => B - (v / topT!) * (B - 12);
-  const bw = (W - R) / (n + 1), x = (k: number) => k * bw + bw / 2;
+  // 横の位置：値があれば値に比例（左右に値の間の半分の余白）、なければ番号で等間隔
+  const gap = at && at.length > 1 ? Math.min(...at.slice(1).map((v, i) => v - at[i]!)) : 1;
+  const span = at && at.length > 1 ? at[at.length - 1]! - at[0]! + gap : 1;
+  const prop = !!at && at.length === n + 1 && (gap / span) * (W - R) >= 8;
+  const xv = (v: number) => ((v - (at![0]! - gap / 2)) / span) * (W - R);
+  const bw = prop ? (gap / span) * (W - R) : (W - R) / (n + 1), x = (k: number) => (prop ? xv(at![k]!) : k * bw + bw / 2);
+  // mark・marker：値で受けたら値の位置。比例にできない表では出さない（番号の間に割って置かない）
+  const xm = (v: number) => (at ? (prop ? xv(v) : undefined) : x(v));
+  const markX = mark === undefined || (!at && (mark < 0 || mark > n)) ? undefined : xm(mark);
+  const markerX = marker === undefined ? undefined : at ? (prop ? xv(mk!) : undefined) : x(mk!);
   // 前と後を並べるときは、前を左・後を右に置く
   const off = pair ? bw * 0.18 : 0, xb = (k: number) => x(k) - off, xa = (k: number) => x(k) + off, wid = pair ? bw * 0.34 : bw * 0.64;
   const every = n <= 12 ? 1 : n <= 30 ? 5 : 10;
@@ -61,18 +73,18 @@ export function Bars({ freq: freq0, pair: pair0, series, theory: theory0, ghost:
         <rect key={`b${k}`} x={xb(k) - wid / 2} y={y(v)} width={wid} height={B - y(v)} rx={Math.min(3, wid * 0.2)} className={s.barBefore} data-testid="exp-bar-before" />
       ))}
       {bars.map((v, k) => (v > 0 && B - y(v) > 0.3) && (
-        <rect key={k} x={xa(k) - wid / 2} y={y(v)} width={wid} height={B - y(v)} rx={Math.min(3, wid * 0.2)} className={k === hi ? s.barHi : freq ? s.bar : s.barTheory} />
+        <rect key={k} x={xa(k) - wid / 2} y={y(v)} width={wid} height={B - y(v)} rx={Math.min(3, wid * 0.2)} className={k === hi ? s.barHi : freq ? s.bar : s.barTheory} data-x={xa(k)} />
       ))}
       {freq && theory?.map((v, k) => <circle key={k} cx={xa(k)} cy={y(v)} r={pair ? 2.5 : 3} className={s.dot} />)}
       <line x1={0} x2={W - R + 4} y1={B} y2={B} className={s.base} />
-      {mark !== undefined && mark >= 0 && mark <= n && (
-        <g className={s.mark} key={`m${mark}`}>
-          <line x1={x(mark)} x2={x(mark)} y1={12} y2={B} />
-          <text x={Math.min(W - R - 14, Math.max(14, x(mark)))} y={9} textAnchor="middle">{markLabel}</text>
+      {markX !== undefined && (
+        <g className={s.mark} key={`m${mark}`} data-testid="exp-mark" data-x={markX}>
+          <line x1={markX} x2={markX} y1={12} y2={B} />
+          <text x={Math.min(W - R - 14, Math.max(14, markX))} y={9} textAnchor="middle">{markLabel}</text>
         </g>
       )}
       {base.map((_, k) => (k % every === 0 || k === hi) && <text key={k} x={x(k)} y={B + 14} textAnchor="middle" className={k === hi ? s.tickOn : s.tick}>{labels?.[k] ?? k}</text>)}
-      {marker !== undefined && <path d={`M${x(mk!)},${B + 18} l -6 9 h 12 z`} className={s.marker} data-testid="exp-marker" />}
+      {markerX !== undefined && <path d={`M${markerX},${B + 18} l -6 9 h 12 z`} className={s.marker} data-testid="exp-marker" data-x={markerX} />}
     </svg>
   );
 }
