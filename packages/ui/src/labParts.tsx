@@ -227,7 +227,7 @@ export function Replay({ rec, theory, before, labels, unit = "", per = "セッ�
   const freq = useMemo(() => freqOf(rec, upto), [rec, upto]);
   const freqB = useMemo(() => (before ? freqOf(before.rec, Math.min(upto, before.rec.sets)) : undefined), [before, upto]);
   // 平均の移り変わり（対数の目盛りで ~120 点）。左に縦軸の目盛り、右に期待値の名前と数
-  const W = 340, H = 186, L = 30, Rm = 76, T = 22, B = H - 34;
+  const W = 340, H = 186, Rm = 76, T = 22, B = H - 34;
   const runOf = (r: SetRecord) => {
     const out: { i: number; m: number }[] = []; let sum = 0, next = 1;
     for (let i = 1; i <= r.sets; i++) { sum += r.ks[i - 1]!; if (i >= next || i === r.sets) { out.push({ i, m: sum / i }); next = Math.max(i + 1, Math.ceil(i * 1.06)); } }
@@ -237,11 +237,15 @@ export function Replay({ rec, theory, before, labels, unit = "", per = "セッ�
     ...(before ? [{ key: "b", name: "変更前", th: momentsOf(before.theory, before.rec.support), pts: runOf(before.rec), line: s.runLineB, dot: s.runDotB, mean: s.meanLineB }] : []),
     { key: "a", name: before ? "変更後" : "実験", th: momentsOf(theory, rec.support), pts: runOf(rec), line: s.runLine, dot: s.runDot, mean: s.meanLine },
   ], [rec, theory, before]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const lx = (i: number) => L + (Math.log10(i) / Math.max(1e-9, Math.log10(Math.max(10, N)))) * (W - L - Rm);
-  // 縦の幅は、実際の平均の動きと、10回目の揺れの目安（±2σ/√10）に合わせる。目安ははみ出た分を切る
-  const ends = series.flatMap((x) => { const w10 = (2 * Math.sqrt(x.th.variance)) / Math.sqrt(10); return [x.th.mean - w10, x.th.mean + w10, ...x.pts.map((p) => p.m)]; });
-  const lo0 = Math.min(...ends), hi0 = Math.max(...ends), pad = (hi0 - lo0) * 0.06;
+  // 縦の幅は、実際の平均の軌跡（全部の回数）と期待値だけで決める。再生中も固定する（動きが見比べられるように）。
+  // 揺れの目安は補助なので幅に入れない（まれな大当たりの表では目安が非常に広く、平均の動きがつぶれていた。渡辺さん 2026-11-01）
+  const ends = series.flatMap((x) => [x.th.mean, ...x.pts.map((p) => p.m)]);
+  const lo0 = Math.min(...ends), hi0 = Math.max(...ends), span0 = hi0 - lo0 || Math.max(1, Math.abs(hi0) * 0.1), pad = span0 * 0.08;
   const lo = lo0 - pad, hi = hi0 + pad;
+  const ticks = niceTicks(lo, hi);
+  // 左の余白は目盛りの数の長さに合わせる（大きな値でも欠けない）
+  const L = 10 + 6.4 * Math.max(...ticks.map((v) => num3(v).length));
+  const lx = (i: number) => L + (Math.log10(i) / Math.max(1e-9, Math.log10(Math.max(10, N)))) * (W - L - Rm);
   const ly = (v: number) => B - ((Math.min(hi, Math.max(lo, v)) - lo) / Math.max(1e-9, hi - lo)) * (B - T);
   const curOf = (pts: { i: number; m: number }[]) => pts.filter((p) => p.i <= upto).at(-1);
   const a = series.at(-1)!, b = before ? series[0] : undefined, ca = curOf(a.pts), cb = b ? curOf(b.pts) : undefined;
@@ -249,6 +253,8 @@ export function Replay({ rec, theory, before, labels, unit = "", per = "セッ�
   const thY = series.map((x) => ly(x.th.mean));
   const thLabelY = series.length === 2 && Math.abs(thY[0]! - thY[1]!) < 12
     ? (thY[0]! <= thY[1]! ? [thY[0]! - 4, thY[1]! + 10] : [thY[0]! + 10, thY[1]! - 4]) : thY.map((y) => y + 3.5);
+  // 散らばりが非常に大きい表（まれな大当たり）：全部の回数でも揺れの目安が期待値の半分を超える（反例の答えと同じ物差し）
+  const wild = series.some((x) => (2 * Math.sqrt(x.th.variance)) / Math.sqrt(Math.max(1, N)) > Math.abs(x.th.mean) / 2);
   const about = (v: number) => (Math.abs(Number(num3(v)) - v) > 1e-9 ? `約 ${num3(v)}` : num3(v));
   if (N < 2) return null;
   return (
@@ -264,18 +270,19 @@ export function Replay({ rec, theory, before, labels, unit = "", per = "セッ�
       <svg viewBox={`0 0 ${W} ${H}`} className={s.svg} role="img" aria-label={`ここまでの平均の移り変わり（横は${per}数の対数目盛）`} data-testid="exp-run-chart">
         <text x={2} y={11} className={s.axisTitle}>ここまでの平均{unit ? `（${unit}）` : ""}</text>
         <text x={W - Rm + 8} y={11} className={s.axisTitle}>期待値（破線）</text>
-        {niceTicks(lo, hi).map((v) => (
+        {ticks.map((v) => (
           <g key={v}><line x1={L} x2={W - Rm + 4} y1={ly(v)} y2={ly(v)} className={s.grid} /><text x={L - 4} y={ly(v) + 3.5} textAnchor="end" className={s.tick}>{num3(v)}</text></g>
         ))}
         {showBand && series.map((x) => {
-          const sd = Math.sqrt(x.th.variance), band = x.pts.map((p) => [lx(p.i), ly(x.th.mean + (2 * sd) / Math.sqrt(p.i)), ly(x.th.mean - (2 * sd) / Math.sqrt(p.i))] as const);
+          const sd = Math.sqrt(x.th.variance), band = x.pts.filter((p) => p.i <= upto).map((p) => [lx(p.i), ly(x.th.mean + (2 * sd) / Math.sqrt(p.i)), ly(x.th.mean - (2 * sd) / Math.sqrt(p.i))] as const);
           return <path key={`band${x.key}`} d={`M${band.map(([bx, ba]) => `${bx},${ba}`).join("L")}L${[...band].reverse().map(([bx, , bb]) => `${bx},${bb}`).join("L")}Z`} className={x.key === "b" ? s.bandB : s.band} data-testid="exp-run-band" />;
         })}
         {series.map((x, j) => (
           <g key={x.key}>
             <line x1={L} x2={W - Rm + 4} y1={ly(x.th.mean)} y2={ly(x.th.mean)} className={x.mean} />
             <text x={W - Rm + 8} y={thLabelY[j]} className={s.tick} data-testid={`exp-run-expect-${x.key}`}>{b ? `${x.name.slice(-1)} ` : "期待値 "}{num3(x.th.mean)}</text>
-            <path d={x.pts.map((p, i) => `${i ? "L" : "M"}${lx(p.i)},${ly(p.m)}`).join("")} className={x.line} data-testid={`exp-run-line-${x.key}`} />
+            {/* 線は再生した回数までだけ描く（未来まで横に伸ばさない） */}
+            <path d={x.pts.filter((p) => p.i <= upto).map((p, i) => `${i ? "L" : "M"}${lx(p.i)},${ly(p.m)}`).join("")} className={x.line} data-testid={`exp-run-line-${x.key}`} data-upto={upto} />
             {(() => { const c = curOf(x.pts); return c && <>
               <circle cx={lx(c.i)} cy={ly(c.m)} r={4} className={x.dot} />
               {b && <text x={Math.max(L + 2, lx(c.i) - 6)} y={ly(c.m) + (x.key === "a" ? (ly(c.m) <= ly(cb?.m ?? c.m) ? -8 : 14) : (ly(c.m) < ly(ca?.m ?? c.m) ? -8 : 14))} textAnchor="end" className={s.lineName} data-testid={`exp-run-name-${x.key}`}>{x.name}</text>}
@@ -289,8 +296,9 @@ export function Replay({ rec, theory, before, labels, unit = "", per = "セッ�
       <button type="button" className={s.toggle} aria-pressed={showBand} onClick={() => { haptic(); setShowBand((v) => !v); }} data-testid="exp-run-band-toggle">{showBand ? "平均の揺れの目安を隠す" : "平均の揺れの目安を見る"}</button>
       {showBand && <p className={s.note}>帯＝平均の揺れの目安（期待値 ±2×標準偏差÷√{per}数。4倍集めると幅は半分）。いつも必ずこの中に入る範囲ではない。</p>}
       <p className={s.note} data-testid="exp-run-note">{b
-        ? `${per}数が少ないうちは、平均が大きく揺れる。繰り返すほど、変更前は ${about(b.th.mean)}${unit}、変更後は ${about(a.th.mean)}${unit} の近くに落ち着く様子を見る。途中では、2本の線が近づいたり交差したりすることもある。`
-        : `${per}数が少ないうちは、平均が大きく揺れる。繰り返すほど、期待値 ${about(a.th.mean)}${unit} の近くに落ち着く様子を見る。`}</p>
+        ? `${per}数が少ないうちは、平均が大きく揺れる。繰り返したとき、変更前は ${about(b.th.mean)}${unit}、変更後は ${about(a.th.mean)}${unit} の近くに落ち着いていくかを見る。途中では、2本の線が近づいたり交差したりすることもある。`
+        : `${per}数が少ないうちは、平均が大きく揺れる。繰り返したとき、期待値 ${about(a.th.mean)}${unit} の近くに落ち着いていくかを見る。`}
+        {wild && " この表は散らばりが非常に大きい（まれな大当たりがある）。しばらく低い平均が続き、当たりが出ると急に跳ねる。その跳ね方そのものが観察どころで、この回数では期待値の近くに落ち着くとは限らない。"}</p>
       <p className={s.h}>なぜ平均が変わったか<span>値ごとの割合（{upto} {per}まで）</span></p>
       <div className={s.legend} data-testid="exp-replay-legend">
         {b ? <><span><i className={s.kBarB} />変更前の実験の割合</span><span><i className={s.kBar} />変更後の実験の割合</span><span><i className={s.kGhost} />変更前の理論確率</span><span><i className={s.kDot} />変更後の理論確率</span></>
