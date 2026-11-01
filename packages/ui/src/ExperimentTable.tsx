@@ -232,6 +232,15 @@ export function TableLab({ def, reasonFormula, onConcept, conceptName, definitio
         <p className={s.h}>出た値の割合<span data-testid="exp-sets">各 {rec.sets} 回</span></p>
         <div className={s.legend}><span><i className={s.kBarB} />前の表</span><span><i className={s.kBar} />変えた表</span></div>
         <Bars freq={sum.freq} pair={sumB.freq} labels={labels} at={support} hi={last.length ? support.indexOf(last.at(-1)!) : undefined} label="前と変えた表で引いた値の割合" />
+        {rec.sets > 0 && (
+          // 値ごとに何回出たか（割合の棒だけでは回数が読めない。渡辺さん 2026-11-01）
+          <table className={s.cmpTable} data-testid="exp-counts">
+            <thead><tr><th scope="col">出た値</th><th scope="col">前の表</th><th scope="col">変えた表</th></tr></thead>
+            <tbody>{support.map((v, i) => (
+              <tr key={v}><td>{labels[i]}</td><td>{Math.round((sumB.freq[i] ?? 0) * recB.sets)} 回</td><td>{Math.round((sum.freq[i] ?? 0) * rec.sets)} 回</td></tr>
+            ))}</tbody>
+          </table>
+        )}
       </section>
     </>;
     cta = <>

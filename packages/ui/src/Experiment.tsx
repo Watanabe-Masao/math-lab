@@ -101,7 +101,7 @@ function CounterLab({ cx, cond, theme, onConcept, name }: { cx: Counter; cond: C
         <div className={s.lanes}>
           {([["条件どおり（二項分布）", recB, s.laneB, "exp-cx-set-before"], [`条件を崩した：${cx.name}`, rec, s.laneA, "exp-cx-set"]] as const).map(([tag, r, cls, tid]) => (
             <div key={tid} className={`${s.lane} ${cls}`}>
-              <div className={s.laneHead}><b>{tag}</b>{kOf(r) === undefined ? <span className={s.muted}>まだ</span> : <span><em>{kOf(r)}</em> {theme.unit ?? "回"} {theme.success}</span>}</div>
+              <div className={s.laneHead}><b>{tag}</b>{kOf(r) === undefined ? <span className={s.muted}>まだ</span> : <span>{theme.success} <em>{kOf(r)}</em> {theme.unit ?? "回"}</span>}</div>
               <div className={s.set} key={fresh} data-testid={tid}>
                 {(r.last ?? Array(cond.n).fill(null)).map((v, i) => (
                   <span key={i} className={v === null ? s.slot : v ? s.hit : s.miss} style={{ "--i": i } as CSSProperties}>{v === null ? "" : v ? theme.icon : "・"}</span>
@@ -246,7 +246,7 @@ function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, con
         <div className={s.lanes}>
           {([["前", round.start, recB, kB, s.laneB, "exp-set-before"], ["後", cond, rec, k, s.laneA, "exp-set"]] as const).map(([tag, c, r, kk, cls, tid]) => (
             <div key={tag} className={`${s.lane} ${cls}`}>
-              <div className={s.laneHead}><b>{tag}：p＝{pct(c.p)}・n＝{c.n}</b>{kk === undefined ? <span className={s.muted}>まだ</span> : <span>{c.n} {theme.unit ?? "回"}中 <em>{kk}</em> {theme.unit ?? "回"} {theme.success}</span>}</div>
+              <div className={s.laneHead}><b>{tag}：p＝{pct(c.p)}・n＝{c.n}</b>{kk === undefined ? <span className={s.muted}>まだ</span> : <span>{theme.success} <em>{kk}</em> {theme.unit ?? "回"}（{c.n} {theme.unit ?? "回"}中）</span>}</div>
               <div className={s.set} key={fresh} data-testid={tid}>
                 {(r.last ?? Array(c.n).fill(null)).map((v, i) => (
                   <span key={i} className={v === null ? s.slot : v ? s.hit : s.miss} style={{ "--i": i } as CSSProperties} title={v === null ? "" : v ? theme.success : theme.failure}>
