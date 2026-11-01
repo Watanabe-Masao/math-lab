@@ -225,7 +225,7 @@
    },
    {
     "symbol": "E( )",
-    "meaning": "期待値（値×確率を足す）",
+    "meaning": "期待値（値×確率を足す。連続なら密度で重み付けして積分）",
     "key": "E",
     "concept": "TERM-expect"
    },
@@ -450,8 +450,7 @@
     "kind": "param",
     "of": "X",
     "domain": {
-     "min": 0,
-     "minOpen": true
+     "min": 0
     }
    },
    {
@@ -589,7 +588,7 @@
   "symbols": [
    {
     "symbol": "E( )",
-    "meaning": "期待値（値×確率を足す）",
+    "meaning": "期待値（値×確率を足す。連続なら密度で重み付けして積分）",
     "key": "E",
     "concept": "TERM-expect"
    },
@@ -854,7 +853,7 @@
   "symbols": [
    {
     "symbol": "E( )",
-    "meaning": "期待値（値×確率を足す）",
+    "meaning": "期待値（値×確率を足す。連続なら密度で重み付けして積分）",
     "key": "E",
     "concept": "TERM-expect"
    },
@@ -943,7 +942,7 @@
    },
    {
     "symbol": "E( )",
-    "meaning": "期待値（値×確率を足す）",
+    "meaning": "期待値（値×確率を足す。連続なら密度で重み付けして積分）",
     "key": "E",
     "concept": "TERM-expect"
    },
@@ -990,7 +989,7 @@
   "symbols": [
    {
     "symbol": "E( )",
-    "meaning": "期待値（値×確率を足す）",
+    "meaning": "期待値（値×確率を足す。連続なら密度で重み付けして積分）",
     "key": "E",
     "concept": "TERM-expect"
    },
@@ -1351,7 +1350,7 @@
    },
    {
     "symbol": "E( )",
-    "meaning": "期待値（値×確率を足す）",
+    "meaning": "期待値（値×確率を足す。連続なら密度で重み付けして積分）",
     "key": "E",
     "concept": "TERM-expect"
    },
@@ -1783,7 +1782,7 @@
   "symbols": [
    {
     "symbol": "E( )",
-    "meaning": "期待値（値×確率を足す）",
+    "meaning": "期待値（値×確率を足す。連続なら密度で重み付けして積分）",
     "key": "E",
     "concept": "TERM-expect"
    },
@@ -2086,7 +2085,7 @@
   "symbols": [
    {
     "symbol": "E( )",
-    "meaning": "期待値（値×確率を足す）",
+    "meaning": "期待値（値×確率を足す。連続なら密度で重み付けして積分）",
     "key": "E",
     "concept": "TERM-expect"
    },
@@ -2269,7 +2268,7 @@
   "symbols": [
    {
     "symbol": "E( )",
-    "meaning": "期待値（値×確率を足す）",
+    "meaning": "期待値（値×確率を足す。連続なら密度で重み付けして積分）",
     "key": "E",
     "concept": "TERM-expect"
    },
@@ -2811,7 +2810,7 @@
   "symbols": [
    {
     "symbol": "E( )",
-    "meaning": "期待値（値×確率を足す）",
+    "meaning": "期待値（値×確率を足す。連続なら密度で重み付けして積分）",
     "key": "E",
     "concept": "TERM-expect"
    },
@@ -3103,7 +3102,7 @@
   "symbols": [
    {
     "symbol": "E( )",
-    "meaning": "期待値（値×確率を足す）",
+    "meaning": "期待値（値×確率を足す。連続なら密度で重み付けして積分）",
     "key": "E",
     "concept": "TERM-expect"
    },
@@ -3492,7 +3491,7 @@
   "symbols": [
    {
     "symbol": "E( )",
-    "meaning": "期待値（値×確率を足す）",
+    "meaning": "期待値（値×確率を足す。連続なら密度で重み付けして積分）",
     "key": "E",
     "concept": "TERM-expect"
    },
