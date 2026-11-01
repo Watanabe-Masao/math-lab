@@ -1,7 +1,7 @@
 // 値の表の作業台（stats2-course #119）。重みを動かし、確率・寄与・期待値・Σを同じ表から更新する。
 // 計算はengineだけ。棒の横位置は値の間隔に比例させ、期待値の▲を分布の重心として表示する。
 import { useMemo, useRef, useState, type PointerEvent } from "react";
-import { checkMechanism, expand, modelMoments, modelPmf, rhsOf, supportOf, toTex } from "@math-lab/engine";
+import { checkMechanism, expand, modelMoments, modelPmf, rhsOf, supportOf, toTex, type FormulaNode, type FormulaSymbol } from "@math-lab/engine";
 import { Formula, type FormulaData } from "./Formula";
 import { tex } from "./labParts";
 import s from "./TableWorkspace.module.css";
@@ -11,6 +11,28 @@ export type TableWorkspaceData = { formula: number; linear?: number; tables: Val
 type Props = { tables: ValueTable[]; formula: FormulaData; linear?: FormulaData; onConcept?: (id: string) => void; conceptName?: (id: string) => string; definitions?: (id: string) => FormulaData[] };
 const num = (x: number) => String(Number(x.toPrecision(6)));
 const pct = (x: number) => `${num(100 * x)}%`;
+
+// 変換後の確率変数 Y＝aX＋b の式を、教材の期待値の定義の木（E(X)＝Σ_x x·p(x)）から作る（手書きの別定義を増やさない。#119）。
+// 記号を付け替えるだけ：X→Y、動かす記号 x→y、確率 p(x)→P(y)。表示では P(y) を P(Y＝y) と書く（計算は P(y) のまま）
+const renameTree = (t: FormulaNode): FormulaNode => {
+  if ("num" in t) return t;
+  if ("sym" in t) return t.sym === "X" ? { sym: "Y" } : t.sym === "x" ? { sym: "y" } : t;
+  return { ...t, ...(t.op === "fn" && t.name === "p" ? { name: "P" } : {}), ...(t.var === "x" ? { var: "y" } : {}), args: t.args.map(renameTree) } as FormulaNode;
+};
+/** 表示だけ：P(v) を P(Y＝v) に（式の展開の各段にも同じ形で当てる） */
+const eventForm = (t: FormulaNode): FormulaNode => {
+  if (!("op" in t)) return t;
+  const args = t.args.map(eventForm);
+  return (t.op === "fn" && t.name === "P" && args.length === 1 ? { ...t, args: [{ op: "eq", args: [{ sym: "Y" }, args[0]!] }] } : { ...t, args }) as FormulaNode;
+};
+function asY(f: FormulaData): FormulaData | undefined {
+  if (!f.tree) return undefined;
+  const syms: FormulaSymbol[] = (f.symbols ?? []).filter((x) => !["X", "x", "p"].includes(x.key));
+  return { ...f, tree: renameTree(f.tree), symbols: [...syms,
+    { symbol: "Y", key: "Y", kind: "rv", meaning: "Y＝aX＋b（X の全部の値を a 倍して b 足した確率変数）" } as FormulaSymbol,
+    { symbol: "y", key: "y", kind: "index", meaning: "Y がとりうる値" } as FormulaSymbol,
+    { symbol: "P( )", key: "P", meaning: "Y が y になる確率 P(Y＝y)" } as FormulaSymbol] };
+}
 
 export function TableWorkspace({ tables, ...rest }: Props) {
   const [chosen, choose] = useState(tables[0]?.id);
@@ -45,9 +67,13 @@ function TableEditor({ table, formula, linear, ...links }: Omit<Props, "tables">
     setWeights(w); setNotice(""); setStep(0);
   };
   // Σは教材の木をengineで展開する。a＝0では同じ値を1つにまとめた確率を使う。
-  const steps = useMemo(() => formula.tree ? expand(rhsOf(formula.tree), {
-    domains: { x: support }, fns: { p: (x: number) => probabilities[support.indexOf(x)] ?? 0 },
-  }) : [], [formula, support.join(","), probabilities.join(",")]);
+  // 変換中（a≠1 か b≠0）は Y＝aX＋b の式 E(Y)＝Σ_y y·P(Y＝y) にし、表・見出し・Σ を同じ変換後の表から作る
+  const transformed = !!linear && (a !== 1 || b !== 0);
+  const shownFormula = useMemo(() => (transformed ? asY(formula) : undefined) ?? formula, [formula, transformed]);
+  const steps = useMemo(() => shownFormula.tree ? expand(rhsOf(shownFormula.tree), transformed
+    ? { domains: { y: support }, fns: { P: (y: number) => probabilities[support.indexOf(y)] ?? 0 } }
+    : { domains: { x: support }, fns: { p: (x: number) => probabilities[support.indexOf(x)] ?? 0 } }).map((t) => transformed ? eventForm(t) : t) : [],
+  [shownFormula, transformed, support.join(","), probabilities.join(",")]);
   const shown = Math.min(step, Math.max(0, steps.length - 1));
   const reset = () => { setWeights([...table.weights]); setA(1); setB(0); setStep(0); setNotice(""); };
   const W = 340, L = 25, R = 315, TOP = 26, BASE = 145;
@@ -100,11 +126,12 @@ function TableEditor({ table, formula, linear, ...links }: Omit<Props, "tables">
       <p className={s.hint}>変換前 E(X)＝{num(original.mean)} → a×E(X)＋b＝<b data-testid="tw-linear-result">{num(a * original.mean + b)}</b></p>
       {a === 0 && <p className={s.hint}>すべての値が {b} になり、確率は1つの値にまとまる。</p>}
     </fieldset>}
-    <table className={s.table} aria-label="値と確率と期待値への寄与"><thead><tr><th>{linear && (a !== 1 || b !== 0) ? "変換後の値" : "値 x"}</th><th>確率 p(x)</th><th>値×確率</th></tr></thead>
+    <table className={s.table} aria-label="値と確率と期待値への寄与"><thead><tr><th>{transformed ? "y＝ax＋b" : "値 x"}</th><th>{transformed ? "確率 P(Y＝y)" : "確率 p(x)"}</th><th>値×確率</th></tr></thead>
       <tbody>{rows.map(({ x, i, p }) => <tr key={i}><td>{num(x)}{table.unit}</td><td data-testid={`tw-prob-${i}`}>{num(p)}</td><td data-testid={`tw-contribution-${i}`}>{num(x * p)}</td></tr>)}</tbody>
     </table>
-    <p className={s.result}>期待値 <output data-testid="tw-mean">{num(moment.mean)}</output>{table.unit}<small>分散 <output data-testid="tw-variance">{num(moment.variance)}</output></small></p>
-    <Formula formula={formula} {...links} />
+    <p className={s.result}><span data-testid="tw-mean-label">{transformed ? "E(aX＋b)" : "期待値 E(X)"}</span> <output data-testid="tw-mean">{num(moment.mean)}</output>{table.unit}<small>分散 <output data-testid="tw-variance">{num(moment.variance)}</output></small></p>
+    {transformed && <p className={s.hint} data-testid="tw-y-note">Y＝aX＋b とすると、変換後の表の期待値は E(Y)＝Σ y·P(Y＝y)。</p>}
+    <Formula formula={transformed ? { ...shownFormula, tree: shownFormula.tree && eventForm(shownFormula.tree) } : formula} {...links} />
     {steps.length > 0 && <div className={s.expansion}>
       <div className={s.controls}><b>Σを1項ずつ開く</b><button type="button" onClick={() => setStep(Math.max(0, shown - 1))} disabled={shown === 0} aria-label="Σの前の段">‹</button><span>{shown + 1}／{steps.length}</span><button type="button" onClick={() => setStep(Math.min(steps.length - 1, shown + 1))} disabled={shown === steps.length - 1} aria-label="Σの次の段">›</button></div>
       <div data-testid="tw-expansion" dangerouslySetInnerHTML={{ __html: tex(toTex(steps[shown]!, { symbols: formula.symbols })) }} />
