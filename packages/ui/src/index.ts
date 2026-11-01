@@ -9,6 +9,7 @@ export { BottomSheet, snapDetent, rubber, DETENTS, type Detent } from "./BottomS
 export { change, flash, haptic, reduced, tokenMs, useTween } from "./motion";
 export { Formula, type FormulaData } from "./Formula";
 export { Workspace, type WorkspaceData } from "./Workspace";
+export { TableWorkspace, type TableWorkspaceData, type ValueTable } from "./TableWorkspace";
 export { Lightbox } from "./Lightbox";
 export { FullView } from "./FullView";
 export { Experiment, type ExperimentDef, type ExperimentTheme, type BinomDef } from "./Experiment";
