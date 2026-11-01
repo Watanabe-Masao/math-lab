@@ -1,4 +1,9 @@
-// 式の作業台（stats2-course #110）：数式・意味・操作・現象を1つの行動で連動させる。
+// 作業台の型（stats2-course #156。元は #110 の式の作業台）：数式・意味・操作・現象を1つの行動で連動させる。
+// 欄は固定の順：1 見出し → 2 主役の式 → 3 帯 → 4 結果 → 5 計算過程 → 6 入力 → 7 分布の図 → 8 変換 → 9 実験。
+// 可変の欄（6 入力・7 図の棒への操作）は概念の好みでなく、分布がどう決まるか（モデルの種類）で決まる：
+//   パターン1＝式で決まる分布（二項分布など）：入力は記号のつまみ、棒は押して横軸の値を選ぶ
+//   パターン2＝表で決まる分布（期待値など）：入力は値の表の行（重みの −／＋）、棒は引いて重みを変える
+// 新しい要素は型に足し、全部の作業台に出す（渡辺さん 2026-11-01）。
 // - 数式が主役。意味のかたまり（ₙCₖ・pᵏ・(1−p)ⁿ⁻ᵏ）を式の中で直接押す。押したかたまりは強調され、式の真下の帯に名前・意味・今の値が出る
 // - 帯の中の記号を押すと、記号の意味・概念・「式の中で開く」（定義の式に置き換え。閉じれば戻る）
 // - スライダー（範囲は定義域から。k ≦ n のような記号どうしの範囲も連動）を動かすと、式の値・結果・分布が一緒に動く
@@ -7,7 +12,7 @@
 import katex from "katex";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
-  applyOpens, createRandom, definitionsFor, describeDomain, distribution, emptyRecord, evaluate, expand, formatNum, frequencies, fnsIn, lhsOf, nodeAt, runTrials, openSymbol, rhsOf, sliderRange, substitute, symbolsIn, toTex,
+  applyOpens, checkMechanism, createRandom, modelMoments, modelPmf, supportOf, definitionsFor, describeDomain, distribution, emptyRecord, evaluate, expand, formatNum, frequencies, fnsIn, lhsOf, nodeAt, runTrials, openSymbol, rhsOf, sliderRange, substitute, symbolsIn, toTex,
   type Definition, type Formula as EngineFormula, type FormulaNode, type FormulaPart, type FormulaSymbol,
 } from "@math-lab/engine";
 import { flash, haptic, reduced, tokenMs, useTween } from "./motion";
@@ -16,26 +21,27 @@ import type { FormulaData } from "./Formula";
 import s from "./Workspace.module.css";
 
 export type WorkspaceData = FormulaData & { parts?: FormulaPart[] };
+export type ValueTable = { id: string; name: string; icon?: string; unit?: string; values: number[]; weights: number[]; labels?: string[] };
+export type TableWorkspaceData = { formula: number; linear?: number; tables: ValueTable[] };
 
-type Props = {
-  /** 主役の式（木と意味のかたまり） */
+/** モデルの種類（可変の欄のパターンを決める） */
+type Model =
+  | { kind: "formula"; vary: string[]; over: string; initial?: Record<string, number> }
+  | { kind: "table"; tables: ValueTable[] };
+type Common = {
+  /** 主役の式 */
   formula: WorkspaceData;
-  /** 期待値の式（分布に ▲ を立てる。任意） */
+  /** 期待値の式（パターン1：分布に期待値の線を立てる） */
   mean?: FormulaData;
-  /** スライダーで動かす記号 */
-  vary: string[];
-  /** 分布の横軸の記号（棒を押すと選ぶ） */
-  over: string;
-  /** 最初の値（なければ定義域の中ほど） */
-  initial?: Record<string, number>;
-  /** 実験の種（なければ時刻から。画面に出し、同じ種なら同じ結果） */
+  /** E(aX＋b)＝aE(X)＋b の式（あれば 8 変換の欄を出す） */
+  linear?: FormulaData;
   seed?: number;
-  /** 実験（1回・100回）を出す（既定 true。実験室の中に置くときは false） */
   experiment?: boolean;
   definitions?: (conceptId: string) => FormulaData[];
   onConcept?: (id: string) => void;
   conceptName?: (id: string) => string;
 };
+
 
 const render = (tex: string, display = true) => {
   try { return katex.renderToString(tex, { displayMode: display, throwOnError: false, strict: false, output: "html", trust: (c) => c.command === "\\htmlData" }); }
@@ -55,23 +61,61 @@ function Tween({ v, show, ...rest }: { v: number | undefined; show: (x: number |
   return <span {...rest}>{show(shown)}</span>;
 }
 
-export function Workspace({ formula: original, mean, vary, over, initial, seed: seed0, definitions, onConcept, conceptName, experiment = true }: Props) {
-  const baseSymbols = original.symbols ?? [];
-  const symOf = (k: string, list = baseSymbols) => list.find((x) => x.key === k);
 
-  // ---- 値（スライダーと棒）。記号どうしの範囲（k ≦ n）に合わせて丸める ----
-  // 最初の値：渡された値か、定義域から決める（整数は 10 前後、0〜1 は 0.3、ほかは中ほど）。横軸の記号は期待値の近く
+// ---- パターン2：変換後の確率変数 Y＝aX＋b の式を、期待値の定義の木（E(X)＝Σ_x x·p(x)）から記号を付け替えて作る（手書きの別定義を増やさない） ----
+const renameTree = (t: FormulaNode): FormulaNode => {
+  if ("num" in t) return t;
+  if ("sym" in t) return t.sym === "X" ? { sym: "Y" } : t.sym === "x" ? { sym: "y" } : t;
+  return { ...t, ...(t.op === "fn" && t.name === "p" ? { name: "P" } : {}), ...(t.var === "x" ? { var: "y" } : {}), args: t.args.map(renameTree) } as FormulaNode;
+};
+/** 表示だけ：P(v) を P(Y＝v) と書く（主役の式と計算過程の各段に同じ形で当てる） */
+const eventForm = (t: FormulaNode): FormulaNode => {
+  if (!("op" in t)) return t;
+  const args = t.args.map(eventForm);
+  return (t.op === "fn" && t.name === "P" && args.length === 1 ? { ...t, args: [{ op: "eq", args: [{ sym: "Y" }, args[0]!] }] } : { ...t, args }) as FormulaNode;
+};
+function asY(f: WorkspaceData): WorkspaceData {
+  if (!f.tree) return f;
+  const syms = (f.symbols ?? []).filter((x) => !["X", "x", "p"].includes(x.key));
+  return { ...f, parts: undefined, tree: renameTree(f.tree), symbols: [...syms,
+    { symbol: "Y", key: "Y", kind: "rv", meaning: "Y＝aX＋b（X の全部の値を a 倍して b 足した確率変数）" } as FormulaSymbol,
+    { symbol: "y", key: "y", kind: "index", meaning: "Y がとりうる値" } as FormulaSymbol,
+    { symbol: "P( )", key: "P", meaning: "Y が y になる確率 P(Y＝y)" } as FormulaSymbol] };
+}
+const num6 = (x: number) => String(Number(x.toPrecision(6)));
+
+/** パターン1：式で決まる分布（二項分布など） */
+export function Workspace({ vary, over, initial, ...rest }: Common & { vary: string[]; over: string; initial?: Record<string, number> }) {
+  return <Frame {...rest} model={{ kind: "formula", vary, over, initial }} />;
+}
+/** パターン2：表で決まる分布（期待値など）。表は場面（実験室のテーマ）から選ぶ */
+export function TableWorkspace({ tables, ...rest }: Common & { tables: ValueTable[] }) {
+  const [chosen, choose] = useState(tables[0]?.id);
+  const table = tables.find((t) => t.id === chosen) ?? tables[0];
+  if (!table) return <p role="alert">値の表がない。</p>;
+  const reason = checkMechanism({ kind: "table", n: 1, values: table.values, weights: table.weights });
+  if (reason || (table.labels && table.labels.length !== table.values.length)) return <p role="alert">値の表を開けない：{reason ?? "呼び名の数が値と違う"}</p>;
+  return <Frame key={table.id} {...rest} model={{ kind: "table", tables }} table={table} onScene={choose} />;
+}
+
+function Frame({ formula: given, mean, linear, model, table, onScene, seed: seed0, definitions, onConcept, conceptName, experiment = true }: Common & { model: Model; table?: ValueTable; onScene?: (id: string) => void }) {
+  const isTable = model.kind === "table";
+  const vary = model.kind === "formula" ? model.vary : [], over = model.kind === "formula" ? model.over : "";
+  const symOfGiven = (k: string) => (given.symbols ?? []).find((x) => x.key === k);
+
+  // ---- 6 入力（パターン1：記号の値／パターン2：表の重み）と 8 変換（a・b） ----
   const start = useMemo(() => {
-    const v: Record<string, number> = { ...initial };
+    if (model.kind !== "formula") return {};
+    const v: Record<string, number> = { ...model.initial };
     for (const k of vary) {
       if (v[k] !== undefined) continue;
-      const sym = symOf(k); if (!sym) continue;
+      const sym = symOfGiven(k); if (!sym) continue;
       const r = sliderRange(sym, v, FALLBACK);
       v[k] = sym.domain?.integer ? Math.min(r.max, Math.max(r.min, 10)) : r.min >= 0 && r.max <= 1 ? 0.3 : Number(((r.min + r.max) / 2).toFixed(2));
     }
     if (v[over] === undefined) {
       const m = mean?.tree ? evaluate(rhsOf(mean.tree), { values: v }) : undefined;
-      const r = symOf(over) ? sliderRange(symOf(over)!, v, FALLBACK) : { min: 0, max: 0, step: 1 };
+      const r = symOfGiven(over) ? sliderRange(symOfGiven(over)!, v, FALLBACK) : { min: 0, max: 0, step: 1 };
       v[over] = Math.min(r.max, Math.max(r.min, Math.round(m ?? r.min)));
     }
     return v;
@@ -79,11 +123,32 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
   const [values, setValues] = useState<Record<string, number>>(start);
   const clampAll = (v: Record<string, number>) => {
     const out = { ...v };
-    for (const k of [...vary, over]) { const sym = symOf(k); if (!sym) continue; const r = sliderRange(sym, out, FALLBACK); out[k] = Math.min(r.max, Math.max(r.min, out[k] ?? r.min)); }
+    for (const k of [...vary, over]) { const sym = symOfGiven(k); if (!sym) continue; const r = sliderRange(sym, out, FALLBACK); out[k] = Math.min(r.max, Math.max(r.min, out[k] ?? r.min)); }
     return out;
   };
   const set = (k: string, x: number) => setValues((v) => clampAll({ ...v, [k]: x }));
+  const [weights, setWeights] = useState<number[]>(() => [...(table?.weights ?? [])]);
+  const [notice, setNotice] = useState("");
+  const setWeight = (i: number, w: number) => {
+    const next = weights.map((x, j) => (j === i ? Math.max(0, Math.round(w)) : x));
+    if (next.every((x) => x === 0)) { setNotice("重みを全部0にはできない。どれか1つを増やしてから動かす。"); return; }
+    setNotice(""); setWeights(next);
+  };
+  const [a, setA] = useState(1), [b, setB] = useState(0);
+  const transformed = !!linear && (a !== 1 || b !== 0);
 
+  // パターン2の値の表（変換後）：値・確率・とりうる値（a＝0 なら1つにまとまる）
+  const tableModel = table ? { kind: "table" as const, n: 1, values: table.values.map((x) => a * x + b), weights } : undefined;
+  const support = tableModel ? supportOf(tableModel) : [];
+  const probs = tableModel ? modelPmf(tableModel) : [];
+  const totalW = weights.reduce((s2, w) => s2 + w, 0);
+  const baseMeanX = table ? modelMoments({ kind: "table", n: 1, values: table.values, weights }).mean : undefined;
+
+  // ---- 2 主役の式：パターン2で変換中は Y＝aX＋b の式 ----
+  const original: WorkspaceData = isTable && transformed ? asY(given) : given;
+  const display = (t: FormulaNode) => (isTable && transformed ? eventForm(t) : t);
+  const baseSymbols = original.symbols ?? [];
+  const symOf = (k: string, list = baseSymbols) => list.find((x) => x.key === k);
   // ---- 開く・閉じる ----
   const [opens, setOpens] = useState<{ key: string; def: Definition }[]>([]);
   const resolve = useMemo(() => (sym: FormulaSymbol) => (sym.concept && definitions ? definitionsFor(sym.key, toEngine(definitions(sym.concept))) : []), [definitions]);
@@ -96,12 +161,12 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
   const partNodes = useMemo(() => new Map(parts.map((p, i) => [nodeAt(tree, p.path), i] as const).filter(([n]) => !!n) as [FormulaNode, number][]), [tree, parts]);
 
   // ---- 式（意味のかたまりと記号に印。選んだものを強調） ----
-  const html = useMemo(() => render(toTex(tree, {
+  const html = useMemo(() => render(toTex(display(tree), {
     symbols,
     wrap: (k, t) => `\\htmlData{sym=${k}}{${t}}`,
     mark: (n) => opened.marks.get(n),
     data: (n) => (partNodes.has(n) ? `part=${partNodes.get(n)}` : undefined),
-  })), [tree, symbols, opened, partNodes]);
+  })), [tree, symbols, opened, partNodes, transformed]);   // eslint-disable-line react-hooks/exhaustive-deps
   const stage = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const root = stage.current; if (!root) return;
@@ -196,20 +261,35 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
     else setSel(null);
   };
 
+
+  // 変換で式が Y に替わったら、開いた所と選びを戻す（記号が替わるので）
+  useEffect(() => { setOpens([]); setSel(null); }, [isTable && transformed]);   // eslint-disable-line react-hooks/exhaustive-deps
+
   // ---- 値 ----
-  const env = { values };
+  const env: { values: Record<string, number>; domains?: Record<string, number[]>; fns?: Record<string, (x: number) => number> } = isTable
+    ? (transformed ? { values: {}, domains: { y: support }, fns: { P: (y: number) => probs[support.indexOf(y)] ?? 0 } } : { values: {}, domains: { x: support }, fns: { p: (x: number) => probs[support.indexOf(x)] ?? 0 } })
+    : { values };
   const result = evaluate(rhsOf(tree), env);
   const lhs = lhsOf(tree);
-  const overSym = symOf(over);
+  const overSym = symOfGiven(over);
   const range = overSym ? sliderRange(overSym, values, FALLBACK) : { min: 0, max: 0, step: 1 };
-  const dist = useMemo(() => distribution(original.tree!, over, range.min, range.max, env), [original.tree, over, range.min, range.max, JSON.stringify(values)]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const meanValue = mean?.tree ? evaluate(rhsOf(mean.tree), env) : undefined;
+  // 分布（横軸は元の X の値。図は変換後の値 v＝ax＋b で並べる。a＝0 なら1本にまとめる）
+  const distX = useMemo(() => (isTable ? (table!.values.map((x, i) => ({ x, y: totalW > 0 ? weights[i]! / totalW : 0 }))) : distribution(given.tree!, over, range.min, range.max, env)),
+    [isTable, JSON.stringify(weights), given.tree, over, range.min, range.max, JSON.stringify(values)]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const meanX = isTable ? baseMeanX : mean?.tree ? evaluate(rhsOf(mean.tree), env) : undefined;
+  const meanValue = meanX === undefined ? undefined : a * meanX + b;
+  const bars = useMemo(() => {
+    const m = new Map<number, { v: number; y: number; xs: number[]; rows: number[] }>();
+    distX.forEach((d, i) => { const v = Number((a * d.x + b).toPrecision(12)); const g = m.get(v) ?? { v, y: 0, xs: [], rows: [] }; g.y += d.y ?? 0; g.xs.push(d.x); g.rows.push(i); m.set(v, g); });
+    return [...m.values()].sort((p, q) => p.v - q.v);
+  }, [distX, a, b]);
+  const dist = useMemo(() => bars.map((g) => ({ x: g.v, y: g.y })), [bars]);   // 実験はこの分布（変換後の値）から引く
   // ---- 実験（#102）：理論の分布から種つき乱数で1回ずつ引き、結果を同じ図に積み上げる。条件（n・p）を変えたら記録を分ける ----
   const [seed, setSeed] = useState(() => seed0 ?? (Date.now() % 100000));
   const rng = useRef(createRandom(seed));
   const [rec, setRec] = useState(emptyRecord);
   const [lastDraw, setLastDraw] = useState<number | null>(null);
-  const cond = JSON.stringify(vary.map((k) => values[k]));
+  const cond = JSON.stringify([vary.map((k) => values[k]), weights, a, b]);
   useEffect(() => { stop(); setRec(emptyRecord()); setLastDraw(null); }, [cond]);   // eslint-disable-line react-hooks/exhaustive-deps
   // 100回は10回ずつ続けて引き、点が棒に近づいていくのを見せる（同じ種なら一度に引いたのと同じ結果）。1回は玉が落ちる
   const { start: startRun, stop } = useRunner();   // 実行中の更新は1か所で止める（止めた後の更新は捨てる。#142）
@@ -232,13 +312,15 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
   const clearRec = () => { stop(); const s2 = Date.now() % 100000; setSeed(s2); rng.current = createRandom(s2); setRec(emptyRecord()); setLastDraw(null); };
   const freq = frequencies(rec);
 
-  // 計算過程：右辺に今の値を入れて1段ずつ（252 × 0.5⁵ × 0.5⁵ ＝ 0.2461）。最初は「値を入れた式」の段
-  const steps = useMemo(() => expand(tree, env), [tree, JSON.stringify(values)]);   // 開いた式（₁₀C₃ を 10!/(3!7!) に）で計算の段を作る   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- 5 計算過程：パターン1は値を入れた式から1段ずつ、パターン2は Σ を1項ずつ（どちらも最後が 4 結果の値） ----
+  const steps = useMemo(() => (isTable ? [rhsOf(tree), ...expand(rhsOf(tree), env)] : expand(tree, env)), [tree, JSON.stringify(values), JSON.stringify(probs), JSON.stringify(support), transformed]);   // eslint-disable-line react-hooks/exhaustive-deps
   const [step, setStep] = useState(1);
   const shownStep = Math.min(step, steps.length - 1);
   const isProb = lhs && "op" in lhs && lhs.op === "fn" && lhs.name === "P";
   // 初期値に戻すときは実験のタイマーも止める（止めないと、消した記録を次の更新が書き戻す。#142）
-  const reset = () => { stop(); snapshot(); setValues(start); setOpens([]); setSel(null); setStep(1); setRec(emptyRecord()); setLastDraw(null); };
+  const reset = () => { stop(); snapshot(); setValues(start); setWeights([...(table?.weights ?? [])]); setA(1); setB(0); setNotice(""); setOpens([]); setSel(null); setStep(1); setRec(emptyRecord()); setLastDraw(null); };
+  useEffect(() => { setStep(1); }, [JSON.stringify(weights), transformed]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- 開き方（選んだ記号） ----
   const selSym = sel?.sym ? symOf(sel.sym, symbols) : undefined;
@@ -273,7 +355,7 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
 
   // ---- 帯：上から「かたまり」→「この中の記号」→「選んだ記号」。下の段を選んでも上の段は残る（パンくず） ----
   const strip = () => {
-    if (!sel) return <div className={`${s.strip} ${s.stripEmpty}`} data-testid="ws-strip"><p className={s.hint}>式のかたまり（ₙCₖ・pᵏ など）を押すと、意味と今の値がここに出る。</p></div>;
+    if (!sel) return <div className={`${s.strip} ${s.stripEmpty}`} data-testid="ws-strip"><p className={s.hint}>{parts.length ? "式のかたまり（ₙCₖ・pᵏ など）を押すと、意味と今の値がここに出る。" : "式の記号を押すと、意味と今の値がここに出る。"}</p></div>;
     const p = sel.part !== undefined ? parts[sel.part] : undefined;
     const node = p ? nodeAt(tree, p.path) : undefined;
     // この中の記号：値の記号（n・k・p）と、意味のある関数（ₙCₖ・k!）。関数は「分解する」で定義の式に開ける
@@ -334,33 +416,53 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
     );
   };
 
-  // ---- 分布の図：理論＝棒、実験＝点（同じ縦軸）、期待値＝点線。目盛りは確率の切りのよい値 ----
+  // ---- 7 分布の図：理論＝棒、実験＝点（同じ縦軸）、期待値＝点線。横は値 v に比例（値の間が不ぞろいでも位置で見せる） ----
   const W = 340, TOP = 18, BASE = 118, H = BASE + 26, LEFT = 0, RIGHT = 34;
-  const empMax = rec.values.length ? Math.max(0, ...dist.map((d) => freq.get(d.x) ?? 0)) : 0;
-  const rawMax = Math.max(1e-9, ...dist.map((d) => d.y ?? 0), empMax);
+  const empMax = rec.values.length ? Math.max(0, ...bars.map((d) => freq.get(d.v) ?? 0)) : 0;
+  const rawMax = Math.max(1e-9, ...bars.map((d) => d.y), empMax);
   const tick = [0.01, 0.02, 0.05, 0.1, 0.2, 0.25, 0.5, 1].find((t) => rawMax / t <= 4) ?? 1;
   const yMax = Math.max(tick, Math.ceil(rawMax / tick - 1e-9) * tick);
-  // 形・目盛りが変わるときは前の形から動かす（n・p を動かすと山が滑って変わる）
   const [yMaxT] = useTween([yMax]);
-  const ys = useTween(dist.map((d) => d.y ?? 0));
+  const ys = useTween(bars.map((d) => d.y));
   const yPos = (v: number) => BASE - (v / yMaxT!) * (BASE - TOP);
-  const bw = (W - LEFT - RIGHT) / Math.max(1, dist.length);
-  const xPos = (x: number) => LEFT + (x - range.min + 0.5) * bw;
-  const barW = Math.max(2, bw - Math.max(3, bw * 0.38));
-  const every = dist.length <= 13 ? 1 : dist.length <= 31 ? 5 : 10;
-  const cur = values[over];
-  const chooseX = (x: number) => { haptic(); set(over, x); };
+  const vs = bars.map((d) => d.v);
+  const gap = vs.length > 1 ? Math.min(...vs.slice(1).map((v, i) => v - vs[i]!)) : 1;
+  const span = vs.length > 1 ? vs[vs.length - 1]! - vs[0]! + gap : gap;
+  const lo = (vs[0] ?? 0) - gap / 2;
+  const xPos = (v: number) => LEFT + ((v - lo) / span) * (W - LEFT - RIGHT);
+  const bw = (gap / span) * (W - LEFT - RIGHT);
+  const barW = Math.max(2, Math.min(bw - Math.max(3, bw * 0.38), 44));
+  const every = bars.length <= 13 ? 1 : bars.length <= 31 ? 5 : 10;
+  const cur = isTable ? undefined : Number((a * values[over]! + b).toPrecision(12));
+  // パターン1：押して横軸の値を選ぶ。パターン2：引いて重みを変える（確率をその高さにする重み）
+  const chooseV = (g: (typeof bars)[number]) => { if (isTable || g.xs.length !== 1) return; haptic(); set(over, g.xs[0]!); };
+  const svgRef = useRef<SVGSVGElement>(null);
+  const dragTo = (g: (typeof bars)[number], clientY: number, scale: number) => {
+    const svg = svgRef.current; if (!svg || g.rows.length !== 1) return;
+    const r = svg.getBoundingClientRect(), y = ((clientY - r.top) / r.height) * H;
+    const p = Math.min(0.98, Math.max(0, (BASE - y) / (BASE - TOP) * scale));
+    const i = g.rows[0]!, others = totalW - weights[i]!;
+    setWeight(i, others > 0 ? (p * others) / (1 - p) : p > 0 ? 1 : 0);
+  };
+  const dragScale = useRef<number | null>(null);
   const pct = (v: number) => `${Number((v * 100).toFixed(v < 0.1 ? 1 : 0))}%`;
   const barPath = (x: number, y: number) => {
     const l = x - barW / 2, r = Math.min(3, barW / 2, BASE - y);
     return `M${l},${BASE}V${y + r}Q${l},${y} ${l + r},${y}H${l + barW - r}Q${l + barW},${y} ${l + barW},${y + r}V${BASE}Z`;
   };
-  const symText = overSym?.symbol ?? over;
-
+  const symText = isTable ? (transformed ? "y" : "x") : overSym?.symbol ?? over;
+  const labelOf = (g: (typeof bars)[number]) => (isTable && !transformed && g.rows.length === 1 && table!.labels ? table!.labels[g.rows[0]!]! : num6(g.v));
   return (
-    <section className={s.ws} data-testid="workspace" aria-label="式の作業台">
-      <div className={s.head}><b>{original.label ?? "式を動かす"}</b>
+    <section className={s.ws} data-testid="workspace" data-pattern={model.kind} aria-label="式の作業台">
+      {/* 1 見出し：式の名前・場面の選択（場面が2つ以上のとき）・初期値に戻す */}
+      <div className={s.head}><b>{given.label ?? "式を動かす"}</b>
         <button type="button" className={s.reset} onClick={reset} data-testid="ws-reset">初期値に戻す</button></div>
+      {model.kind === "table" && model.tables.length > 1 && (
+        <label className={s.scene}><span className={s.muted}>場面</span>
+          <select value={table!.id} onChange={(e) => onScene?.(e.target.value)} data-testid="ws-scene">
+            {model.tables.map((t) => <option key={t.id} value={t.id}>{t.icon ? `${t.icon} ` : ""}{t.name}</option>)}
+          </select></label>
+      )}
       <div ref={wrap} className={s.stageWrap}>
         <div className={s.boxes} aria-hidden="true">
           {boxes.map((b) => <span key={b.i} className={s.box} style={{ left: b.x, top: b.y, width: b.w, height: b.h }} />)}
@@ -376,8 +478,8 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
         </div>
       )}
       <div className={s.result} data-testid="ws-result">
-        <span className={s.resultLhs} dangerouslySetInnerHTML={{ __html: lhs ? render(toTex(substitute(lhs, { values: { [over]: values[over]! } }), { symbols }), false) : "" }} />
-        <Tween className={s.resultVal} v={result} show={(x) => (isProb && x !== undefined ? `${(x * 100).toFixed(2)}%` : fmt(x))} />
+        <span className={s.resultLhs} data-testid="ws-result-lhs" dangerouslySetInnerHTML={{ __html: lhs ? render(toTex(isTable ? lhs : substitute(lhs, { values: { [over]: values[over]! } }), { symbols }), false) : "" }} />
+        <Tween className={s.resultVal} data-testid="ws-result-val" data-value={result} v={result} show={(x) => (isProb && x !== undefined ? `${(x * 100).toFixed(2)}%` : fmt(x))} />
         {isProb && <small className={s.resultSub}>{fmt(result, 5)}</small>}
       </div>
       {steps.length > 1 && (
@@ -388,10 +490,11 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
             <span className={s.stepNo}>{shownStep}／{steps.length - 1}</span>
             <button type="button" className={s.step} onClick={() => setStep(Math.min(steps.length - 1, shownStep + 1))} disabled={shownStep >= steps.length - 1} aria-label="次の段">›</button>
           </div>
-          <div className={s.calcTex} dangerouslySetInnerHTML={{ __html: render(`${toTex(steps[shownStep]!, { symbols, num: short })}${shownStep < steps.length - 1 ? `=${toTex(steps[steps.length - 1]!, { symbols, num: short })}` : ""}`, false) }} />
+          <div className={s.calcTex} data-testid="ws-calc-tex" dangerouslySetInnerHTML={{ __html: render(`${toTex(display(steps[shownStep]!), { symbols, num: short })}${shownStep < steps.length - 1 ? `=${toTex(display(steps[steps.length - 1]!), { symbols, num: short })}` : ""}`, false) }} />
         </div>
       )}
-      <div className={s.sliders}>
+      {/* 6 入力：パターン1＝記号のつまみ／パターン2＝値の表の行 */}
+      {model.kind === "formula" && <div className={s.sliders}>
         {[...vary, over].map((k) => {
           const sym = symOf(k); if (!sym) return null;
           const r = sliderRange(sym, values, FALLBACK);
@@ -406,51 +509,92 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
             </label>
           );
         })}
-      </div>
+      </div>}
+      {model.kind === "table" && table && (
+        <div className={s.rows} role="group" aria-label="値ごとの重み" data-testid="ws-rows">
+          <div className={s.rowHead}><span>{transformed ? "y＝ax＋b" : "値 x"}</span><span>重み</span><span>確率</span></div>
+          {table.values.map((x, i) => {
+            const y = a * x + b, p = totalW > 0 ? weights[i]! / totalW : 0;
+            return (
+              <div key={i} className={s.row}>
+                <span className={s.rowVal}>{transformed ? num6(y) : table.labels?.[i] ?? num6(x)}{table.unit && !(table.labels && !transformed) ? <small>{table.unit}</small> : null}</span>
+                <span className={s.stepper}>
+                  <button type="button" className={s.step} onClick={() => { haptic(); setWeight(i, weights[i]! - 1); }} aria-label={`${table.labels?.[i] ?? num6(x)} の重みを減らす`} data-testid={`ws-minus-${i}`}>−</button>
+                  <b data-testid={`ws-weight-${i}`}>{weights[i]}</b>
+                  <button type="button" className={s.step} onClick={() => { haptic(); setWeight(i, weights[i]! + 1); }} aria-label={`${table.labels?.[i] ?? num6(x)} の重みを増やす`} data-testid={`ws-plus-${i}`}>＋</button>
+                </span>
+                <span className={s.rowProb} data-testid={`ws-prob-${i}`} data-value={p}>{num6(p)}</span>
+              </div>
+            );
+          })}
+          <p className={s.hint} role="status">{notice || `重みの合計 ${num6(totalW)}・確率は重み÷合計（合計1）。棒を上下に引いても変えられる`}</p>
+        </div>
+      )}
+      {/* 7 分布の図：棒への操作はモデルの種類で決まる（パターン1＝押して選ぶ／パターン2＝引いて重みを変える） */}
       <figure className={s.chart} aria-label={`${symText} ごとの確率`}>
         <figcaption className={s.chartHead}>
-          <b>{overSym?.meaning.split("（")[0] ?? over} {symText} ごとの確率</b>
+          <b>{isTable ? `${symText} ごとの確率` : `${overSym?.meaning.split("（")[0] ?? over} ${symText} ごとの確率`}</b>
           <span className={s.legend}>
             <span><i className={s.keyBar} />理論</span>
             {rec.values.length > 0 && <span><i className={s.keyDot} />実験 {rec.values.length} 回</span>}
             {meanValue !== undefined && <span><i className={s.keyMean} />期待値 {fmt(meanValue, 2)}</span>}
           </span>
         </figcaption>
-        <svg viewBox={`0 0 ${W} ${H}`} className={s.svg} role="img">
+        <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} className={s.svg} role="img" data-testid="ws-chart">
           {Array.from({ length: Math.round(yMax / tick) }, (_, i) => (i + 1) * tick).map((t) => (
             <g key={t}>
               <line x1={LEFT} x2={W - RIGHT + 4} y1={yPos(t)} y2={yPos(t)} className={s.grid} />
               <text x={W - 2} y={yPos(t) + 3.5} className={s.yTick} textAnchor="end">{pct(t)}</text>
             </g>
           ))}
-          {dist.map((d, i) => {
-            const on = d.x === cur, y = yPos(ys[i] ?? 0);
+          {bars.map((g, i) => {
+            const on = g.v === cur, y = yPos(ys[i] ?? 0), drag = isTable && g.rows.length === 1;
             return (
-              <g key={d.x} className={s.barG} onClick={() => chooseX(d.x)} data-testid={`ws-bar-${d.x}`} aria-label={`${symText}＝${d.x}：${fmt(d.y)}`}>
-                <rect x={xPos(d.x) - bw / 2} y={0} width={bw} height={H} className={s.hit} />
-                {BASE - y > 0.3 && <path d={barPath(xPos(d.x), y)} className={on ? s.barOn : s.bar} />}
+              <g key={g.v} className={s.barG} onClick={() => chooseV(g)} data-testid={`ws-bar-${num6(g.v)}`} aria-label={`${symText}＝${num6(g.v)}：${fmt(g.y)}`}
+                onPointerDown={drag ? (e) => { dragScale.current = yMaxT!; (e.currentTarget as Element).setPointerCapture(e.pointerId); dragTo(g, e.clientY, dragScale.current); } : undefined}
+                onPointerMove={drag ? (e) => { if ((e.currentTarget as Element).hasPointerCapture(e.pointerId)) dragTo(g, e.clientY, dragScale.current ?? yMaxT!); } : undefined}
+                onPointerUp={drag ? () => { dragScale.current = null; } : undefined}>
+                <rect x={xPos(g.v) - Math.max(bw, 28) / 2} y={0} width={Math.max(bw, 28)} height={H} className={drag ? `${s.hit} ${s.hitDrag}` : s.hit} />
+                {BASE - y > 0.3 && <path d={barPath(xPos(g.v), y)} className={on ? s.barOn : s.bar} />}
               </g>
             );
           })}
           <line x1={LEFT} x2={W - RIGHT + 4} y1={BASE} y2={BASE} className={s.base} />
-          {meanValue !== undefined && meanValue >= range.min && meanValue <= range.max && (
-            <line x1={xPos(meanValue)} x2={xPos(meanValue)} y1={TOP - 6} y2={BASE} className={s.mean} />
+          {meanValue !== undefined && (
+            <line x1={xPos(meanValue)} x2={xPos(meanValue)} y1={TOP - 6} y2={BASE} className={s.mean} data-testid="ws-mean" data-value={meanValue} data-x={xPos(meanValue)} />
           )}
-          {rec.values.length > 0 && dist.map((d) => (
-            <circle key={d.x === lastDraw ? `e${d.x}-${rec.values.length}` : `e${d.x}`} cx={xPos(d.x)} cy={yPos(freq.get(d.x) ?? 0)} r={d.x === lastDraw ? 4 : 3}
-              className={d.x === lastDraw ? `${s.emp} ${s.empJust}` : s.emp} data-testid={`ws-emp-${d.x}`}
-              style={d.x === lastDraw ? ({ "--drop": `${TOP - 14 - yPos(freq.get(d.x) ?? 0)}px` } as React.CSSProperties) : undefined} />
+          {rec.values.length > 0 && bars.map((g) => (
+            <circle key={g.v === lastDraw ? `e${g.v}-${rec.values.length}` : `e${g.v}`} cx={xPos(g.v)} cy={yPos(freq.get(g.v) ?? 0)} r={g.v === lastDraw ? 4 : 3}
+              className={g.v === lastDraw ? `${s.emp} ${s.empJust}` : s.emp} data-testid={`ws-emp-${num6(g.v)}`}
+              style={g.v === lastDraw ? ({ "--drop": `${TOP - 14 - yPos(freq.get(g.v) ?? 0)}px` } as React.CSSProperties) : undefined} />
           ))}
-          {dist.map((d, i) => [d, ys[i] ?? 0] as const).filter(([d]) => d.x === cur).map(([d, yv]) => (
-            <text key={`v${d.x}`} x={Math.min(W - RIGHT - 14, Math.max(LEFT + 14, xPos(d.x)))} y={Math.min(yPos(yv), rec.values.length ? yPos(freq.get(d.x) ?? 0) : BASE) - 8} className={s.valLabel} textAnchor="middle">{pct(d.y ?? 0)}</text>
+          {bars.map((g, i) => [g, ys[i] ?? 0] as const).filter(([g]) => g.v === cur).map(([g, yv]) => (
+            <text key={`v${g.v}`} x={Math.min(W - RIGHT - 14, Math.max(LEFT + 14, xPos(g.v)))} y={Math.min(yPos(yv), rec.values.length ? yPos(freq.get(g.v) ?? 0) : BASE) - 8} className={s.valLabel} textAnchor="middle">{pct(g.y)}</text>
           ))}
-          {dist.map((d) => {
-            const on = d.x === cur;
-            if (!on && ((d.x - range.min) % every !== 0 || Math.abs(d.x - (cur ?? -99)) * bw < 16)) return null;
-            return <text key={`t${d.x}`} x={xPos(d.x)} y={BASE + 15} className={on ? s.xTickOn : s.xTick} textAnchor="middle">{d.x}</text>;
+          {bars.map((g, i) => {
+            const on = g.v === cur;
+            if (!on && (i % every !== 0 || (cur !== undefined && Math.abs(xPos(g.v) - xPos(cur)) < 16))) return null;
+            return <text key={`t${g.v}`} x={xPos(g.v)} y={BASE + 15} className={on ? s.xTickOn : s.xTick} textAnchor="middle">{labelOf(g)}</text>;
           })}
         </svg>
       </figure>
+      {/* 8 変換：全部の値を a 倍して b 足す（概念に E(aX＋b) の式があるとき） */}
+      {linear && (
+        <fieldset className={s.linear} data-testid="ws-linear">
+          <legend>全部の値を a 倍して b 足す（Y＝aX＋b）</legend>
+          {([["a", a, setA, -3, 3, 0.5, "掛ける定数"], ["b", b, setB, -10, 10, 1, "足す定数"]] as const).map(([k, v, setV, mn, mx, st, name]) => (
+            <label key={k} className={s.slider}>
+              <span className={s.sliderSym}>{k}</span><span className={s.sliderName}>{name}</span><b className={s.sliderVal}>{v}</b>
+              <input type="range" min={mn} max={mx} step={st} value={v} onChange={(e) => { haptic(); setV(Number(e.target.value)); }}
+                style={{ "--fill": `${((v - mn) / (mx - mn)) * 100}%` } as React.CSSProperties} aria-label={`${k}（${name}）`} data-testid={`ws-${k}`} />
+            </label>
+          ))}
+          {linear.tree && <div className={s.calcTex} dangerouslySetInnerHTML={{ __html: render(toTex(linear.tree, { symbols: linear.symbols }), false) }} />}
+          <p className={s.linearOut}>{meanX === undefined ? "—" : <>E(aX＋b)＝{a}×{fmt(meanX, 4)}＋{b}＝<b data-testid="ws-linear-result">{fmt(meanValue, 4)}</b></>}</p>
+          {a === 0 && <p className={s.hint}>すべての値が {b} になり、確率は1つの値にまとまる。</p>}
+        </fieldset>
+      )}
+      {/* 9 実験：理論の分布（変換後の値）から1回ずつ引き、同じ図に積み上げる */}
       {experiment && <div className={s.exp} data-testid="ws-exp">
         <div className={s.expRow}>
           <b>実験する</b>
@@ -461,7 +605,7 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
         </div>
         <p className={s.expStat} data-testid="ws-exp-stat" aria-live="polite">
           {rec.values.length
-            ? <>実験 <b>{rec.values.length}</b> 回{lastDraw !== null && <>（今回 {symText}＝<b>{lastDraw}</b>）</>}・平均 <b>{fmt(rec.mean, 2)}</b>{meanValue !== undefined && <>（理論 {fmt(meanValue, 2)}）</>}</>
+            ? <>実験 <b>{rec.values.length}</b> 回{lastDraw !== null && <>（今回 {symText}＝<b>{num6(lastDraw)}</b>）</>}・平均 <b>{fmt(rec.mean, 2)}</b>{meanValue !== undefined && <>（理論 {fmt(meanValue, 2)}）</>}</>
             : <>まだ実験していない。回数を増やすと、点が棒の高さに近づくかを見る。</>}
         </p>
         <div className={s.expFoot}>
