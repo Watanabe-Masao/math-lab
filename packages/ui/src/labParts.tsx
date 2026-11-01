@@ -182,29 +182,43 @@ export const freqOf = (rec: SetRecord, upto = rec.sets) => {
 const MARKS = [1, 3, 10, 30, 100, 300, 1000, 3000, 10000, 30000];
 
 /**
- * 積み上がりの再生（issue 119）：何セット目までの結果かを、倍々の目盛り（1・3・10・30・100…）で選ぶと、その時点の割合と平均に戻る。
- * 下の図は平均の移り変わり（横は対数の目盛り）。理論の平均の線と、ずれの目安（±2×標準偏差÷√セット数。4倍集めると半分）を重ねる。
+ * 積み上がりの再生（issue 119）：何回目までの結果かを、倍々の目盛り（1・3・10・30・100…）で選ぶと、その時点の平均と割合に戻る。
+ * 主役は「実験の平均が期待値の近くに落ち着いていく様子」（渡辺さん 2026-11-01）：上に平均の移り変わり（縦＝ここまでの平均、横＝回数の対数目盛）を大きく、
+ * 下に「なぜ平均が変わったか」を調べる補助として値ごとの割合を置く。線には「変更前」「変更後」、期待値の線には「期待値」と数を直接書く（色を覚えなくても追える）。
+ * 平均の揺れの目安（±2×標準偏差÷√回数）は、初めは隠し、押すと出す（必ずその中に入る範囲ではない）。
  * 記録にはセットごとの値（ks）が残っているので、実験をやり直さずに戻せる。
  */
 /** 再生で1つの目盛りを見せる時間（ms） */
 const REPLAY_MS = 900;
 
-export function Replay({ rec, theory, before, labels, unit = "" }: {
+/** 縦軸の目盛り：lo〜hi に 3〜5 本の切りのよい値 */
+function niceTicks(lo: number, hi: number): number[] {
+  const span = Math.max(1e-9, hi - lo), raw = span / 4, p = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * p).find((x) => span / x <= 5) ?? 10 * p;
+  const out: number[] = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(Number(v.toPrecision(10)));
+  return out;
+}
+
+export function Replay({ rec, theory, before, labels, unit = "", per = "セット" }: {
   rec: SetRecord; theory: number[];
   /** 前の条件の記録と理論（#121）。あると、割合を前と後で並べ、平均の線を2本にする */
   before?: { rec: SetRecord; theory: number[] };
   labels?: (string | number)[]; unit?: string;
+  /** 1回の数え方（二項分布は n 回をまとめた「セット」、値の表は1回ずつの「回」） */
+  per?: string;
 }) {
   const N = rec.sets;
   const marks = useMemo(() => [...MARKS.filter((m) => m < N), N], [N]);
   const [t, setT] = useState(marks.length - 1);
   const [playing, setPlaying] = useState(false);
+  const [showBand, setShowBand] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   useEffect(() => { setT(marks.length - 1); }, [marks.length]);
   const play = () => {
     haptic(); setPlaying(true); setT(0);
-    // 再生の速さは中身（何セット目かを順に見せる）なので、動きを減らす設定でも飛ばさない（渡辺さん 2026-10-31：「再生を押すと一気に600まで飛ぶ」）。
+    // 再生の速さは中身（何回目かを順に見せる）なので、動きを減らす設定でも飛ばさない（渡辺さん 2026-10-31：「再生を押すと一気に600まで飛ぶ」）。
     // 減らす設定で止めるのは、棒が伸びる・光るなどの飾りの動きだけ
     const step = (i: number) => { timer.current = setTimeout(() => { setT(i); if (i < marks.length - 1) step(i + 1); else setPlaying(false); }, REPLAY_MS); };
     step(1);
@@ -212,56 +226,76 @@ export function Replay({ rec, theory, before, labels, unit = "" }: {
   const upto = marks[Math.min(t, marks.length - 1)] ?? N;
   const freq = useMemo(() => freqOf(rec, upto), [rec, upto]);
   const freqB = useMemo(() => (before ? freqOf(before.rec, Math.min(upto, before.rec.sets)) : undefined), [before, upto]);
-  // 平均の移り変わり（対数の目盛りで ~120 点）
-  const W = 340, H = 120, L = 4, Rm = 34, T = 8, B = H - 18;
+  // 平均の移り変わり（対数の目盛りで ~120 点）。左に縦軸の目盛り、右に期待値の名前と数
+  const W = 340, H = 186, L = 30, Rm = 76, T = 22, B = H - 34;
   const runOf = (r: SetRecord) => {
     const out: { i: number; m: number }[] = []; let sum = 0, next = 1;
     for (let i = 1; i <= r.sets; i++) { sum += r.ks[i - 1]!; if (i >= next || i === r.sets) { out.push({ i, m: sum / i }); next = Math.max(i + 1, Math.ceil(i * 1.06)); } }
     return out;
   };
   const series = useMemo(() => [
-    ...(before ? [{ key: "b", th: momentsOf(before.theory, before.rec.support), pts: runOf(before.rec), line: s.runLineB, dot: s.runDotB, mean: s.meanLineB }] : []),
-    { key: "a", th: momentsOf(theory, rec.support), pts: runOf(rec), line: s.runLine, dot: s.runDot, mean: s.meanLine },
+    ...(before ? [{ key: "b", name: "変更前", th: momentsOf(before.theory, before.rec.support), pts: runOf(before.rec), line: s.runLineB, dot: s.runDotB, mean: s.meanLineB }] : []),
+    { key: "a", name: before ? "変更後" : "実験", th: momentsOf(theory, rec.support), pts: runOf(rec), line: s.runLine, dot: s.runDot, mean: s.meanLine },
   ], [rec, theory, before]);   // eslint-disable-line react-hooks/exhaustive-deps
   const lx = (i: number) => L + (Math.log10(i) / Math.max(1e-9, Math.log10(Math.max(10, N)))) * (W - L - Rm);
-  // 縦の幅は、実際の平均の動きと、10セット目の帯（±2σ/√10）に合わせる。散らばりの大きい表（反例）でも平均の揺れが見えるように、帯ははみ出た分を切る
+  // 縦の幅は、実際の平均の動きと、10回目の揺れの目安（±2σ/√10）に合わせる。目安ははみ出た分を切る
   const ends = series.flatMap((x) => { const w10 = (2 * Math.sqrt(x.th.variance)) / Math.sqrt(10); return [x.th.mean - w10, x.th.mean + w10, ...x.pts.map((p) => p.m)]; });
   const lo0 = Math.min(...ends), hi0 = Math.max(...ends), pad = (hi0 - lo0) * 0.06;
   const lo = lo0 - pad, hi = hi0 + pad;
   const ly = (v: number) => B - ((Math.min(hi, Math.max(lo, v)) - lo) / Math.max(1e-9, hi - lo)) * (B - T);
   const curOf = (pts: { i: number; m: number }[]) => pts.filter((p) => p.i <= upto).at(-1);
   const a = series.at(-1)!, b = before ? series[0] : undefined, ca = curOf(a.pts), cb = b ? curOf(b.pts) : undefined;
+  // 期待値の名前と数：2本が近いときは上下にずらして重ねない
+  const thY = series.map((x) => ly(x.th.mean));
+  const thLabelY = series.length === 2 && Math.abs(thY[0]! - thY[1]!) < 12
+    ? (thY[0]! <= thY[1]! ? [thY[0]! - 4, thY[1]! + 10] : [thY[0]! + 10, thY[1]! - 4]) : thY.map((y) => y + 3.5);
+  const about = (v: number) => (Math.abs(Number(num3(v)) - v) > 1e-9 ? `約 ${num3(v)}` : num3(v));
   if (N < 2) return null;
   return (
     <section className={s.card} data-testid="exp-replay">
-      <p className={s.h}>積み上がりを見直す<span>倍々の目盛りで</span></p>
-      <div className={s.marks} role="radiogroup" aria-label="何セット目まで">
+      <p className={s.h}>平均の移り変わり<span>何{per}目までの平均か（倍々の目盛り）</span></p>
+      <div className={s.marks} role="radiogroup" aria-label={`何${per}目まで`}>
         {marks.map((m, i) => <button key={m} type="button" role="radio" aria-checked={i === t} onClick={() => { haptic(); setT(i); }}>{i === marks.length - 1 ? `全 ${m}` : m}</button>)}
-        <button type="button" className={s.play} onClick={play} disabled={playing} aria-label="1セット目から再生">{playing ? "再生中" : "▶ 再生"}</button>
+        <button type="button" className={s.play} onClick={play} disabled={playing} aria-label={`1${per}目から再生`}>{playing ? "再生中" : "▶ 再生"}</button>
       </div>
-      {b ? (
-        <p className={s.replayStat} data-testid="exp-replay-stat"><b>{upto}</b> セットまで：前 <b>{num3(cb?.m)}{unit}</b> → 後 <b>{num3(ca?.m)}{unit}</b>（差 {num3(ca && cb ? ca.m - cb.m : undefined)}。理論の差 {num3(a.th.mean - b.th.mean)}）</p>
-      ) : (
-        <p className={s.replayStat} data-testid="exp-replay-stat"><b>{upto}</b> セットまで：平均 <b>{num3(ca?.m)}{unit}</b>（理論 {num3(a.th.mean)}{unit}・ずれ {num3(ca ? Math.abs(ca.m - a.th.mean) : undefined)}）</p>
-      )}
-      <Bars freq={freq} pair={freqB} theory={theory} ghost={before?.theory} labels={labels} height={120} label={`${upto} セットまでの割合と理論`} />
-      <svg viewBox={`0 0 ${W} ${H}`} className={s.svg} role="img" aria-label="平均の移り変わり">
-        {series.map((x) => {
+      <p className={s.replayStat} data-testid="exp-replay-stat"><b>{upto}</b> {per}まで　
+        {b ? <>実験平均 前 <b>{num3(cb?.m)}{unit}</b>・後 <b>{num3(ca?.m)}{unit}</b>／期待値 前 {num3(b.th.mean)}{unit}・後 {num3(a.th.mean)}{unit}</>
+          : <>実験平均 <b>{num3(ca?.m)}{unit}</b>／期待値 {num3(a.th.mean)}{unit}</>}</p>
+      <svg viewBox={`0 0 ${W} ${H}`} className={s.svg} role="img" aria-label={`ここまでの平均の移り変わり（横は${per}数の対数目盛）`} data-testid="exp-run-chart">
+        <text x={2} y={11} className={s.axisTitle}>ここまでの平均{unit ? `（${unit}）` : ""}</text>
+        {niceTicks(lo, hi).map((v) => (
+          <g key={v}><line x1={L} x2={W - Rm + 4} y1={ly(v)} y2={ly(v)} className={s.grid} /><text x={L - 4} y={ly(v) + 3.5} textAnchor="end" className={s.tick}>{num3(v)}</text></g>
+        ))}
+        {showBand && series.map((x) => {
           const sd = Math.sqrt(x.th.variance), band = x.pts.map((p) => [lx(p.i), ly(x.th.mean + (2 * sd) / Math.sqrt(p.i)), ly(x.th.mean - (2 * sd) / Math.sqrt(p.i))] as const);
-          return <path key={`band${x.key}`} d={`M${band.map(([bx, ba]) => `${bx},${ba}`).join("L")}L${[...band].reverse().map(([bx, , bb]) => `${bx},${bb}`).join("L")}Z`} className={x.key === "b" ? s.bandB : s.band} />;
+          return <path key={`band${x.key}`} d={`M${band.map(([bx, ba]) => `${bx},${ba}`).join("L")}L${[...band].reverse().map(([bx, , bb]) => `${bx},${bb}`).join("L")}Z`} className={x.key === "b" ? s.bandB : s.band} data-testid="exp-run-band" />;
         })}
-        {series.map((x) => (
+        {series.map((x, j) => (
           <g key={x.key}>
             <line x1={L} x2={W - Rm + 4} y1={ly(x.th.mean)} y2={ly(x.th.mean)} className={x.mean} />
-            <text x={W} y={ly(x.th.mean) + 3.5} textAnchor="end" className={s.tick}>{num3(x.th.mean)}</text>
+            <text x={W - Rm + 8} y={thLabelY[j]} className={s.tick} data-testid={`exp-run-expect-${x.key}`}>{b ? `${x.name}の期待値 ` : "期待値 "}{num3(x.th.mean)}</text>
             <path d={x.pts.map((p, i) => `${i ? "L" : "M"}${lx(p.i)},${ly(p.m)}`).join("")} className={x.line} data-testid={`exp-run-line-${x.key}`} />
-            {(() => { const c = curOf(x.pts); return c && <circle cx={lx(c.i)} cy={ly(c.m)} r={4} className={x.dot} />; })()}
+            {(() => { const c = curOf(x.pts); return c && <>
+              <circle cx={lx(c.i)} cy={ly(c.m)} r={4} className={x.dot} />
+              {b && <text x={Math.max(L + 2, lx(c.i) - 6)} y={ly(c.m) + (x.key === "a" ? (ly(c.m) <= ly(cb?.m ?? c.m) ? -8 : 14) : (ly(c.m) < ly(ca?.m ?? c.m) ? -8 : 14))} textAnchor="end" className={s.lineName} data-testid={`exp-run-name-${x.key}`}>{x.name}</text>}
+            </>; })()}
           </g>
         ))}
         <line x1={L} x2={W - Rm + 4} y1={B} y2={B} className={s.base} />
-        {MARKS.filter((m) => m <= Math.max(10, N)).map((m) => <text key={m} x={lx(m)} y={H - 4} textAnchor="middle" className={s.tick}>{m}</text>)}
+        {MARKS.filter((m) => m <= Math.max(10, N)).map((m) => <text key={m} x={lx(m)} y={B + 13} textAnchor="middle" className={s.tick}>{m}</text>)}
+        <text x={(L + W - Rm) / 2} y={H - 3} textAnchor="middle" className={s.axisTitle}>{per}数（対数目盛：1・3・10・30…と倍々に進む）</text>
       </svg>
-      <p className={s.note}>{b ? "2本の線＝前と後の平均の移り変わり。帯＝それぞれの理論の平均 ±2×標準偏差÷√セット数。少ないうちは線どうしが近づいたり入れ替わったりもするが、増えるほど理論の差に開いていく。" : "線＝平均の移り変わり。帯＝理論の平均 ±2×標準偏差÷√セット数（4倍集めると幅は半分）。少ないうちは大きく揺れ、増えるほど理論の平均に吸い寄せられる。"}</p>
+      <button type="button" className={s.toggle} aria-pressed={showBand} onClick={() => { haptic(); setShowBand((v) => !v); }} data-testid="exp-run-band-toggle">{showBand ? "平均の揺れの目安を隠す" : "平均の揺れの目安を見る"}</button>
+      {showBand && <p className={s.note}>帯＝平均の揺れの目安（期待値 ±2×標準偏差÷√{per}数。4倍集めると幅は半分）。いつも必ずこの中に入る範囲ではない。</p>}
+      <p className={s.note} data-testid="exp-run-note">{b
+        ? `${per}数が少ないうちは、平均が大きく揺れる。繰り返すほど、変更前は ${about(b.th.mean)}${unit}、変更後は ${about(a.th.mean)}${unit} の近くに落ち着く様子を見る。途中では、2本の線が近づいたり交差したりすることもある。`
+        : `${per}数が少ないうちは、平均が大きく揺れる。繰り返すほど、期待値 ${about(a.th.mean)}${unit} の近くに落ち着く様子を見る。`}</p>
+      <p className={s.h}>なぜ平均が変わったか<span>値ごとの割合（{upto} {per}まで）</span></p>
+      <div className={s.legend} data-testid="exp-replay-legend">
+        {b ? <><span><i className={s.kBarB} />変更前の実験の割合</span><span><i className={s.kBar} />変更後の実験の割合</span><span><i className={s.kGhost} />変更前の理論確率</span><span><i className={s.kDot} />変更後の理論確率</span></>
+          : <><span><i className={s.kBar} />実験の割合</span><span><i className={s.kDot} />理論確率</span></>}
+      </div>
+      <Bars freq={freq} pair={freqB} theory={theory} ghost={before?.theory} labels={labels} height={120} label={`${upto} ${per}までの割合と理論確率`} />
     </section>
   );
 }

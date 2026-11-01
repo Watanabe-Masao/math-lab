@@ -89,7 +89,7 @@ function TableCounter({ cx, unit, onConcept, name }: { cx: NonNullable<TableDef[
           <button type="button" className={s.secondary} onClick={() => run(100, 20)} data-testid="exp-cx-run-1">100回</button>
           <button type="button" className={s.primary} onClick={() => run(1000, 50)} data-testid="exp-cx-run-100">▶ 1000回</button>
         </div>
-        {rec.sets > 1 && <Replay rec={rec} theory={theory} labels={labelsFor(cx, support, unit)} unit={unit} />}
+        {rec.sets > 1 && <Replay rec={rec} theory={theory} labels={labelsFor(cx, support, unit)} unit={unit} per="回" />}
         {!enough ? <p className={s.muted}>あと {300 - rec.sets} 回で、表と照らす</p> : <>
           <div className={guess === answer ? s.ok : s.ng} data-testid="exp-cx-verdict">
             <b>{guess === answer ? "✓ 予想どおり" : "✗ 予想と違った"}</b>　平均は{SETTLE[answer]}（期待値 {num3(mm.mean)}{unit}・標準偏差 {num3(Math.sqrt(mm.variance))}{unit}）
@@ -262,7 +262,7 @@ export function TableLab({ def, reasonFormula, onConcept, conceptName, onSendMem
         <div data-testid="exp-tile-exp">平均（引いた）<b>{r2(sumB.mean)} → {r2(sum.mean)}{unit}</b><i>差 {r2((sum.mean ?? 0) - (sumB.mean ?? 0))}・各 {rec.sets} 回</i></div>
         <div data-testid="exp-tile-theory">期待値（表から）<b>{r2(mStart)} → {r2(mNext)}{unit}</b><i>差 {r2(mNext - mStart)}</i></div>
       </div>
-      <Replay rec={rec} theory={thNext} before={{ rec: recB, theory: thStart }} labels={labels} unit={unit} />
+      <Replay rec={rec} theory={thNext} before={{ rec: recB, theory: thStart }} labels={labels} unit={unit} per="回" />
     </>;
     cta = <button type="button" className={s.primary} onClick={() => go(3)}>なぜ {r2(mNext)}{unit} になる？ 理由を考える</button>;
   } else if (stage === 3) {
