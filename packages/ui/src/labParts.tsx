@@ -258,11 +258,12 @@ export function Replay({ rec, theory, before, labels, unit = "", per = "セッ�
         {marks.map((m, i) => <button key={m} type="button" role="radio" aria-checked={i === t} onClick={() => { haptic(); setT(i); }}>{i === marks.length - 1 ? `全 ${m}` : m}</button>)}
         <button type="button" className={s.play} onClick={play} disabled={playing} aria-label={`1${per}目から再生`}>{playing ? "再生中" : "▶ 再生"}</button>
       </div>
-      <p className={s.replayStat} data-testid="exp-replay-stat"><b>{upto}</b> {per}まで　
+      <p className={s.replayStat} data-testid="exp-replay-stat"><b>{upto}</b> {per}まで：
         {b ? <>実験平均 前 <b>{num3(cb?.m)}{unit}</b>・後 <b>{num3(ca?.m)}{unit}</b>／期待値 前 {num3(b.th.mean)}{unit}・後 {num3(a.th.mean)}{unit}</>
           : <>実験平均 <b>{num3(ca?.m)}{unit}</b>／期待値 {num3(a.th.mean)}{unit}</>}</p>
       <svg viewBox={`0 0 ${W} ${H}`} className={s.svg} role="img" aria-label={`ここまでの平均の移り変わり（横は${per}数の対数目盛）`} data-testid="exp-run-chart">
         <text x={2} y={11} className={s.axisTitle}>ここまでの平均{unit ? `（${unit}）` : ""}</text>
+        <text x={W - Rm + 8} y={11} className={s.axisTitle}>期待値（破線）</text>
         {niceTicks(lo, hi).map((v) => (
           <g key={v}><line x1={L} x2={W - Rm + 4} y1={ly(v)} y2={ly(v)} className={s.grid} /><text x={L - 4} y={ly(v) + 3.5} textAnchor="end" className={s.tick}>{num3(v)}</text></g>
         ))}
@@ -273,7 +274,7 @@ export function Replay({ rec, theory, before, labels, unit = "", per = "セッ�
         {series.map((x, j) => (
           <g key={x.key}>
             <line x1={L} x2={W - Rm + 4} y1={ly(x.th.mean)} y2={ly(x.th.mean)} className={x.mean} />
-            <text x={W - Rm + 8} y={thLabelY[j]} className={s.tick} data-testid={`exp-run-expect-${x.key}`}>{b ? `${x.name}の期待値 ` : "期待値 "}{num3(x.th.mean)}</text>
+            <text x={W - Rm + 8} y={thLabelY[j]} className={s.tick} data-testid={`exp-run-expect-${x.key}`}>{b ? `${x.name.slice(-1)} ` : "期待値 "}{num3(x.th.mean)}</text>
             <path d={x.pts.map((p, i) => `${i ? "L" : "M"}${lx(p.i)},${ly(p.m)}`).join("")} className={x.line} data-testid={`exp-run-line-${x.key}`} />
             {(() => { const c = curOf(x.pts); return c && <>
               <circle cx={lx(c.i)} cy={ly(c.m)} r={4} className={x.dot} />
