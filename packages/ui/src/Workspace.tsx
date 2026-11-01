@@ -253,7 +253,8 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
   const open = (d: Definition, key = selSym!.key) => { haptic(); snapshot(key); setOpens((o) => [...o, { key, def: d }]); setSel((x) => (x?.part !== undefined ? { part: x.part } : null)); };
   const defTex = (d: Definition) => { const t = d.formula.tree as { args: FormulaNode[] }; return `${toTex(t.args[0]!, { symbols: d.formula.symbols })}=${toTex(t.args[d.side]!, { symbols: d.formula.symbols })}`; };
   const pickSym = (k: string) => { haptic(); setSel((x) => ({ part: x?.part, sym: x?.sym === k ? undefined : k })); };
-  const openKeys = [...new Set(opened.marks.values())];
+  // 開いたものは、最後に開いたものから（たたむの並びを開いた順の逆にする）
+  const openKeys = [...new Set(opened.marks.values())].sort((a, b) => opens.map((o) => o.key).lastIndexOf(b) - opens.map((o) => o.key).lastIndexOf(a));
   // 開いた所の印（marks）を、かたまりの中から集める。「たたむ」は開いた中身を選んでいる「分解する」の右に出す（渡辺さん 2026-10-31）
   const marksIn = (n: FormulaNode): string[] => {
     const out = new Set<string>();
@@ -279,7 +280,9 @@ export function Workspace({ formula: original, mean, vary, over, initial, seed: 
     const fns = node ? fnsIn(node).filter((k) => symOf(k, symbols)) : [];
     const inside = node ? [...fns, ...symbolsIn(node).filter((k) => symOf(k, symbols))] : [];
     const breakable = fns.map((k) => ({ key: k, defs: choicesFor(k) })).filter((x) => x.defs.length > 0);
-    const foldable = node ? marksIn(node) : [];
+    // たたむは、最後に開いたものから左に並べる（渡辺さん 2026-11-01：同じ指の位置で順に開き、開き切ったら同じ位置で順に閉じられる）
+    const lastOpen = (k: string) => opens.map((o) => o.key).lastIndexOf(k);
+    const foldable = (node ? marksIn(node) : []).sort((a, b) => lastOpen(b) - lastOpen(a));
     const v = selSym ? values[selSym.key] : undefined;
     return (
       <div className={s.strip} data-testid="ws-strip">
