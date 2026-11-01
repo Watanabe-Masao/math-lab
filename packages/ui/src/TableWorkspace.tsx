@@ -1,6 +1,6 @@
 // 値の表の作業台（stats2-course #119）。重みを動かし、確率・寄与・期待値・Σを同じ表から更新する。
 // 計算はengineだけ。棒の横位置は値の間隔に比例させ、期待値の▲を分布の重心として表示する。
-import { useMemo, useState, type PointerEvent } from "react";
+import { useMemo, useRef, useState, type PointerEvent } from "react";
 import { checkMechanism, expand, modelMoments, modelPmf, rhsOf, supportOf, toTex } from "@math-lab/engine";
 import { Formula, type FormulaData } from "./Formula";
 import { tex } from "./labParts";
@@ -30,6 +30,7 @@ function TableEditor({ table, formula, linear, ...links }: Omit<Props, "tables">
   const [weights, setWeights] = useState([...table.weights]);
   const [a, setA] = useState(1), [b, setB] = useState(0), [step, setStep] = useState(0);
   const [notice, setNotice] = useState("");
+  const dragScale = useRef<number | undefined>(undefined);
   const base = { kind: "table" as const, n: 1, values: table.values, weights };
   const original = modelMoments(base);
   const values = table.values.map((x) => a * x + b);
@@ -54,14 +55,14 @@ function TableEditor({ table, formula, linear, ...links }: Omit<Props, "tables">
   const lo = Math.min(...values), hi = Math.max(...values), pad = hi === lo ? 1 : (hi - lo) * .12;
   const min = lo - pad, max = hi + pad;
   const plotted = a === 0 ? [{ x: b, i: 0, p: 1, w: total }] : rows.map((r) => ({ ...r, w: weights[r.i]! }));
-  const yMax = a === 0 ? Math.max(maxWeight, total) : maxWeight;
+  const yMax = dragScale.current ?? (a === 0 ? Math.max(1, total) : Math.max(1, ...weights)) * 1.2;
   const xpos = (x: number) => L + (x - min) / (max - min) * (R - L);
   const drag = (e: PointerEvent<SVGRectElement>, i: number) => {
     const svg = e.currentTarget.ownerSVGElement; if (!svg) return;
     const point = svg.createSVGPoint(); point.x = e.clientX; point.y = e.clientY;
     const matrix = svg.getScreenCTM(); if (!matrix) return;
     const y = point.matrixTransform(matrix.inverse()).y;
-    change(i, Math.round((BASE - y) / (BASE - TOP) * maxWeight));
+    change(i, Math.round((BASE - y) / (BASE - TOP) * (dragScale.current ?? yMax)));
   };
   return <>
     <div className={s.head}><b>値と確率を動かす</b><button type="button" onClick={reset}>初期値に戻す</button></div>
@@ -73,9 +74,10 @@ function TableEditor({ table, formula, linear, ...links }: Omit<Props, "tables">
         {plotted.map(({ x, i, p, w }) => <g key={i}>
           <rect x={xpos(x) - 10} y={BASE - w / yMax * (BASE - TOP)} width="20" height={w / yMax * (BASE - TOP)} className={s.bar} />
           {a !== 0 && <rect x={xpos(x) - 14} y={TOP} width="28" height={BASE - TOP} className={s.hit} data-testid={`tw-bar-${i}`}
-            onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); drag(e, i); }}
+            onPointerDown={(e) => { dragScale.current = yMax; e.currentTarget.setPointerCapture(e.pointerId); drag(e, i); }}
             onPointerMove={(e) => { if (e.currentTarget.hasPointerCapture(e.pointerId)) drag(e, i); }}
-            onPointerUp={(e) => { if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId); }} />}
+            onPointerUp={(e) => { dragScale.current = undefined; setWeights((w) => [...w]); if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId); }}
+            onPointerCancel={() => { dragScale.current = undefined; setWeights((w) => [...w]); }} />}
           {a !== 0 && <text x={xpos(x)} y={BASE + 14} textAnchor="middle" className={s.tick}>{num(x)}</text>}
           <title>{table.labels?.[i] ?? num(x)}：重み{weights[i]}・確率{pct(p)}</title>
         </g>)}
