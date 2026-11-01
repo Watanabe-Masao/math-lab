@@ -25,7 +25,7 @@
 .legend .kB { background: var(--ink-3); } .legend .kHi { background: var(--data-hi); } .legend .kLine { width: 2px; background: var(--ink); }
 .table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
 .table th, .table td { padding: 6px 4px; border-bottom: 1px solid var(--line); text-align: right; vertical-align: top; }
-.table th:first-child, .table td:first-child { text-align: left; font-size: 12px; }
+.table th:first-child, .table td:first-child { text-align: left; font-size: 12px; white-space: normal; }
 .table th { font-weight: 400; color: var(--ink-3); font-size: 12px; }
 .table small { display: block; color: var(--ink-3); font-size: 11px; }
 .inside { color: var(--good); } .outside { color: var(--bad); }
