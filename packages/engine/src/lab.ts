@@ -232,3 +232,12 @@ export function summarize(rec: SetRecord): { mean: number | undefined; variance:
   const variance = rec.ks.reduce((s, k) => s + (k - mean) ** 2, 0) / n;
   return { mean, variance, freq: rec.counts.map((c) => c / n) };
 }
+
+/** 移り変わり（stats2-course #161 の観察）：1セット目から i セット目までの平均・標準偏差（÷セット数）・当てはまった割合。
+ *  標準偏差は Welford の方法で1つずつ足す（大きな値の 2 乗の引き算で桁が落ちない）。scale は割合にするとき 1/n */
+export function runningMean(ks: number[]): number[] { let t = 0; return ks.map((k, i) => (t += k) / (i + 1)); }
+export function runningSd(ks: number[], scale = 1): number[] {
+  let m = 0, q = 0;
+  return ks.map((k, i) => { const d = k - m; m += d / (i + 1); q += d * (k - m); return Math.sqrt(Math.max(0, q) / (i + 1)) * scale; });
+}
+export function runningShare(flags: boolean[]): number[] { let t = 0; return flags.map((f, i) => (t += f ? 1 : 0) / (i + 1)); }

@@ -1,0 +1,57 @@
+/* 問いの形の部品（stats2-course issue 161）：数の比べ表・分布の行・移り変わりの図・操作の帯・桁の目盛り */
+.rowsHead, .rows > div { display: grid; grid-template-columns: 36px minmax(0, 1fr) 46px 48px; gap: 6px; align-items: center; }
+.rows.cmp > div, .rowsHead.cmp { grid-template-columns: 34px minmax(0, 1fr) 40px 40px 36px; gap: 5px; }
+.rowsHead { font-size: 11px; color: var(--ink-3); }
+.rowsHead span:nth-child(n+3) { text-align: right; }
+.rows { display: grid; gap: 3px; font-variant-numeric: tabular-nums; }
+.rows > div { font-size: 12.5px; min-height: 18px; }
+.rows > div > span:first-child { text-align: right; color: var(--ink-2); }
+.rows > div > span:nth-child(n+3) { text-align: right; }
+.rows > div > span:last-child { color: var(--ink-3); }
+.rows.cmp > div > span:nth-child(3) { color: var(--ink); }
+.bar { position: relative; height: 10px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+.bar i { position: absolute; inset: 0 auto 0 0; background: var(--data-1); border-radius: 4px; }
+.bar u { position: absolute; top: 1px; bottom: 1px; width: 2px; background: var(--ink); opacity: .7; }
+.in > span:first-child, .in > span:nth-child(3) { color: var(--data-hi) !important; font-weight: 700; }
+.in .bar i { background: var(--data-hi); }
+.bigD { color: var(--bad) !important; font-weight: 700; }
+.pair { display: grid; gap: 2px; }
+.pair span { position: relative; height: 5px; border-radius: 3px; background: var(--surface-2); overflow: hidden; display: block; }
+.pair i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--data-1); }
+.pair span:first-child i { background: var(--ink-3); }
+.pk > span:first-child { color: var(--data-hi); font-weight: 700; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11.5px; color: var(--ink-3); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; background: var(--data-1); }
+.legend .kB { background: var(--ink-3); } .legend .kHi { background: var(--data-hi); } .legend .kLine { width: 2px; background: var(--ink); }
+.table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.table th, .table td { padding: 6px 4px; border-bottom: 1px solid var(--line); text-align: right; vertical-align: top; }
+.table th:first-child, .table td:first-child { text-align: left; font-size: 12px; }
+.table th { font-weight: 400; color: var(--ink-3); font-size: 12px; }
+.table small { display: block; color: var(--ink-3); font-size: 11px; }
+.inside { color: var(--good); } .outside { color: var(--bad); }
+.chart { width: 100%; height: auto; display: block; }
+.chart text { fill: var(--ink-3); font-size: 10px; font-family: inherit; }
+.grid { stroke: var(--line); }
+.lineB { stroke: var(--ink-3); } .lineA { stroke: var(--data-1); }
+.fillB { fill: var(--ink-3); } .fillA { fill: var(--data-1); }
+.textB { fill: var(--ink-3) !important; } .textA { fill: var(--data-1) !important; }
+.chips { display: grid; gap: 6px; }
+.chips button { all: unset; box-sizing: border-box; text-align: center; min-height: 34px; border-radius: var(--r-pill); border: 1px solid var(--line-strong); font-size: 13px; font-variant-numeric: tabular-nums; cursor: pointer; color: var(--ink-2); }
+.chips button[aria-checked="true"], .chips button[aria-selected="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.chips button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dockCtl { min-height: 56px; display: grid; align-content: center; }
+.field { display: grid; }
+.field label { display: flex; justify-content: space-between; font-size: 13.5px; color: var(--ink-2); }
+.field label b { font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.field input { width: 100%; accent-color: var(--accent); min-height: 32px; }
+.seg { display: grid; background: var(--surface-2); border-radius: var(--r-m); padding: 3px; gap: 3px; }
+.seg button { all: unset; text-align: center; min-height: 34px; border-radius: 8px; font-size: 13.5px; cursor: pointer; color: var(--ink-2); }
+.seg button[aria-checked="true"] { background: var(--raised); color: var(--ink); font-weight: 600; box-shadow: var(--shadow-raised); }
+.scale { display: grid; gap: 6px; }
+.scale button { all: unset; box-sizing: border-box; min-height: 40px; padding: 0 12px; border-radius: var(--r-m); border: 1.5px solid var(--line-strong); display: grid; grid-template-columns: 1fr auto; align-items: center; font-size: 14px; cursor: pointer; }
+.scale button small { color: var(--ink-3); font-size: 12px; }
+.scale button[aria-checked="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.scale button:focus-visible, .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toggle { all: unset; font-size: 12.5px; color: var(--accent); cursor: pointer; min-height: 32px; justify-self: start; }
+.muted { margin: 0; color: var(--ink-3); font-size: 12.5px; }
+.note { margin: 0; font-size: 13px; color: var(--ink-2); padding-left: 10px; border-left: 3px solid var(--accent-line); }

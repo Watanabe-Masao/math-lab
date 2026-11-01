@@ -2,7 +2,7 @@
 // カードは条件と種とセット数だけ（engine の Card）。記録は開くたびにカードから作り直す（同じ種なら同じ結果）。
 // 保存は3つの段：その端末のブラウザ（消えることがある前提）・URL（onCards で親が URL に書く）・発見メモ（親が送る）。
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { MAX_CARDS, decodeCards, encodeCards, modelMoments, modelOf, recordOfCard, summarize, type Card, type CardMechanism, type Mechanism } from "@math-lab/engine";
+import { MAX_CARDS, decodeCards, encodeCards, mechanismMoments, recordOfCard, summarize, type Card, type CardMechanism, type Mechanism } from "@math-lab/engine";
 import { haptic } from "./motion";
 import { Bars, SERIES, num3 } from "./labParts";
 import s from "./Experiment.module.css";
@@ -71,7 +71,7 @@ export function CompareStage({ deck, describe, editor, draft, unit = "", labels,
   const view = shown.filter((i) => i < cards.length);
   const freqs = view.map((i) => summarize(recs[i]!).freq);
   const len = Math.max(0, ...freqs.map((f) => f.length));
-  const theoryOf = (m: CardMechanism) => modelMoments(modelOf(m as Mechanism)!);
+  const theoryOf = (m: CardMechanism) => mechanismMoments(m as Mechanism);   // 前提を崩した起き方のカードも、起き方の理論で（issue 161）
   const save = (sets: number) => { haptic(); add({ mechanism: draft, sets, seed: Date.now() % 100000 }); };
   return <>
     <section className={s.card}>
