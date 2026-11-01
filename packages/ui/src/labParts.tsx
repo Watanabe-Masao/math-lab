@@ -137,7 +137,7 @@ export function LabShell({ title, question, stage, reached, go, onBack, onInfo, 
         <p className={s.q} data-testid="exp-question"><span>{qLabel}</span>{question}</p>
       </div>
       <div className={s.body} key={stage}>{body}</div>
-      <div className={s.bar}>{cta}</div>
+      {cta ? <div className={s.bar}>{cta}</div> : null}   {/* 押す所のない画面（入口・比べる）は下の帯を出さない（空の帯が横にはみ出していた） */}
       {children}
     </div>
   );
