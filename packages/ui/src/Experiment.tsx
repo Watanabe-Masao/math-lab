@@ -41,8 +41,9 @@ export type BinomDef = {
   prob_scale?: number[];
   /** テーマ体系（stats2-course issue 163）：まとまり（A〜F）の下に問い（id は 教材名:概念-まとまり-番号。stats2:binom-A-01）を並べる。open は開く入口
    *  （shift＝最初の問い・questions の id・break:反例の id・compare）。open のない問いは「作成中」として並べるだけ。
-   *  concept（主概念）・related（関連概念）は問いの側で持ち、サイトが概念で問いを絞るのに使う */
-  catalog?: { id: string; title: string; items: { id: string; title: string; finds?: string; open?: string; concept?: string; related?: string[] }[] }[];
+   *  concept（主概念）・related（関連概念）は問いの側で持ち、サイトが概念で問いを絞るのに使う。predict・operate・judge は問いごとの予測・操作・理解判定。
+   *  開く先（実験の仕組み）は共有してよいが、open は問いごとに1つ（同じ画面を開くだけで別の問いにしない） */
+  catalog?: { id: string; title: string; items: { id: string; title: string; finds?: string; predict?: string; operate?: string; judge?: string; open?: string; concept?: string; related?: string[] }[] }[];
 };
 
 export type Props = {
