@@ -1944,6 +1944,106 @@
   }
  },
  {
+  "concept": "TERM-binom",
+  "index": 3,
+  "id": "F-expect-linear",
+  "defined_in": "TERM-expect",
+  "label": "線形性",
+  "tex": "E(aX+b)=aE(X)+b",
+  "symbols": [
+   {
+    "symbol": "E( )",
+    "meaning": "期待値（値×確率を足す。連続なら密度で重み付けして積分）",
+    "key": "E",
+    "concept": "TERM-expect"
+   },
+   {
+    "symbol": "X",
+    "meaning": "確率変数",
+    "key": "X",
+    "kind": "rv"
+   },
+   {
+    "symbol": "a",
+    "meaning": "掛ける定数（単位の換算）",
+    "key": "a",
+    "kind": "const"
+   },
+   {
+    "symbol": "b",
+    "meaning": "足す定数（一律の上乗せ）",
+    "key": "b",
+    "kind": "const"
+   }
+  ],
+  "tree": {
+   "op": "eq",
+   "args": [
+    {
+     "op": "fn",
+     "args": [
+      {
+       "op": "add",
+       "args": [
+        {
+         "op": "mul",
+         "args": [
+          {
+           "sym": "a"
+          },
+          {
+           "sym": "X"
+          }
+         ]
+        },
+        {
+         "sym": "b"
+        }
+       ]
+      }
+     ],
+     "name": "E"
+    },
+    {
+     "op": "add",
+     "args": [
+      {
+       "op": "mul",
+       "args": [
+        {
+         "sym": "a"
+        },
+        {
+         "op": "fn",
+         "args": [
+          {
+           "sym": "X"
+          }
+         ],
+         "name": "E"
+        }
+       ]
+      },
+      {
+       "sym": "b"
+      }
+     ]
+    }
+   ]
+  },
+  "contract": {
+   "kinds": [
+    "恒等式",
+    "変換"
+   ],
+   "properties": [
+    "線形",
+    "同値"
+   ],
+   "representative": true
+  }
+ },
+ {
   "concept": "TERM-poisson",
   "index": 0,
   "id": "F-poisson-pmf",
