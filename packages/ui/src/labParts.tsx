@@ -1,7 +1,7 @@
 // 実験室の共通の部品（#102・#119）：枠（段の列・問い・下の押す所）、分布の図、積み上がりの再生。
 // どのモデル（二項・値の表）の実験室も、これを組み合わせて作る。
 import katex from "katex";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createRandom, emptySetRecord, runSets, type Mechanism, type SetRecord } from "@math-lab/engine";
 import { haptic, reduced, useTween } from "./motion";
 import { useRunner } from "./runner";
@@ -25,8 +25,9 @@ const padTo = (f: number[] | undefined, n: number) => (f ? [...f, ...Array(Math.
 
 /** 棒（実験の割合）・点（理論）・点線（前の条件）・線（あなたの予想）を重ねる図。横軸の文字は labels（なければ番号）。高さは前の値から動く。
  *  pair（前の条件の実験の割合）があると、各値に「前」と「後」の棒を左右に並べる（issue 121）。点線（前の理論）は前の棒、点（後の理論）は後の棒に乗る */
-export function Bars({ freq: freq0, pair: pair0, series, theory: theory0, ghost: ghost0, guess, hi, mark, markLabel = "予想", marker, at, labels, height = 150, label }: {
+export function Bars({ freq: freq0, pair: pair0, series, theory: theory0, ghost: ghost0, guess, hi, hiIn, mark, markLabel = "予想", marker, at, labels, height = 150, label }: {
   freq?: number[]; pair?: number[]; theory?: number[]; ghost?: number[]; guess?: number[]; hi?: number;
+  /** 事象に入る棒を強調する（k 回以上など。stats2-course issue 161 確率の値の問い） */ hiIn?: (k: number) => boolean;
   /** 比べる（issue 122）：いくつかの実験の割合を、値ごとに左から並べる（4つまで。色は SERIES の順） */
   series?: number[][];
   /** 縦の点線（位置は棒の番号。小数なら間に置く） */ mark?: number; markLabel?: string;
@@ -73,7 +74,7 @@ export function Bars({ freq: freq0, pair: pair0, series, theory: theory0, ghost:
         <rect key={`b${k}`} x={xb(k) - wid / 2} y={y(v)} width={wid} height={B - y(v)} rx={Math.min(3, wid * 0.2)} className={s.barBefore} data-testid="exp-bar-before" />
       ))}
       {bars.map((v, k) => (v > 0 && B - y(v) > 0.3) && (
-        <rect key={k} x={xa(k) - wid / 2} y={y(v)} width={wid} height={B - y(v)} rx={Math.min(3, wid * 0.2)} className={k === hi ? s.barHi : freq ? s.bar : s.barTheory} data-x={xa(k)} />
+        <rect key={k} x={xa(k) - wid / 2} y={y(v)} width={wid} height={B - y(v)} rx={Math.min(3, wid * 0.2)} className={k === hi || hiIn?.(k) ? s.barHi : freq ? s.bar : s.barTheory} data-x={xa(k)} data-hi={hiIn?.(k) || undefined} />
       ))}
       {freq && theory?.map((v, k) => <circle key={k} cx={xa(k)} cy={y(v)} r={pair ? 2.5 : 3} className={s.dot} />)}
       <line x1={0} x2={W - R + 4} y1={B} y2={B} className={s.base} />
@@ -117,24 +118,26 @@ function MultiBars({ series, labels, height, label }: { series: number[][]; labe
 }
 
 /** 実験室の枠：上（戻る・題・ⓘ・段の列・今回の問い）、中（1つの段の中身）、下（押す所） */
-export function LabShell({ title, question, stage, reached, go, onBack, onInfo, body, cta, children }: {
+export function LabShell({ title, question, stage, reached, go, onBack, onInfo, body, cta, children, stages = STAGES, stepper = true, qLabel = "今回の問い" }: {
   title: string; question: string; stage: number; reached: number; go: (i: number) => void;
   onBack?: () => void; onInfo?: () => void; body: ReactNode; cta: ReactNode; children?: ReactNode;
+  /** 段の名前（問いの形で段の数が違う。stats2-course issue 161） */ stages?: readonly string[];
+  /** 段の列を出すか（入口の「何を確かめたい？」では出さない） */ stepper?: boolean; qLabel?: string;
 }) {
   return (
     <div className={s.root} data-testid="experiment">
       <div className={s.top} id="exp-top">
         <div className={s.titleRow}>{onBack && <button type="button" className={s.info} onClick={onBack} aria-label="戻る">←</button>}<b>{title}</b>{onInfo && <button type="button" className={s.info} onClick={onInfo} aria-label="基本と用語">ⓘ</button>}</div>
-        <ol className={s.stepper} aria-label="段">
-          {STAGES.map((t, i) => (
+        {stepper && <ol className={s.stepper} aria-label="段" style={{ "--n": stages.length } as CSSProperties}>
+          {stages.map((t, i) => (
             <li key={t}><button type="button" disabled={i > reached} aria-current={i === stage ? "step" : undefined} className={i < stage || (i <= reached && i !== stage) ? s.done : undefined} onClick={() => go(i)}>
               <i>{i < stage ? "✓" : i + 1}</i>{t}</button></li>
           ))}
-        </ol>
-        <p className={s.q} data-testid="exp-question"><span>今回の問い</span>{question}</p>
+        </ol>}
+        <p className={s.q} data-testid="exp-question"><span>{qLabel}</span>{question}</p>
       </div>
       <div className={s.body} key={stage}>{body}</div>
-      <div className={s.bar}>{cta}</div>
+      {cta ? <div className={s.bar}>{cta}</div> : null}   {/* 押す所のない画面（入口・比べる）は下の帯を出さない（空の帯が横にはみ出していた） */}
       {children}
     </div>
   );
@@ -149,6 +152,28 @@ export function useStages(initial = 0) {
     document.getElementById("exp-top")?.scrollIntoView?.({ block: "start", behavior: reduced() ? "auto" : "smooth" });
   };
   return { stage, reached, go };
+}
+
+/** 1つの条件を起こし続ける（確率の値の問い。stats2-course issue 161）。種つき・分けても同じ。起き方が変わったら新しく始める */
+export function useRuns(m: Mechanism, seed0?: number) {
+  const [seed, setSeed] = useState(() => seed0 ?? Date.now() % 100000);
+  const rng = useRef(createRandom(seed));
+  const [rec, setRec] = useState(() => emptySetRecord(seed, m));
+  const { start, stop } = useRunner();
+  const key = JSON.stringify(m), first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    stop(); const sd = Date.now() % 100000; setSeed(sd); rng.current = createRandom(sd); setRec(emptySetRecord(sd, m));
+  }, [key]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const ref = useRef(rec); ref.current = rec;
+  const step = (k: number) => { const next = runSets(rng.current, ref.current, k); ref.current = next; setRec(next); };
+  const run = (count: number, per = 20) => {
+    haptic(); stop();
+    if (count === 1 || reduced()) { step(count); return; }
+    let done = 0;
+    start(() => { const k = Math.min(per, count - done); step(k); done += k; return done >= count; }, 60);
+  };
+  return { rec, run, seed };
 }
 
 /**
