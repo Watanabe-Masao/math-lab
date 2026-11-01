@@ -37,6 +37,8 @@ type Common = {
   linear?: FormulaData;
   seed?: number;
   experiment?: boolean;
+  /** 式だけ（stats2-course issue 158 I1）：2 主役の式と 3 帯（記号を押す・定義の式に開く）だけを出す。実験室の「基本」の面などで、同じ式の部品を使う */
+  only?: "formula";
   definitions?: (conceptId: string) => FormulaData[];
   onConcept?: (id: string) => void;
   conceptName?: (id: string) => string;
@@ -48,6 +50,10 @@ const render = (tex: string, display = true) => {
   catch { return tex; }
 };
 const fmt = (v: number | undefined, d = 4) => (v === undefined || !Number.isFinite(v) ? "—" : String(Number(v.toFixed(d))));
+/** 式の中の数（stats2-course issue 158 W1）：負は「−」。足す数は「＋3」「−3」、掛ける数と負の値は括弧 */
+const minus = (t: string) => t.replace(/^-/, "−");
+const signed = (v: number, add: boolean) => (add ? (v < 0 ? `−${fmt(-v)}` : `＋${fmt(v)}`) : v < 0 ? `(${minus(fmt(v))})` : fmt(v));
+const paren = (v: number | undefined) => (v !== undefined && v < 0 ? `(${minus(fmt(v))})` : fmt(v));
 const short = (v: number) => formatNum(Number(v.toPrecision(5)));   // 計算過程の数は5桁まで
 const toEngine = (fs: FormulaData[]): EngineFormula[] => fs.filter((x) => !!x.tree).map((x) => ({ symbols: x.symbols ?? [], tree: x.tree! }));
 const FALLBACK = { min: 0, max: 30, step: 0.01 };
@@ -98,7 +104,7 @@ export function TableWorkspace({ tables, ...rest }: Common & { tables: ValueTabl
   return <Frame key={table.id} {...rest} model={{ kind: "table", tables }} table={table} onScene={choose} />;
 }
 
-function Frame({ formula: given, mean, linear, model, table, onScene, seed: seed0, definitions, onConcept, conceptName, experiment = true }: Common & { model: Model; table?: ValueTable; onScene?: (id: string) => void }) {
+function Frame({ formula: given, mean, linear, model, table, onScene, seed: seed0, definitions, onConcept, conceptName, experiment = true, only }: Common & { model: Model; table?: ValueTable; onScene?: (id: string) => void }) {
   const isTable = model.kind === "table";
   const vary = model.kind === "formula" ? model.vary : [], over = model.kind === "formula" ? model.over : "";
   const symOfGiven = (k: string) => (given.symbols ?? []).find((x) => x.key === k);
@@ -453,16 +459,16 @@ function Frame({ formula: given, mean, linear, model, table, onScene, seed: seed
   const symText = isTable ? (transformed ? "y" : "x") : overSym?.symbol ?? over;
   const labelOf = (g: (typeof bars)[number]) => (isTable && !transformed && g.rows.length === 1 && table!.labels ? table!.labels[g.rows[0]!]! : num6(g.v));
   return (
-    <section className={s.ws} data-testid="workspace" data-pattern={model.kind} aria-label="式の作業台">
+    <section className={s.ws} data-testid="workspace" data-pattern={model.kind} data-only={only} aria-label="式の作業台">
       {/* 1 見出し：式の名前・場面の選択（場面が2つ以上のとき）・初期値に戻す */}
-      <div className={s.head}><b>{given.label ?? "式を動かす"}</b>
+      {!only && <><div className={s.head}><b>{given.label ?? "式を動かす"}</b>
         <button type="button" className={s.reset} onClick={reset} data-testid="ws-reset">初期値に戻す</button></div>
       {model.kind === "table" && model.tables.length > 1 && (
         <label className={s.scene}><span className={s.muted}>場面</span>
           <select value={table!.id} onChange={(e) => onScene?.(e.target.value)} data-testid="ws-scene">
             {model.tables.map((t) => <option key={t.id} value={t.id}>{t.icon ? `${t.icon} ` : ""}{t.name}</option>)}
           </select></label>
-      )}
+      )}</>}
       <div ref={wrap} className={s.stageWrap}>
         <div className={s.boxes} aria-hidden="true">
           {boxes.map((b) => <span key={b.i} className={s.box} style={{ left: b.x, top: b.y, width: b.w, height: b.h }} />)}
@@ -477,6 +483,7 @@ function Frame({ formula: given, mean, linear, model, table, onScene, seed: seed
           {opens.length > 1 && <button type="button" className={s.tool} onClick={() => { snapshot(); setOpens([]); }}>元の式に戻す</button>}
         </div>
       )}
+      {!only && <>
       <div className={s.result} data-testid="ws-result">
         <span className={s.resultLhs} data-testid="ws-result-lhs" dangerouslySetInnerHTML={{ __html: lhs ? render(toTex(isTable ? lhs : substitute(lhs, { values: { [over]: values[over]! } }), { symbols }), false) : "" }} />
         <Tween className={s.resultVal} data-testid="ws-result-val" data-value={result} v={result} show={(x) => (isProb && x !== undefined ? `${(x * 100).toFixed(2)}%` : fmt(x))} />
@@ -590,7 +597,7 @@ function Frame({ formula: given, mean, linear, model, table, onScene, seed: seed
             </label>
           ))}
           {linear.tree && <div className={s.calcTex} dangerouslySetInnerHTML={{ __html: render(toTex(linear.tree, { symbols: linear.symbols }), false) }} />}
-          <p className={s.linearOut}>{meanX === undefined ? "—" : <>E(aX＋b)＝{a}×{fmt(meanX, 4)}＋{b}＝<b data-testid="ws-linear-result">{fmt(meanValue, 4)}</b></>}</p>
+          <p className={s.linearOut}>{meanX === undefined ? "—" : <>E(aX＋b)＝{signed(a, false)}×{paren(meanX)}{signed(b, true)}＝<b data-testid="ws-linear-result">{minus(fmt(meanValue, 4))}</b></>}</p>
           {a === 0 && <p className={s.hint}>すべての値が {b} になり、確率は1つの値にまとまる。</p>}
         </fieldset>
       )}
@@ -613,6 +620,7 @@ function Frame({ formula: given, mean, linear, model, table, onScene, seed: seed
           <button type="button" className={s.clear} onClick={clearRec} disabled={!rec.values.length}>記録を消す</button>
         </div>
       </div>}
+      </>}
     </section>
   );
 }

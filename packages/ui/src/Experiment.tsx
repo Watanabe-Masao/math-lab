@@ -14,6 +14,7 @@ import { Bars, LabShell, Replay, pct, peak, r2, tex, usePairRuns, useStages } fr
 import { TableLab, type TableDef } from "./ExperimentTable";
 import { CompareStage, copyHere, hereUrl, useCards } from "./Compare";
 import { Sheet } from "./Sheet";
+import { LabInfo } from "./LabInfo";
 import { Formula, type FormulaData } from "./Formula";
 import { Workspace, type WorkspaceData } from "./Workspace";
 import s from "./Experiment.module.css";
@@ -62,7 +63,6 @@ export type Props = {
 
 const DIRS = ["左へ動く", "動かない", "右へ動く"] as const;
 const mean = (c: Cond) => modelMoments({ kind: "binom", ...c }).mean;
-const dirOf = (a: Cond, b: Cond) => { const d = mean(b) - mean(a); return Math.abs(d) < 0.25 ? 1 : d > 0 ? 2 : 0; };
 
 type Counter = NonNullable<BinomDef["counterexamples"]>[number];
 const SPREAD = ["狭くなる", "変わらない", "広くなる"] as const;
@@ -122,7 +122,7 @@ function CounterLab({ cx, cond, theme, onConcept, name }: { cx: Counter; cond: C
           </div>
           <div className={s.tiles}>
             <div>平均<b>{r2(smB.mean)} ・ {r2(sm.mean)}</b><i>条件どおり・崩した（理論 {r2(mean(base))}・{r2(mm.mean)}）</i></div>
-            <div>散らばり<b>{r2(smB.variance)} ・ {r2(sm.variance)}</b><i>平均はほぼ同じでも、広がりが違う</i></div>
+            <div>散らばり<b>{r2(smB.variance)} ・ {r2(sm.variance)}</b><i>{actual === 1 ? "この条件では、理論の平均も散らばりも二項分布と同じ（差が出ない所）" : `理論の平均は同じで、散らばりは二項分布より${actual === 0 ? "小さい" : "大きい"}`}</i></div>
           </div>
           <p className={s.breaks}>崩した条件：{cx.breaks}</p>
           <p className={s.note}>{cx.text}</p>
@@ -185,7 +185,8 @@ function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, con
 
   // 発見メモ → ChatGPT
   const [memo, setMemo] = useState("");
-  const actual = dirOf(round.start, round.next);
+  // 答えは予想と同じ物差し（山の頂点）で決める（stats2-course issue 158 A4：平均の差で決めると、頂点で正しく予想しても「違った」になる条件がある）
+  const actual = dirOfPeak(peak(modelPmf({ kind: "binom", ...round.next })));
   const memoText = () => [
     "【学習記録】実験室", `実験：${def.title}（${def.id}）`, `問い：${round.question}`, `テーマ：${theme.name}`,
     `条件：n＝${round.start.n}・p＝${round.start.p} → n＝${cond.n}・p＝${cond.p}`,
@@ -259,7 +260,7 @@ function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, con
         {k === undefined && <p className={s.muted}>「1セット」を押すと、前と後で {cond.n} {theme.unit ?? "回"}ずつ起こる</p>}
       </section>
       <section className={s.card}>
-        <p className={s.h}>{`${theme.success}の数ごとのセット数`}<span data-testid="exp-sets">各 {rec.sets} セット</span></p>
+        <p className={s.h}>{`${theme.success}の数ごとの割合`}<span data-testid="exp-sets">各 {rec.sets} セット</span></p>
         <div className={s.legend}><span><i className={s.kBarB} />前 p＝{pct(round.start.p)}</span><span><i className={s.kBar} />後 p＝{pct(cond.p)}</span></div>
         <Bars freq={sum.freq} pair={sumB.freq} hi={k} label="前と後の実験の結果の割合" />
       </section>
@@ -375,12 +376,10 @@ function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, con
   return (
     <LabShell title={def.title} question={round.question} stage={stage} reached={reached} go={go} onBack={onBack} onInfo={() => setSheet("info")} body={body} cta={cta}>
       {sheet === "info" && (
-        <Sheet label="基本と用語" title={def.title.replace(/ ?実験室$/, "の基本")} onClose={() => setSheet(null)} data-testid="exp-info">
-          {mainFormula?.tex && <div className={s.math} dangerouslySetInnerHTML={{ __html: tex(mainFormula.tex) }} />}
-          {mainFormula?.symbols?.length ? <dl className={s.kv}>{mainFormula.symbols.filter((x) => x.kind).map((x) => <div key={x.key}><dt>{x.symbol}</dt><dd>{x.meaning}</dd></div>)}</dl> : null}
-          {def.points?.length ? <><p className={s.h}>ポイント</p><ul className={s.points}>{def.points.map((t) => <li key={t}>{t}</li>)}</ul></> : null}
-          {def.links.concepts?.length ? <><p className={s.h}>関連する概念</p>{chips(def.links.concepts)}</> : null}
-        </Sheet>
+        <LabInfo title={def.title} points={def.points} main={def.reason?.concept ?? def.links.concepts?.[0]} related={def.links.concepts} name={name} onConcept={onConcept} onClose={() => setSheet(null)}
+          formula={workspace
+            ? <Workspace only="formula" formula={workspace.formula} vary={workspace.vary} over={workspace.over} initial={{ n: cond.n, p: cond.p, [workspace.over]: peak(theoryNow) }} definitions={definitions} onConcept={onConcept} conceptName={conceptName} experiment={false} />
+            : mainFormula?.tex && <div className={s.math} dangerouslySetInnerHTML={{ __html: tex(mainFormula.tex) }} />} />
       )}
       {sheet === "cond" && (
         <Sheet label="条件を変える" title="条件を変える" onClose={() => setSheet(null)} data-testid="exp-cond">

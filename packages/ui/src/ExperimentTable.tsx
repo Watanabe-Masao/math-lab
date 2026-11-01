@@ -9,7 +9,8 @@ import { createRandom, emptySetRecord, expand, modelMoments, modelPmf, runSets, 
 import { nudge } from "./nudge";
 import { useRunner } from "./runner";
 import { haptic, reduced, useTween } from "./motion";
-import { Sheet } from "./Sheet";
+import { LabInfo } from "./LabInfo";
+import { TableWorkspace } from "./Workspace";
 import type { FormulaData } from "./Formula";
 import { Bars, LabShell, Replay, num3, r2, tex, usePairRuns, useStages } from "./labParts";
 import { CompareStage, copyHere, hereUrl, useCards } from "./Compare";
@@ -39,12 +40,6 @@ export type TableDef = {
 const DIRS = ["左へ動く", "動かない", "右へ動く"] as const;
 const tbl = (values: number[], weights: number[]) => ({ kind: "table" as const, n: 1 as const, values, weights });
 const meanOf = (values: number[], weights: number[]) => modelMoments(tbl(values, weights)).mean;
-/** 値の位置（並べた値のあいだを直線でつなぐ）。▲と予想の線を、棒の間に置くため */
-const posOf = (v: number, xs: number[]) => {
-  if (v <= xs[0]!) return 0;
-  for (let i = 0; i < xs.length - 1; i++) if (v <= xs[i + 1]!) return i + (v - xs[i]!) / Math.max(1e-12, xs[i + 1]! - xs[i]!);
-  return xs.length - 1;
-};
 
 function labelsFor(th: { values: number[]; labels?: string[] }, support: number[], unit = "") {
   return support.map((v) => { const i = th.values.indexOf(v); return th.labels?.[i] ?? `${v}${unit}`; });
@@ -131,7 +126,7 @@ function TableCompare({ def, theme, labels, unit, cards0, seed, sets, onCards, o
   );
 }
 
-export function TableLab({ def, reasonFormula, onConcept, conceptName, onSendMemo, onBack, cards: cards0, onCards }: Props & { def: TableDef }) {
+export function TableLab({ def, reasonFormula, onConcept, conceptName, definitions, onSendMemo, onBack, cards: cards0, onCards }: Props & { def: TableDef }) {
   const { stage, reached, go } = useStages(cards0 ? 5 : 0);
   const [cmpTheme, cmpCards] = cards0?.includes(":") ? [cards0.slice(0, cards0.indexOf(":")), cards0.slice(cards0.indexOf(":") + 1)] : [undefined, undefined];
   const [theme, setTheme] = useState(def.themes.find((t) => t.id === cmpTheme) ?? def.themes[0]!);
@@ -202,7 +197,7 @@ export function TableLab({ def, reasonFormula, onConcept, conceptName, onSendMem
       <section className={s.card}>
         <p className={s.h}>今の表<span>▲＝平均（期待値）{r2(mStart)}{unit}</span></p>
         {theme.story && <p className={s.story}>{theme.story}</p>}
-        <Bars theory={thStart} labels={labels} marker={posOf(mStart, support)} mark={pred.dir !== undefined ? posOf(pred.value, support) : undefined} height={150} label="今の表の確率と平均" />
+        <Bars theory={thStart} labels={labels} at={support} marker={mStart} mark={pred.dir !== undefined ? pred.value : undefined} height={150} label="今の表の確率と平均" />
       </section>
       <section className={s.card}>
         <p className={s.h}>{theme.change}と、平均（▲）は…</p>
@@ -236,7 +231,7 @@ export function TableLab({ def, reasonFormula, onConcept, conceptName, onSendMem
       <section className={s.card}>
         <p className={s.h}>出た値の割合<span data-testid="exp-sets">各 {rec.sets} 回</span></p>
         <div className={s.legend}><span><i className={s.kBarB} />前の表</span><span><i className={s.kBar} />変えた表</span></div>
-        <Bars freq={sum.freq} pair={sumB.freq} labels={labels} hi={last.length ? support.indexOf(last.at(-1)!) : undefined} label="前と変えた表で引いた値の割合" />
+        <Bars freq={sum.freq} pair={sumB.freq} labels={labels} at={support} hi={last.length ? support.indexOf(last.at(-1)!) : undefined} label="前と変えた表で引いた値の割合" />
       </section>
     </>;
     cta = <>
@@ -252,11 +247,11 @@ export function TableLab({ def, reasonFormula, onConcept, conceptName, onSendMem
     body = <>
       <div className={ok ? s.ok : s.ng} data-testid="exp-verdict">
         <b>{ok ? "✓ 予想どおり" : "✗ 予想と違った"}</b>　平均は{DIRS[actual]}（期待値 {r2(mStart)} → <b>{r2(mNext)}</b>{unit}。予想は {r2(pred.value)}{unit}）
-        {notAValue && <span className={s.shape}>形にも注目：期待値 {r2(mNext)}{unit} は、表の中の値としては<b>一度も出ない</b>。「よく出る値」ではなく、何度も引いたときの平均の行き着く先</span>}
+        {notAValue && <span className={s.shape}>期待値の読み方：{r2(mNext)}{unit} は、表の中の値としては<b>一度も出ない</b>。「よく出る値」ではなく、何度も引いたときの平均の行き着く先</span>}
       </div>
       <section className={s.card}>
         <div className={s.legend}><span><i className={s.kBarB} />前の表で引いた</span><span><i className={s.kBar} />変えた表で引いた</span><span><i className={s.kGhost} />前の表の確率</span><span><i className={s.kDot} />変えた表の確率</span><span><i className={s.kGuess} />あなたの予想</span></div>
-        <Bars freq={sum.freq} pair={sumB.freq} theory={thNext} ghost={thStart} labels={labels} marker={posOf(mNext, support)} mark={posOf(pred.value, support)} height={170} label="前と変えた表で引いた割合と表の確率と予想" />
+        <Bars freq={sum.freq} pair={sumB.freq} theory={thNext} ghost={thStart} labels={labels} at={support} marker={mNext} mark={pred.value} height={170} label="前と変えた表で引いた割合と表の確率と予想" />
       </section>
       <div className={s.tiles}>
         <div data-testid="exp-tile-exp">平均（引いた）<b>{r2(sumB.mean)} → {r2(sum.mean)}{unit}</b><i>差 {r2((sum.mean ?? 0) - (sumB.mean ?? 0))}・各 {rec.sets} 回</i></div>
@@ -314,11 +309,10 @@ export function TableLab({ def, reasonFormula, onConcept, conceptName, onSendMem
   return (
     <LabShell title={def.title} question={def.question} stage={stage} reached={reached} go={go} onBack={onBack} onInfo={() => setSheet("info")} body={body} cta={cta}>
       {sheet === "info" && (
-        <Sheet label="基本と用語" title={def.title.replace(/ ?実験室$/, "の基本")} onClose={() => setSheet(null)} data-testid="exp-info">
-          {reasonFormula?.tex && <div className={s.math} dangerouslySetInnerHTML={{ __html: tex(reasonFormula.tex) }} />}
-          {def.points?.length ? <><p className={s.h}>ポイント</p><ul className={s.points}>{def.points.map((t) => <li key={t}>{t}</li>)}</ul></> : null}
-          {def.links.concepts?.length ? <><p className={s.h}>関連する概念</p>{chips(def.links.concepts)}</> : null}
-        </Sheet>
+        <LabInfo title={def.title} points={def.points} main={def.reason?.concept ?? def.links.concepts?.[0]} related={def.links.concepts} name={name} onConcept={onConcept} onClose={() => setSheet(null)}
+          formula={reasonFormula?.tree
+            ? <TableWorkspace only="formula" formula={reasonFormula} tables={[{ id: theme.id, name: theme.name, unit: theme.unit, values: theme.values, weights: theme.start, labels: theme.labels }]} definitions={definitions} onConcept={onConcept} conceptName={conceptName} experiment={false} />
+            : reasonFormula?.tex && <div className={s.math} dangerouslySetInnerHTML={{ __html: tex(reasonFormula.tex) }} />} />
       )}
     </LabShell>
   );
