@@ -48,3 +48,26 @@ export function createRandom(seed: number): Random {
   };
   return r;
 }
+
+// ---- ラボが使う引き方（stats2-course #144 P6：教材のラボの乱数をここへ集める。ラボの中に乱数を書かない） ----
+
+/** 標準正規分布の数（Box–Muller。u＝0 は引き直す。1回に2つ引く） */
+export function normal(r: Random): number {
+  let u = 0;
+  while (u === 0) u = r.next();
+  const v = r.next();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+/** 並べ替えた新しい配列（Fisher–Yates。元の配列は変えない） */
+export function shuffle<T>(r: Random, xs: readonly T[]): T[] {
+  const a = xs.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = r.int(0, i); [a[i], a[j]] = [a[j]!, a[i]!]; }
+  return a;
+}
+
+/** 戻さずに k 個を引く（並べ替えの先頭 k 個。k は 0〜長さ） */
+export function sampleWithout<T>(r: Random, xs: readonly T[], k: number): T[] {
+  if (!Number.isInteger(k) || k < 0 || k > xs.length) throw new RangeError(`引く数は 0〜${xs.length} の整数：${k}`);
+  return shuffle(r, xs).slice(0, k);
+}
