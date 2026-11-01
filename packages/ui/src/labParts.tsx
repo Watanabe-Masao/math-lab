@@ -298,7 +298,7 @@ export function Replay({ rec, theory, before, labels, unit = "", per = "セッ�
       <p className={s.note} data-testid="exp-run-note">{b
         ? `${per}数が少ないうちは、平均が大きく揺れる。繰り返したとき、変更前は ${about(b.th.mean)}${unit}、変更後は ${about(a.th.mean)}${unit} の近くに落ち着いていくかを見る。途中では、2本の線が近づいたり交差したりすることもある。`
         : `${per}数が少ないうちは、平均が大きく揺れる。繰り返したとき、期待値 ${about(a.th.mean)}${unit} の近くに落ち着いていくかを見る。`}
-        {wild && " この表は散らばりが非常に大きい（まれな大当たりがある）。しばらく低い平均が続き、当たりが出ると急に跳ねる。その跳ね方そのものが観察どころで、この回数では期待値の近くに落ち着くとは限らない。"}</p>
+        {wild && "この表は散らばりが非常に大きい（まれな大当たりがある）。しばらく低い平均が続き、当たりが出ると急に跳ねる。その跳ね方そのものが観察どころで、この回数では期待値の近くに落ち着くとは限らない。"}</p>
       <p className={s.h}>なぜ平均が変わったか<span>値ごとの割合（{upto} {per}まで）</span></p>
       <div className={s.legend} data-testid="exp-replay-legend">
         {b ? <><span><i className={s.kBarB} />変更前の実験の割合</span><span><i className={s.kBar} />変更後の実験の割合</span><span><i className={s.kGhost} />変更前の理論確率</span><span><i className={s.kDot} />変更後の理論確率</span></>
