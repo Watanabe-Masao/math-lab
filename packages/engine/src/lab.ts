@@ -18,7 +18,8 @@ export type Mechanism =
   /** 前の結果で確率が変わる（独立でない）：前の結果の方へ carry だけ寄る。成功のあとは p＋carry(1−p)、失敗のあとは p−carry·p。
    *  平均は p のまま（どの回も成功の確率は p）、続けて同じ結果が出やすい（隣どうしの相関が carry）。最初は p */
   | { kind: "streak"; n: number; p: number; carry: number }
-  /** セットごとに確率がばらつく（同じ p でない）：セットごとに p−spread か p＋spread を半々で選ぶ（0〜1 に収める）。客や時間で買いやすさが違う、など */
+  /** セットごとに確率がばらつく（同じ p でない）：セットごとに p−d か p＋d を半々で選び、そのセットの中では同じ確率を使う。客や時間で買いやすさが違う、など。
+   *  ずれ幅 d＝min(spread, p, 1−p)（mixSpread）。端で切り詰めると平均の確率が p からずれるので、ずれ幅の方を詰める（平均はいつも p。p＝0・1 では d＝0）。stats2-course #119・#118 層3 */
   | { kind: "mix"; n: number; p: number; spread: number }
   /** 値の表（くじ・さいころ）から n 回引き、値を足す（n＝1 なら1回の値）。weights は重み（合計で割って確率にする）。#119 */
   | { kind: "table"; n: number; values: number[]; weights: number[] };
@@ -75,7 +76,7 @@ export function drawSet(rng: Random, m: Mechanism): number[] {
     return out;
   }
   if (m.kind === "mix") {
-    const q = Math.min(1, Math.max(0, m.p + (rng.next() < 0.5 ? -m.spread : m.spread)));
+    const d = mixSpread(m), q = m.p + (rng.next() < 0.5 ? -d : d);   // セットの最初に1回だけ選ぶ（試行ごとに選び直すと二項分布と同じになる）
     for (let i = 0; i < m.n; i++) out.push(rng.next() < q ? 1 : 0);
     return out;
   }
@@ -147,6 +148,27 @@ export function modelMoments(m: Model): { mean: number; variance: number } {
   }
   const q = m.success / m.total, fpc = m.total > 1 ? (m.total - m.n) / (m.total - 1) : 0;
   return { mean: m.n * q, variance: m.n * q * (1 - q) * fpc };
+}
+
+/** 混ざる起き方のずれ幅 d＝min(spread, p, 1−p)。平均の確率を p に保つ */
+export function mixSpread(m: { p: number; spread: number }): number {
+  return Math.max(0, Math.min(m.spread, m.p, 1 - m.p));
+}
+
+/** 起き方そのものの期待値・分散（1セットの成功の回数か、値の表の足した値）。理論のモデル（二項分布）とのずれを、実験の結果ではなく式で決める
+ *  （予想の答え・反例の言い分の元。stats2-course #118 層3・5）。
+ *  - 引きずられる：各回の平均は p、隣どうしの相関は carry、i 回目と j 回目の共分散は p(1−p)·carry^|i−j|。
+ *    分散＝p(1−p){n＋2Σ_{h=1}^{n−1}(n−h)carry^h}
+ *  - 混ざる：セットの確率 Q は p±d を半々。E(k)＝np、V(k)＝E(V(k|Q))＋V(E(k|Q))＝n(p(1−p)−d²)＋n²d²＝np(1−p)＋n(n−1)d² */
+export function mechanismMoments(m: Mechanism): { mean: number; variance: number } {
+  const bad = checkMechanism(m);
+  if (bad) throw new RangeError(bad);
+  if (m.kind === "bernoulli" || m.kind === "urn" || m.kind === "table") return modelMoments(modelOf(m)!);
+  const pq = m.p * (1 - m.p);
+  if (m.kind === "mix") { const d = mixSpread(m); return { mean: m.n * m.p, variance: m.n * pq + m.n * (m.n - 1) * d * d }; }
+  let lag = 0, c = 1;
+  for (let h = 1; h < m.n; h++) { c *= m.carry; lag += (m.n - h) * c; }
+  return { mean: m.n * m.p, variance: pq * (m.n + 2 * lag) };
 }
 
 /** 記録（版2）。sets はセットの数、ks はセットごとの値（成功の回数か、値の表の足した値）、counts は support の値ごとのセット数。
