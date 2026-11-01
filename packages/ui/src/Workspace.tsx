@@ -355,7 +355,7 @@ function Frame({ formula: given, mean, linear, model, table, onScene, seed: seed
 
   // ---- 帯：上から「かたまり」→「この中の記号」→「選んだ記号」。下の段を選んでも上の段は残る（パンくず） ----
   const strip = () => {
-    if (!sel) return <div className={`${s.strip} ${s.stripEmpty}`} data-testid="ws-strip"><p className={s.hint}>式のかたまり（ₙCₖ・pᵏ など）を押すと、意味と今の値がここに出る。</p></div>;
+    if (!sel) return <div className={`${s.strip} ${s.stripEmpty}`} data-testid="ws-strip"><p className={s.hint}>{parts.length ? "式のかたまり（ₙCₖ・pᵏ など）を押すと、意味と今の値がここに出る。" : "式の記号を押すと、意味と今の値がここに出る。"}</p></div>;
     const p = sel.part !== undefined ? parts[sel.part] : undefined;
     const node = p ? nodeAt(tree, p.path) : undefined;
     // この中の記号：値の記号（n・k・p）と、意味のある関数（ₙCₖ・k!）。関数は「分解する」で定義の式に開ける
