@@ -231,3 +231,5 @@
 .bigNum { display: block; font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.3; margin: 2px 0; }
 .menuItem[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
 .select { min-width: 0; max-width: 100%; font: inherit; font-size: 14px; min-height: 40px; padding: 0 10px; border-radius: var(--r-m); border: 1.5px solid var(--line-strong); background: var(--surface); color: var(--ink); width: 100%; }
+.cmpTable { table-layout: fixed; }
+.cmpTable th:first-child, .cmpTable td:first-child { width: 46%; overflow-wrap: anywhere; }
