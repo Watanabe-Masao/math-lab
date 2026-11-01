@@ -12,6 +12,7 @@ import { nudge } from "./nudge";
 import { haptic } from "./motion";
 import { Bars, LabShell, Replay, pct, peak, r2, tex, usePairRuns, useStages } from "./labParts";
 import { TableLab, type TableDef } from "./ExperimentTable";
+import { ProbLab, QuestionMenu, type MenuItem } from "./ExperimentQuestion";
 import { CompareStage, copyHere, hereUrl, useCards } from "./Compare";
 import { Sheet } from "./Sheet";
 import { LabInfo } from "./LabInfo";
@@ -36,6 +37,10 @@ export type BinomDef = {
   counterexamples?: { id: string; name: string; breaks: string; mechanism: { kind: "urn" | "streak" | "mix"; total?: number; success?: number; carry?: number; spread?: number }; text: string; concept?: string }[];
   next?: { question: string; set: Partial<Cond> }[];
   points?: string[];
+  /** 入口「何を確かめたい？」に並べる問い（stats2-course issue 161）。form は問いの形 */
+  questions?: { id: string; form: "prob"; title: string; question: string; set: Cond; events: { op: "eq" | "ge" | "le"; k: number }[] }[];
+  /** 確率の値の問いの予想の目盛り（大きい順の境目） */
+  prob_scale?: number[];
 };
 
 export type Props = {
@@ -134,10 +139,66 @@ function CounterLab({ cx, cond, theme, onConcept, name }: { cx: Counter; cond: C
 }
 
 export function Experiment(props: Props) {
-  return props.def.model === "table" ? <TableLab {...props} def={props.def} /> : <BinomLab {...props} def={props.def} />;
+  return props.def.model === "table" ? <TableLab {...props} def={props.def} /> : <BinomEntry {...props} def={props.def} />;
 }
 
-function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, conceptName, onSendMemo, onBack, definitions, workspace, cards: cards0, onCards }: Props & { def: BinomDef }) {
+/** 二項分布の実験室の入口（stats2-course issue 161）。問い（questions）がある定義は「何を確かめたい？」から始め、
+ *  最初の問い（位置）・問い・前提崩し（反例）を1つの一覧に並べる。問いのない定義は前のまま最初の問いから始める */
+function BinomEntry(props: Props & { def: BinomDef }) {
+  const { def } = props;
+  const hasMenu = !!def.questions?.length;
+  const [pick, setPick] = useState<string | null>(!hasMenu || props.cards ? "main" : null);
+  const [info, setInfo] = useState(false);
+  const menu = () => setPick(null);
+  const back = hasMenu && pick ? menu : props.onBack;
+  const name = (id: string) => props.conceptName?.(id) ?? id;
+  const ws = props.workspace;
+  const infoSheet = (c: Cond, k: number) => info && (
+    <LabInfo title={def.title} points={def.points} main={def.reason?.concept ?? def.links.concepts?.[0]} related={def.links.concepts} name={name} onConcept={props.onConcept} onClose={() => setInfo(false)}
+      formula={ws ? <Workspace only="formula" formula={ws.formula} vary={ws.vary} over={ws.over} initial={{ n: c.n, p: c.p, [ws.over]: k }} definitions={props.definitions} onConcept={props.onConcept} conceptName={props.conceptName} experiment={false} />
+        : props.mainFormula?.tex && <div className={s.math} dangerouslySetInnerHTML={{ __html: tex(props.mainFormula.tex) }} />} />
+  );
+  if (pick === "main" || !hasMenu) return <BinomLab {...props} onBack={back} onMenu={hasMenu ? menu : undefined} />;
+  if (pick === null) {
+    const items: MenuItem[] = [
+      { id: "main", form: "shift", title: def.question },
+      ...(def.questions ?? []).map((q) => ({ id: q.id, form: q.form, title: q.title, sub: q.question })),
+      ...(def.counterexamples?.length ? [{ id: "break", form: "break" as const, title: "成り立つ条件を崩してみる", sub: def.counterexamples.map((x) => x.name).join("・") }] : []),
+    ];
+    return <QuestionMenu title={def.title} items={items} onPick={setPick} onBack={props.onBack} onInfo={() => setInfo(true)}>{infoSheet(def.start, Math.round(mean(def.start)))}</QuestionMenu>;
+  }
+  if (pick === "break") return <BreakLab def={def} onBack={back} onMenu={menu} onInfo={() => setInfo(true)} onConcept={props.onConcept} name={name}>{infoSheet(def.start, Math.round(mean(def.start)))}</BreakLab>;
+  const q = def.questions!.find((x) => x.id === pick)!;
+  return (
+    <ProbLab def={def} q={q} seed={props.seed} onBack={back} onMenu={menu} onInfo={() => setInfo(true)}
+      reason={ws ? (c, k) => <Workspace key={`${c.n}-${c.p}-${k}`} formula={ws.formula} mean={ws.mean} vary={ws.vary} over={ws.over} initial={{ n: c.n, p: c.p, [ws.over]: k }} definitions={props.definitions} onConcept={props.onConcept} conceptName={props.conceptName} experiment={false} /> : undefined}>
+      {infoSheet(q.set, q.events[0]!.k)}
+    </ProbLab>
+  );
+}
+
+/** 前提崩し：成り立つ条件を1つ崩した起き方を選んで実験する（反例。予想は広がりの向き） */
+function BreakLab({ def, onBack, onMenu, onInfo, onConcept, name, children }: { def: BinomDef; onBack?: () => void; onMenu: () => void; onInfo: () => void; onConcept?: (id: string) => void; name: (id: string) => string; children?: ReactNode }) {
+  const [theme, setTheme] = useState(def.themes[0]!);
+  const [cxId, setCxId] = useState<string | null>(null);
+  const cx = cxId ? def.counterexamples?.find((x) => x.id === cxId) : undefined;
+  return (
+    <LabShell title={def.title} question="成り立つ条件を崩してみる" qLabel="今回の問い" stepper={false} stage={0} reached={0} go={() => {}} onBack={onBack} onInfo={onInfo}
+      body={<>
+        <div className={s.themes} role="radiogroup" aria-label="題材">
+          {def.themes.map((t) => <button key={t.id} type="button" role="radio" aria-checked={t.id === theme.id} onClick={() => { haptic(); setTheme(t); }}><span aria-hidden="true">{t.icon}</span>{t.name}</button>)}
+        </div>
+        <section className={s.card}>
+          <p className={s.h}>どの条件を崩す？<span>{`n＝${def.start.n}・p＝${pct(def.start.p)}`}</span></p>
+          <div className={s.chips}>{def.counterexamples?.map((x) => <button key={x.id} type="button" className={`${s.chip}${cxId === x.id ? ` ${s.on}` : ""}`} onClick={() => { haptic(); setCxId(x.id); }} data-testid={`exp-bnd-${x.id}`}>{x.name}</button>)}</div>
+          {cx ? <CounterLab key={cx.id} cx={cx} cond={def.start} theme={theme} onConcept={onConcept} name={name} /> : <p className={s.muted}>二項分布は「各回が独立」「毎回同じ成功確率 p」が成り立つときの分布。1つを崩すと、山はどう変わるかを確かめる。</p>}
+        </section>
+      </>}
+      cta={<button type="button" className={s.next} onClick={onMenu} data-testid="exp-to-menu">別の問いへ</button>}>{children}</LabShell>
+  );
+}
+
+function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, conceptName, onSendMemo, onBack, definitions, workspace, cards: cards0, onCards, onMenu }: Props & { def: BinomDef; onMenu?: () => void }) {
   const { stage, reached, go: go0 } = useStages(cards0 ? 5 : 0);
 
   // 問いの組（前の条件 → 変える条件）。応用の段の「次の問い」で入れ替わる
@@ -353,7 +414,7 @@ function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, con
     body = <>
       {def.next?.length ? (
         <section className={s.card}>
-          <p className={s.h}>次の問い</p>
+          <p className={s.h}>{onMenu ? "同じ問いを別の条件で" : "次の問い"}</p>
           {def.next.map((nx) => (
             <button key={nx.question} type="button" className={s.rowBtn} onClick={() => {
               const st = { ...cond }, nt = { ...cond, ...nx.set };
@@ -362,7 +423,10 @@ function BinomLab({ def, reasonFormula, mainFormula, seed: seed0, onConcept, con
           ))}
         </section>
       ) : null}
-      {def.counterexamples?.length ? (
+      {onMenu ? (
+        // 入口のある定義：反例は入口の「前提崩し」に置く（同じものを2か所に出さない）。ここからは別の問いへ戻る
+        <button type="button" className={s.cardLink} onClick={onMenu} data-testid="exp-to-menu"><b>別の問いへ</b><span>何を確かめたい？に戻る（珍しい結果・前提を崩す など）</span></button>
+      ) : def.counterexamples?.length ? (
         <section className={s.card}>
           <p className={s.h}>反例を実験する<span>成り立つ条件を1つ崩す</span></p>
           <div className={s.chips}>{def.counterexamples.map((x) => <button key={x.id} type="button" className={`${s.chip}${cxId === x.id ? ` ${s.on}` : ""}`} onClick={() => { haptic(); setCxId(x.id); }} data-testid={`exp-bnd-${x.id}`}>{x.name}</button>)}</div>
