@@ -17,7 +17,9 @@ type Ev = { op: Op; k: number };
 export type BinomQuestion = NonNullable<BinomDef["questions"]>[number];
 export const STAGES_Q = ["予測", "実験", "観察", "理由", "応用"] as const;
 export const FORM_NAMES = { shift: "位置", spread: "広がり", prob: "確率の値", conv: "理論と実測", break: "前提崩し", compare: "比べる" } as const;
-export type MenuItem = { id: string; form: keyof typeof FORM_NAMES; title: string; sub?: string };
+/** id：開く入口、key：一覧の中の印（テーマ体系の B01 など。同じ入口を2つの問いが開くことがある）、draft：作成中（押せない） */
+export type MenuItem = { id: string; key?: string; form: keyof typeof FORM_NAMES; title: string; sub?: string; draft?: boolean };
+export type MenuGroup = { id: string; title: string; items: MenuItem[] };
 const SPREAD3 = ["広くなる", "変わらない", "狭くなる"] as const;
 const pmfOf = (c: Cond) => modelPmf({ kind: "binom", ...c });
 const meanOf = (f: number[]) => f.reduce((t, v, k) => t + k * v, 0);
@@ -28,16 +30,23 @@ const probOf = (f: number[], e: Ev) => f.reduce((t, v, k) => t + (inEv(e)(k) ? v
 const sumK = (ks: number[]) => ks.reduce((a, b) => a + b, 0);
 
 /** 入口：何を確かめたい？ */
-export function QuestionMenu({ title, items, onPick, onBack, onInfo, children }: { title: string; items: MenuItem[]; onPick: (id: string) => void; onBack?: () => void; onInfo?: () => void; children?: ReactNode }) {
+export function QuestionMenu({ title, items, groups, onPick, onBack, onInfo, children }: { title: string; items?: MenuItem[]; groups?: MenuGroup[]; onPick: (id: string) => void; onBack?: () => void; onInfo?: () => void; children?: ReactNode }) {
+  const row = (it: MenuItem) => it.draft
+    ? <div key={it.key ?? it.id} className={`${s.menuItem} ${s.draft}`} aria-disabled="true" data-testid={`exp-q-${it.key ?? it.id}`}>
+        <span className={s.form}>作成中</span><b>{it.key && <span className={s.qid}>{it.key}</span>}{it.title}</b>
+      </div>
+    : <button key={it.key ?? it.id} type="button" className={s.menuItem} onClick={() => { haptic(); onPick(it.id); }} data-testid={`exp-q-${it.key ?? it.id}`}>
+        <span className={s.form}>{FORM_NAMES[it.form]}</span><b>{it.key && <span className={s.qid}>{it.key}</span>}{it.title}</b>{it.sub && <small>{it.sub}</small>}
+      </button>;
   return (
     <LabShell title={title} question="何を確かめたい？" qLabel="問いを選ぶ" stepper={false} stage={0} reached={0} go={() => {}} onBack={onBack} onInfo={onInfo}
-      body={<div className={s.menu} data-testid="exp-menu">
-        {items.map((it) => (
-          <button key={it.id} type="button" className={s.menuItem} onClick={() => { haptic(); onPick(it.id); }} data-testid={`exp-q-${it.id}`}>
-            <span className={s.form}>{FORM_NAMES[it.form]}</span><b>{it.title}</b>{it.sub && <small>{it.sub}</small>}
-          </button>
-        ))}
-      </div>}
+      body={groups
+        ? <div className={s.menu} data-testid="exp-menu">{groups.map((g) => (
+            <section key={g.id} className={s.menuGroup} aria-label={g.title} data-testid={`exp-group-${g.id}`}>
+              <h3>{g.title}<span>{g.items.filter((it) => !it.draft).length}／{g.items.length}</span></h3>
+              {g.items.map(row)}
+            </section>))}</div>
+        : <div className={s.menu} data-testid="exp-menu">{(items ?? []).map(row)}</div>}
       cta={null}>{children}</LabShell>
   );
 }
@@ -55,11 +64,6 @@ export type QProps = {
   conceptLink?: (id: string) => ReactNode;
   children?: ReactNode;
 };
-function Themes({ def, theme, setTheme }: { def: BinomDef; theme: ExperimentTheme; setTheme: (t: ExperimentTheme) => void }) {
-  return <div className={s.themes} role="radiogroup" aria-label="題材">
-    {def.themes.map((t) => <button key={t.id} type="button" role="radio" aria-checked={t.id === theme.id} onClick={() => { haptic(); setTheme(t); }}><span aria-hidden="true">{t.icon}</span>{t.name}</button>)}
-  </div>;
-}
 function Lane({ tag, last, n, theme, testid, cls }: { tag: string; last: number[] | null; n: number; theme: ExperimentTheme; testid: string; cls?: string }) {
   const k = last ? sumK(last) : undefined, unit = theme.unit ?? "回";
   return <div className={`${s.lane} ${cls ?? ""}`}>
@@ -111,7 +115,7 @@ export function ShiftQ(props: QProps) {
   const { def } = props;
   const { stage, reached, go } = useStages(0);
   const start: Cond = def.start, next: Cond = { ...def.start, ...def.compare };
-  const [theme, setTheme] = useState(def.themes[0]!);
+  const theme = def.themes[0]!;   // 題材は1つ（選んでも計算は同じなので切り替えは置かない）
   const f0 = useMemo(() => pmfOf(start), []), f1 = useMemo(() => pmfOf(next), []);   // eslint-disable-line react-hooks/exhaustive-deps
   const k0 = peak(f0), k1 = peak(f1);
   const [guess, setGuess] = useState<number | null>(null);
@@ -135,7 +139,6 @@ export function ShiftQ(props: QProps) {
     cta = <button type="button" className={s.primary} disabled={guess === null} onClick={() => go(1)}>{guess === null ? "まず予想を選ぶ" : "この予想で実験する"}</button>;
   } else if (stage === 1) {
     body = <>
-      <Themes def={def} theme={theme} setTheme={setTheme} />
       <Card title="いまの1セット" sub="前と後で同じ回数ずつ"><div className={s.lanes}><Lane tag={`前：p＝${pc(start.p)}`} last={A.last} n={start.n} theme={theme} testid="exp-set-before" cls={s.laneB} /><Lane tag={`後：p＝${pc(next.p)}`} last={B.last} n={next.n} theme={theme} testid="exp-set" cls={s.laneA} /></div></Card>
       <Card title={`${theme.success}の数ごとの割合`} sub={`各 ${A.sets.toLocaleString()} セット`} testid="exp-sets-card">
         <PairRows labels={f0.map((_, k) => `${k} ${unit}`)} a={summarize(A).freq} b={summarize(B).freq} names={[`前 ${pc(start.p)}`, `後 ${pc(next.p)}`]} />
@@ -191,7 +194,7 @@ export function SpreadQ(props: QProps & { q: Extract<BinomQuestion, { form: "spr
   const { stage, reached, go } = useStages(0);
   const n0 = q.set.n, n1 = q.to.n, p = q.set.p, sd = (n: number) => Math.sqrt(n * p * (1 - p));
   const [gC, setGC] = useState<number | null>(null), [gR, setGR] = useState<number | null>(null);
-  const [theme, setTheme] = useState(def.themes[0]!);
+  const theme = def.themes[0]!;   // 題材は1つ（選んでも計算は同じなので切り替えは置かない）
   const { before: A, after: B, run } = usePairRuns({ kind: "bernoulli", n: n0, p }, { kind: "bernoulli", n: n1, p }, props.seed);
   const bins = (ks: number[], n: number, N: number) => { const b = Array(11).fill(0); ks.forEach((k) => { b[Math.round((k / n) * 10)]++; }); return b.map((c) => (N ? c / N : 0)); };
   const binLabels = Array.from({ length: 11 }, (_, i) => `${i * 10}%`);
@@ -207,7 +210,6 @@ export function SpreadQ(props: QProps & { q: Extract<BinomQuestion, { form: "spr
     cta = <button type="button" className={s.primary} disabled={gC === null || gR === null} onClick={() => go(1)}>{gC === null || gR === null ? "2つとも予想を選ぶ" : "この予想で実験する"}</button>;
   } else if (stage === 1) {
     body = <>
-      <Themes def={def} theme={theme} setTheme={setTheme} />
       <Card title="いまの1セット"><div className={s.lanes}><Lane tag={`n＝${n0}`} last={A.last} n={n0} theme={theme} testid="exp-set-before" cls={s.laneB} /><Lane tag={`n＝${n1}`} last={B.last} n={n1} theme={theme} testid="exp-set" cls={s.laneA} /></div></Card>
       <Card title="成功の割合ごとのセット" sub={`各 ${A.sets.toLocaleString()} セット`}><PairRows labels={binLabels} a={bins(A.ks, n0, A.sets)} b={bins(B.ks, n1, B.sets)} names={[`n＝${n0}`, `n＝${n1}`]} /></Card>
     </>;
@@ -270,7 +272,7 @@ function ProbRun(props: QProps & { q: Extract<BinomQuestion, { form: "prob" }>; 
   const sc = scaleChoices(scale);
   const [guess, setGuess] = useState<(number | undefined)[]>(() => q.events.map(() => undefined));
   const [focus, setFocus] = useState(0);
-  const [theme, setTheme] = useState(def.themes[0]!);
+  const theme = def.themes[0]!;   // 題材は1つ（選んでも計算は同じなので切り替えは置かない）
   const f = useMemo(() => pmfOf(cond), [cond.n, cond.p]);   // eslint-disable-line react-hooks/exhaustive-deps
   const Ps = events.map((e) => probOf(f, e));
   const { rec, run } = useRuns({ kind: "bernoulli", ...cond }, props.seed);
@@ -304,7 +306,6 @@ function ProbRun(props: QProps & { q: Extract<BinomQuestion, { form: "prob" }>; 
     cta = <button type="button" className={s.primary} disabled={!ready} onClick={() => go(1)}>{ready ? "この予想で実験する" : "まず予想を選ぶ"}</button>;
   } else if (stage === 1) {
     body = <>
-      <Themes def={def} theme={theme} setTheme={setTheme} />
       <Card title="いまの1セット"><div className={s.lanes}><Lane tag={`p＝${pc(cond.p)}・n＝${cond.n}`} last={rec.last} n={cond.n} theme={theme} testid="exp-set" /></div></Card>
       <Card title="当てはまったセット" sub={`${N.toLocaleString()} セット`} testid="exp-hits">
         <div className={s.tiles}>{events.map((e, i) => <div key={i} data-testid={`exp-hit-${i}`}>{evText(e)}<b>{hits[i]!.toLocaleString()}<small> ／ {N.toLocaleString()}</small></b><i>{N ? pctSig(hits[i]! / N) : "—"}{firsts[i] ? `・初めては ${firsts[i]} セット目` : ""}</i></div>)}</div>
@@ -464,17 +465,17 @@ export function mechOfCx(cx: Cx, c: Cond, x?: number): Mechanism {
   return { kind: "mix", n: c.n, p: c.p, spread: x ?? m.spread ?? 0.2 };
 }
 const baseOf = (m: Mechanism, c: Cond): Cond => (m.kind === "urn" ? { n: c.n, p: m.success / m.total } : c);
-export function BreakQ(props: QProps) {
+export function BreakQ(props: QProps & { initial?: string }) {
   const { def } = props;
   const cxs = def.counterexamples ?? [];
-  const [cxId, setCxId] = useState<string>(cxs[0]?.id ?? "");
+  const [cxId, setCxId] = useState<string>(cxs.find((x) => x.id === props.initial)?.id ?? cxs[0]?.id ?? "");
   const cx = cxs.find((x) => x.id === cxId) ?? cxs[0]!;
   const [guess, setGuess] = useState<number | null>(null);
   const { stage, reached, go } = useStages(0);
   const cond: Cond = def.start;
   const m = mechOfCx(cx, cond), b = baseOf(m, cond), vb = b.n * b.p * (1 - b.p), vm = mechanismMoments(m).variance;
   const ans = Math.abs(vm - vb) <= 1e-9 * Math.max(1, vb) ? 1 : vm > vb ? 0 : 2;
-  const [theme, setTheme] = useState(def.themes[0]!);
+  const theme = def.themes[0]!;   // 題材は1つ（選んでも計算は同じなので切り替えは置かない）
   const { before: A, after: B, run } = usePairRuns({ kind: "bernoulli", ...b }, m, props.seed);
   const st = STRENGTH[m.kind]!;
   const xOf = (c: Cx) => { const k = STRENGTH[c.mechanism.kind]![4]; return Number(c.mechanism[k] ?? (c.mechanism.kind === "urn" ? 40 : c.mechanism.kind === "mix" ? 0.2 : 0.3)); };
@@ -491,7 +492,6 @@ export function BreakQ(props: QProps) {
     cta = <button type="button" className={s.primary} disabled={guess === null} onClick={() => go(1)}>{guess === null ? "まず予想を選ぶ" : "この予想で実験する"}</button>;
   } else if (stage === 1) {
     body = <>
-      <Themes def={def} theme={theme} setTheme={setTheme} />
       <Card title="いまの1セット"><div className={s.lanes}><Lane tag="条件どおり（二項分布）" last={A.last} n={cond.n} theme={theme} testid="exp-cx-set-before" cls={s.laneB} /><Lane tag={`崩した：${cx.name}`} last={B.last} n={cond.n} theme={theme} testid="exp-cx-set" cls={s.laneA} /></div></Card>
       <Card title="成功の回数ごとの割合" sub={`各 ${A.sets.toLocaleString()} セット`}><PairRows labels={labels} a={summarize(A).freq} b={summarize(B).freq} names={["条件どおり", "崩した"]} /></Card>
     </>;

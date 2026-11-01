@@ -233,3 +233,12 @@
 .select { min-width: 0; max-width: 100%; font: inherit; font-size: 14px; min-height: 40px; padding: 0 10px; border-radius: var(--r-m); border: 1.5px solid var(--line-strong); background: var(--surface); color: var(--ink); width: 100%; }
 .cmpTable { table-layout: fixed; }
 .cmpTable th:first-child, .cmpTable td:first-child { width: 46%; overflow-wrap: anywhere; white-space: normal; }   /* base.css の td:first-child { nowrap } を打ち消す */
+.menuGroup { display: grid; gap: 8px; }
+.menuGroup + .menuGroup { margin-top: 8px; }
+.menuGroup h3 { margin: 0; display: flex; justify-content: space-between; align-items: baseline; font-size: 14px; color: var(--ink-2); }
+.menuGroup h3 span { font-size: var(--fs-small); color: var(--ink-3); font-weight: 400; font-variant-numeric: tabular-nums; }
+.qid { font-size: var(--fs-small); color: var(--ink-3); font-weight: 400; margin-right: 6px; font-variant-numeric: tabular-nums; }
+.draft { cursor: default; background: var(--surface-2); border-style: dashed; }
+.draft b { color: var(--ink-3); font-weight: 500; }
+.draft .form { color: var(--ink-3); border-color: var(--line-strong); }
+.draft:active { transform: none; }
