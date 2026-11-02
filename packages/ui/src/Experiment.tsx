@@ -7,7 +7,7 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 import { modelPmf, type CardMechanism } from "@math-lab/engine";
 import { LabShell, peak, r2, tex } from "./labParts";
 import { TableLab, type TableDef } from "./ExperimentTable";
-import { BreakQ, ConvQ, ProbQ, QuestionMenu, ShiftQ, SpreadQ, type MenuItem } from "./ExperimentQuestion";
+import { BreakQ, ConvQ, ProbQ, QuestionMenu, ShiftQ, SpreadQ, type MenuGroup, type MenuItem } from "./ExperimentQuestion";
 import { CompareStage, copyHere, hereUrl, useCards } from "./Compare";
 import { LabInfo } from "./LabInfo";
 import type { FormulaData } from "./Formula";
@@ -109,9 +109,10 @@ function BinomEntry(props: Props & { def: BinomDef }) {
     if (def.catalog?.length) {
       const formOf = (open: string): MenuItem["form"] => open === "shift" ? "shift" : open.startsWith("break:") ? "break" : def.questions?.find((q) => q.id === open)?.form ?? "shift";
       const short = (id: string) => id.replace(/^.*-([A-Z]-\d+)$/, "$1");   // stats2:binom-A-01 → A-01（まとまりの中の番号）
-      const groups = def.catalog.map((g) => ({ id: g.id, title: g.title, items: g.items.map((it): MenuItem => it.open ? { id: it.open, key: short(it.id), form: formOf(it.open), title: it.title } : { id: it.id, key: short(it.id), form: "shift", title: it.title, draft: true }) }));
-      const extra: MenuItem[] = [{ id: "compare", form: "compare", title: "自分で条件を決めて比べる", sub: `記録カード ${deck.cards.length} 枚。条件や起き方を変えて残し、4 つまで重ねる` }];
-      return <QuestionMenu title={def.title} groups={groups} extra={extra} group={grp ?? undefined} onGroup={setGrp} onPick={setPick} onBack={props.onBack} onInfo={() => setInfo(true)}>{infoSheet}</QuestionMenu>;
+      const groups: MenuGroup[] = def.catalog.map((g) => ({ id: g.id, title: g.title, items: g.items.map((it): MenuItem => it.open ? { id: it.open, key: short(it.id), form: formOf(it.open), title: it.title } : { id: it.id, key: short(it.id), form: "shift", title: it.title, draft: true }) }));
+      // 比べるは A〜F の後ろに、まとまりの1つとして置く（下に別のカードで重ねない。渡辺さん 2026-11-02）
+      groups.push({ id: "compare", title: "自分で条件を決めて比べる", note: `カード ${deck.cards.length} 枚`, items: [{ id: "compare", form: "compare", title: "自分で条件を決めて比べる", sub: `記録カード ${deck.cards.length} 枚。条件や起き方を変えて残し、4 つまで重ねる` }] });
+      return <QuestionMenu title={def.title} groups={groups} group={grp ?? undefined} onGroup={setGrp} onPick={setPick} onBack={props.onBack} onInfo={() => setInfo(true)}>{infoSheet}</QuestionMenu>;
     }
     const items: MenuItem[] = [
       { id: "shift", form: "shift", title: def.question },
