@@ -19,7 +19,8 @@ export const STAGES_Q = ["予測", "実験", "観察", "理由", "応用"] as co
 export const FORM_NAMES = { shift: "位置", spread: "広がり", prob: "確率の値", conv: "理論と実測", break: "前提崩し", compare: "比べる" } as const;
 /** id：開く入口、key：一覧の中の印（テーマ体系の B01 など。同じ入口を2つの問いが開くことがある）、draft：作成中（押せない） */
 export type MenuItem = { id: string; key?: string; form: keyof typeof FORM_NAMES; title: string; sub?: string; draft?: boolean };
-export type MenuGroup = { id: string; title: string; items: MenuItem[] };
+/** note：数の代わりに出す一言（比べるの「カード 6 枚」など）。id が1文字（A〜F）のときだけ印として出す */
+export type MenuGroup = { id: string; title: string; items: MenuItem[]; note?: string };
 const SPREAD3 = ["広くなる", "変わらない", "狭くなる"] as const;
 const pmfOf = (c: Cond) => modelPmf({ kind: "binom", ...c });
 const meanOf = (f: number[]) => f.reduce((t, v, k) => t + k * v, 0);
@@ -29,7 +30,7 @@ const inEv = (e: Ev) => (k: number) => (e.op === "eq" ? k === e.k : e.op === "ge
 const probOf = (f: number[], e: Ev) => f.reduce((t, v, k) => t + (inEv(e)(k) ? v : 0), 0);
 const sumK = (ks: number[]) => ks.reduce((a, b) => a + b, 0);
 
-/** 入口：何を確かめたい？ groups（テーマ体系）があれば、まとまり（A〜F）を上の選択で1つ選んで、その問いを並べる。extra（比べる）はいつも下に */
+/** 入口：何を確かめたい？ groups（テーマ体系）があれば、まとまり（A〜F）を上の選択で1つ選んで、その問いを並べる。extra は下に（テーマ体系では、比べるはまとまりの1つとして選択の最後に置き、2か所に出さない） */
 export function QuestionMenu({ title, items, groups, extra, group, onGroup, onPick, onBack, onInfo, children }: { title: string; items?: MenuItem[]; groups?: MenuGroup[]; extra?: MenuItem[]; group?: string; onGroup?: (id: string) => void; onPick: (id: string) => void; onBack?: () => void; onInfo?: () => void; children?: ReactNode }) {
   const [own, setOwn] = useState(groups?.[0]?.id ?? "");
   const [open, setOpen] = useState(false);
@@ -44,24 +45,26 @@ export function QuestionMenu({ title, items, groups, extra, group, onGroup, onPi
         <span className={s.form}>{FORM_NAMES[it.form]}</span><b>{it.key && <span className={s.qid}>{it.key}</span>}{it.title}</b>{it.sub && <small>{it.sub}</small>}
       </button>;
   const ready = (x: MenuGroup) => x.items.filter((it) => !it.draft).length;
+  const count = (x: MenuGroup) => x.note ?? `${ready(x)}／${x.items.length}`;
+  const mark = (x: MenuGroup) => (/^[A-Z]$/.test(x.id) ? <span className={s.qid}>{x.id}</span> : null);
   return (
     <LabShell title={title} question="何を確かめたい？" qLabel="問いを選ぶ" stepper={false} stage={0} reached={0} go={() => {}} onBack={onBack} onInfo={onInfo}
       body={groups && g
         ? <div className={s.menu} data-testid="exp-menu">
             <div className={s.groupPick}>
               <button type="button" className={s.groupBtn} aria-haspopup="listbox" aria-expanded={open} onClick={() => { haptic(); setOpen(!open); }} data-testid="exp-group-pick">
-                <span><span className={s.qid}>{g.id}</span>{g.title}</span><small>{ready(g)}／{g.items.length}</small><i aria-hidden="true">▾</i>
+                <span>{mark(g)}{g.title}</span><small>{count(g)}</small><i aria-hidden="true">▾</i>
               </button>
               {open && <>
                 <div className={s.groupScrim} onClick={() => setOpen(false)} />
                 <ul className={s.groupList} role="listbox" aria-label="テーマのまとまり" data-testid="exp-group-list">
                   {groups.map((x) => <li key={x.id} role="option" aria-selected={x.id === g.id} tabIndex={0} onClick={() => choose(x.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choose(x.id); } }} data-testid={`exp-group-${x.id}`}>
-                    <span><span className={s.qid}>{x.id}</span>{x.title}</span><small>{ready(x)}／{x.items.length}</small>
+                    <span>{mark(x)}{x.title}</span><small>{count(x)}</small>
                   </li>)}
                 </ul>
               </>}
             </div>
-            <section className={s.menuGroup} aria-label={`${g.id} ${g.title}`} data-testid={`exp-items-${g.id}`}>{g.items.map(row)}</section>
+            <section className={s.menuGroup} aria-label={/^[A-Z]$/.test(g.id) ? `${g.id} ${g.title}` : g.title} data-testid={`exp-items-${g.id}`}>{g.items.map(row)}</section>
             {extra?.length ? <section className={s.menuGroup} aria-label="実験室">{extra.map(row)}</section> : null}
           </div>
         : <div className={s.menu} data-testid="exp-menu">{(items ?? []).map(row)}</div>}
